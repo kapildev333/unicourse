@@ -36,7 +36,9 @@ func Static(dir string) (http.Handler, error) {
 			return
 		}
 		h := w.Header()
-		h.Set("X-Content-Type-Options", "nosniff")
+		if name == "index.html" {
+			setRoute(r.Context(), "/*") // the log line must not carry client-side route params such as invite tokens
+		}
 		switch {
 		case name == "index.html":
 			h.Set("Cache-Control", "no-cache")
@@ -46,12 +48,14 @@ func Static(dir string) (http.Handler, error) {
 		if path.Ext(name) == ".html" {
 			h.Set("X-Frame-Options", "DENY")
 			h.Set("Referrer-Policy", "same-origin")
+			h.Set("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
 		}
 		http.ServeContent(w, r, name, fi.ModTime(), rs)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		p := path.Clean("/" + r.URL.Path)
-		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || p == "/api" || strings.HasPrefix(p, "/api/") {
+		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || hasDotSegment(p) || p == "/api" || strings.HasPrefix(p, "/api/") {
 			WriteError(w, r, NotFound("route"))
 			return
 		}
@@ -68,4 +72,13 @@ func Static(dir string) (http.Handler, error) {
 		}
 		serve(w, r, "index.html")
 	}), nil
+}
+
+func hasDotSegment(p string) bool {
+	for _, s := range strings.Split(p, "/") {
+		if strings.HasPrefix(s, ".") {
+			return true
+		}
+	}
+	return false
 }

@@ -86,8 +86,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     const ctx = await browser.newContext()
     const p = await ctx.newPage()
     await signIn(p, instr, slugA)
-    await expect(p.getByRole('cell', { name: 'Instructor', exact: true })).toBeVisible()
-    await expect(p.getByRole('link', { name: 'CS101' })).toBeVisible()
+    await expect(p.getByRole('row', { name: /CS101/ })).toContainText('Instructor')
     await ctx.close()
   })
 
@@ -105,22 +104,24 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await expect(page.getByText(/Import finished: 3 invited/)).toBeVisible()
   })
 
-  await test.step('student signs in and appears on the roster', async () => {
-    const ctx = await browser.newContext()
-    const p = await ctx.newPage()
-    await signIn(p, students[0], slugA)
-    await expect(p.getByRole('link', { name: 'CS101' })).toBeVisible()
-    await ctx.close()
+  await test.step('every student signs in, sees the section, and the roster lists all three', async () => {
+    for (const s of students) {
+      const ctx = await browser.newContext()
+      const p = await ctx.newPage()
+      await signIn(p, s, slugA)
+      await expect(p.getByRole('row', { name: /CS101/ })).toContainText('Student')
+      await ctx.close()
+    }
     await page.goto(sectionUrl.v)
-    await expect(page.getByRole('cell', { name: students[0], exact: true }).first()).toBeVisible()
+    for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
   })
 
   await test.step('TA accepts the invitation and sees the roster without instructor controls', async () => {
     await signOut(page)
     await signIn(page, ta, slugA)
-    await expect(page.getByRole('cell', { name: 'TA', exact: true })).toBeVisible()
+    await expect(page.getByRole('row', { name: /CS101/ })).toContainText('TA')
     await page.getByRole('link', { name: 'CS101' }).click()
-    await expect(page.getByRole('cell', { name: students[0], exact: true }).first()).toBeVisible()
+    for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add instructor' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toHaveCount(0)
   })
@@ -133,13 +134,19 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await signIn(p, adminB, slugB)
     await expect(p.getByText('No sections yet')).toBeVisible()
     await p.goto(`/${slugB}/courses`)
+    await expect(p.getByRole('button', { name: 'New course' }).first()).toBeVisible()
     await expect(p.getByRole('cell', { name: 'CS101', exact: true })).toHaveCount(0)
     await p.goto(`/${slugB}/courses/sections`)
+    await expect(p.getByRole('button', { name: 'New section' }).first()).toBeVisible()
     await expect(p.getByRole('link', { name: 'CS101' })).toHaveCount(0)
     await p.goto(`/${slugA}/me`)
     await expect(p.getByRole('heading', { name: "You don't have access to this university" })).toBeVisible()
     const res = await p.request.get(`/api/v1/universities/${slugA}/sections`)
     expect(res.status()).toBe(403)
+    const sectionId = new URL(sectionUrl.v).pathname.split('/').filter(Boolean).pop()!
+    const own = `/api/v1/universities/${slugB}/sections/${sectionId}`
+    expect((await p.request.get(own)).status()).toBe(404)
+    expect((await p.request.get(`${own}/enrollments`)).status()).toBe(404)
     await ctx.close()
   })
 })

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p e2e",
     "test": "vitest --exclude \"e2e/**\" --exclude \"node_modules/**\" --exclude \"dist/**\"",
     "generate": "openapi-typescript ../api/openapi.json -o src/api/types.ts",
     "e2e": "playwright test"

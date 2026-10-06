@@ -6,7 +6,8 @@ export const tmpDir = path.join(here, '.tmp')
 export const apiLog = path.join(tmpDir, 'api.log')
 export const adminBin = path.join(tmpDir, 'unicourse-admin')
 export const apiBin = path.join(tmpDir, 'unicourse-api')
-export const webDir = path.resolve(here, '..', 'dist')
+export const webRoot = path.resolve(here, '..')
+export const webDir = path.join(webRoot, 'dist')
 export const apiDir = path.resolve(here, '..', '..', 'api')
 
 export const databaseUrl =
