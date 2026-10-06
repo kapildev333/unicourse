@@ -144,3 +144,65 @@ func TestTermsPagination(t *testing.T) {
 		t.Fatalf("page2 %s", raw)
 	}
 }
+
+func TestTermsSameCreatedAtPaging(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into terms (university_id, name, starts_on, ends_on) select $1, 'T'||g, '2027-01-01', '2027-06-01' from generate_series(1,4) g`, e.Fx.UniversityA)
+		return err
+	})
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 10; i++ {
+		_, raw := e.do(admin, "GET", termPath+"?limit=1&cursor="+cursor, nil)
+		var p struct {
+			Items      []Term
+			NextCursor string
+		}
+		json.Unmarshal(raw, &p)
+		for _, d := range p.Items {
+			seen[d.ID]++
+		}
+		if cursor = p.NextCursor; cursor == "" {
+			break
+		}
+	}
+	if len(seen) != 5 {
+		t.Fatalf("saw %d distinct rows: %v", len(seen), seen)
+	}
+	for id, n := range seen {
+		if n != 1 {
+			t.Fatalf("%s seen %d times", id, n)
+		}
+	}
+}
+
+func TestTermDateRange(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	for _, b := range []string{
+		`{"name":"Z1","startsOn":"2026-01-01","endsOn":"0001-01-01"}`,
+		`{"name":"Z2","startsOn":"0001-01-01","endsOn":"0001-01-01"}`,
+		`{"name":"Z3","startsOn":"0000-01-01","endsOn":"2026-01-01"}`,
+	} {
+		if st, raw := e.do(admin, "POST", termPath, json.RawMessage(b)); st != 400 {
+			t.Fatalf("%s: %d %s", b, st, raw)
+		}
+	}
+	st, raw := e.do(admin, "PATCH", termPath+"/"+e.Fx.TermA, json.RawMessage(`{"endsOn":"0001-01-01"}`))
+	if _, d := errBody(raw); st != 400 || len(d) == 0 || d[0].Field != "endsOn" {
+		t.Fatalf("patch: %d %s", st, raw)
+	}
+}
+
+func TestTermPatchNull(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	for _, f := range []string{"name", "startsOn", "endsOn"} {
+		st, raw := e.do(admin, "PATCH", termPath+"/"+e.Fx.TermA, json.RawMessage(`{"`+f+`":null}`))
+		if _, d := errBody(raw); st != 400 || len(d) != 1 || d[0].Field != f || d[0].Message != "must be a string" {
+			t.Fatalf("%s null: %d %s", f, st, raw)
+		}
+	}
+}

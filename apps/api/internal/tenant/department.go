@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
@@ -19,6 +20,42 @@ type Department struct {
 	Name      string `json:"name"`
 	Code      string `json:"code"`
 	createdAt time.Time
+}
+
+// optStr is a PATCH string field that tells absent from explicit null.
+type optStr struct {
+	Set, Null bool
+	V         string
+}
+
+func (o *optStr) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Null = true
+		return nil
+	}
+	return json.Unmarshal(b, &o.V)
+}
+
+// patchNulls returns a "must be a string" error per explicitly-null field (name order).
+type namedOpt struct {
+	name string
+	v    optStr
+}
+
+func nf(name string, v optStr) namedOpt { return namedOpt{name, v} }
+
+func patchNulls(fields ...namedOpt) error {
+	var d []httpx.FieldError
+	for _, f := range fields {
+		if f.v.Null {
+			d = append(d, httpx.FieldError{Field: f.name, Message: "must be a string"})
+		}
+	}
+	if len(d) > 0 {
+		return httpx.Validation(d...)
+	}
+	return nil
 }
 
 var deptCodeRe = regexp.MustCompile(`^[A-Z0-9]{2,10}$`)
@@ -111,11 +148,14 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if !isUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
-	var in struct{ Name, Code *string }
+	var in struct{ Name, Code optStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if in.Name == nil && in.Code == nil {
+	if err := patchNulls(nf("name", in.Name), nf("code", in.Code)); err != nil {
+		return 0, nil, err
+	}
+	if !in.Name.Set && !in.Code.Set {
 		return 0, nil, noFields()
 	}
 	var before Department
@@ -127,11 +167,11 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, err
 	}
 	after := before
-	if in.Name != nil {
-		after.Name = *in.Name
+	if in.Name.Set {
+		after.Name = in.Name.V
 	}
-	if in.Code != nil {
-		after.Code = *in.Code
+	if in.Code.Set {
+		after.Code = in.Code.V
 	}
 	name, err := deptFields(after.Name, after.Code)
 	if err != nil {

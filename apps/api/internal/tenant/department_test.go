@@ -244,3 +244,56 @@ func TestDepartmentWriteRollsBackAudit(t *testing.T) {
 		t.Fatalf("audit rows after failed write: %d", n)
 	}
 }
+
+func TestDepartmentsSameCreatedAtPaging(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error { // one tx: identical created_at
+		_, err := tx.Exec(`insert into departments (university_id, name, code) select $1, 'D'||g, 'D'||g from generate_series(1,4) g`, e.Fx.UniversityA)
+		return err
+	})
+	seen := map[string]int{}
+	cursor := ""
+	for i := 0; i < 10; i++ {
+		_, raw := e.do(admin, "GET", deptPath+"?limit=1&cursor="+cursor, nil)
+		var p struct {
+			Items      []Department
+			NextCursor string
+		}
+		json.Unmarshal(raw, &p)
+		for _, d := range p.Items {
+			seen[d.ID]++
+		}
+		if cursor = p.NextCursor; cursor == "" {
+			break
+		}
+	}
+	if len(seen) != 5 { // seeded CS + 4
+		t.Fatalf("saw %d distinct rows: %v", len(seen), seen)
+	}
+	for id, n := range seen {
+		if n != 1 {
+			t.Fatalf("%s seen %d times", id, n)
+		}
+	}
+}
+
+func TestDepartmentPatchNull(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	for _, f := range []string{"name", "code"} {
+		st, raw := e.do(admin, "PATCH", deptPath+"/"+e.Fx.DeptA, json.RawMessage(`{"`+f+`":null}`))
+		if _, d := errBody(raw); st != 400 || len(d) != 1 || d[0].Field != f || d[0].Message != "must be a string" {
+			t.Fatalf("%s null: %d %s", f, st, raw)
+		}
+	}
+}
+
+func TestDepartmentDeleteWithAdmins(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	e.user(e.Fx.UniversityA, "da@a.edu", "dept_admin", "active", e.Fx.DeptA)
+	if st, raw := e.do(admin, "DELETE", deptPath+"/"+e.Fx.DeptA, nil); st != 409 {
+		t.Fatalf("%d %s", st, raw)
+	}
+}

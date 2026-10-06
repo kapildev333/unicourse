@@ -32,17 +32,21 @@ func termFields(t Term) (Term, error) {
 	}
 	t.Name = name
 	var d [2]time.Time
+	var ok [2]bool
 	for i, f := range []struct{ field, v string }{{"startsOn", t.StartsOn}, {"endsOn", t.EndsOn}} {
 		if f.v == "" {
 			details = append(details, httpx.FieldError{Field: f.field, Message: "is required"})
 			continue
 		}
 		var err error
-		if d[i], err = time.Parse(dateLayout, f.v); err != nil {
+		// Postgres has no year 0; Go's zero time is 0001-01-01, so track success explicitly.
+		if d[i], err = time.Parse(dateLayout, f.v); err != nil || d[i].Year() < 1 {
 			details = append(details, httpx.FieldError{Field: f.field, Message: "must be a date YYYY-MM-DD"})
+			continue
 		}
+		ok[i] = true
 	}
-	if !d[0].IsZero() && !d[1].IsZero() && !d[1].After(d[0]) {
+	if ok[0] && ok[1] && !d[1].After(d[0]) {
 		details = append(details, httpx.FieldError{Field: "endsOn", Message: "must be after startsOn"})
 	}
 	if len(details) > 0 {
@@ -120,11 +124,14 @@ func updateTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if !isUUID(id) {
 		return 0, nil, httpx.NotFound("term")
 	}
-	var in struct{ Name, StartsOn, EndsOn *string }
+	var in struct{ Name, StartsOn, EndsOn optStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if in.Name == nil && in.StartsOn == nil && in.EndsOn == nil {
+	if err := patchNulls(nf("name", in.Name), nf("startsOn", in.StartsOn), nf("endsOn", in.EndsOn)); err != nil {
+		return 0, nil, err
+	}
+	if !in.Name.Set && !in.StartsOn.Set && !in.EndsOn.Set {
 		return 0, nil, noFields()
 	}
 	var before Term
@@ -136,14 +143,14 @@ func updateTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, err
 	}
 	after := before
-	if in.Name != nil {
-		after.Name = *in.Name
+	if in.Name.Set {
+		after.Name = in.Name.V
 	}
-	if in.StartsOn != nil {
-		after.StartsOn = *in.StartsOn
+	if in.StartsOn.Set {
+		after.StartsOn = in.StartsOn.V
 	}
-	if in.EndsOn != nil {
-		after.EndsOn = *in.EndsOn
+	if in.EndsOn.Set {
+		after.EndsOn = in.EndsOn.V
 	}
 	if after, err = termFields(after); err != nil {
 		return 0, nil, err

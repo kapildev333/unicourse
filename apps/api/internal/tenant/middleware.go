@@ -22,6 +22,7 @@ type Deps struct {
 
 // Handler is a tenant-scoped handler. tx is the request's only transaction (RLS = s.UniversityID).
 // Return (status, body, nil) on success; body nil means no body. Return an error to roll back.
+// The status must be non-zero: a zero status commits and then fails the response with a 500.
 type Handler func(r *http.Request, tx *sql.Tx, s authz.Scope) (status int, body any, err error)
 
 // UniversityID is the request's university, "" outside Wrap.
@@ -59,7 +60,7 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 			var role string
 			var ids []byte
 			err := tx.QueryRowContext(ctx, `select m.role,
-				coalesce((select json_agg(da.department_id order by da.department_id) from department_admins da where da.user_id = m.user_id), '[]')
+				case when m.role = 'dept_admin' then coalesce((select json_agg(da.department_id order by da.department_id) from department_admins da where da.user_id = m.user_id), '[]') else '[]' end
 				from memberships m where m.user_id = $1 and m.status = 'active'`, a.UserID).Scan(&role, &ids)
 			if errors.Is(err, sql.ErrNoRows) {
 				return httpx.Forbidden()

@@ -40,7 +40,7 @@ func TestTruthTable(t *testing.T) {
 		}
 	}
 	must(pg.WithPlatformTx(ctx, db, func(tx *sql.Tx) error {
-		for _, n := range []string{"din", "dout", "inst", "ta", "student", "other"} {
+		for _, n := range []string{"din", "dout", "inst", "ta", "student", "other", "stale"} {
 			var id string
 			if err := tx.QueryRow(`insert into users (email) values ($1) returning id`, n+"@a.edu").Scan(&id); err != nil {
 				return err
@@ -65,6 +65,10 @@ func TestTruthTable(t *testing.T) {
 				return err
 			}
 		}
+		// stale department_admins row for a plain member
+		if _, err := tx.Exec(`insert into department_admins (university_id, department_id, user_id) values ($1, $2, $3)`, uni, fx.DeptA, users["stale"]); err != nil {
+			return err
+		}
 		_, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) values ($1, $2, $3)`, uni, section, users["student"])
 		return err
 	}))
@@ -81,7 +85,15 @@ func TestTruthTable(t *testing.T) {
 		if err := tx.QueryRow(`insert into terms (university_id, name, starts_on, ends_on) values ($1, 'T', '2026-01-01', '2026-02-01') returning id`, b).Scan(&term); err != nil {
 			return err
 		}
-		return tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1, $2, $3, '1') returning id`, b, course, term).Scan(&sectionB)
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1, $2, $3, '1') returning id`, b, course, term).Scan(&sectionB); err != nil {
+			return err
+		}
+		// the same users are staff/student there, so the false results under A depend on RLS alone
+		if _, err := tx.Exec(`insert into section_staff (university_id, section_id, user_id, role) values ($1, $2, $3, 'instructor')`, b, sectionB, users["inst"]); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) values ($1, $2, $3)`, b, sectionB, users["student"])
+		return err
 	}))
 
 	actors := []struct {
@@ -95,6 +107,8 @@ func TestTruthTable(t *testing.T) {
 		{"ta", authz.Scope{UniversityID: uni, UserID: users["ta"], Role: authz.Member}},
 		{"student", authz.Scope{UniversityID: uni, UserID: users["student"], Role: authz.Member}},
 		{"unrelated", authz.Scope{UniversityID: uni, UserID: users["other"], Role: authz.Member}},
+		// a member whose scope carries department ids (stale rows): every manage row must be false
+		{"member-stale-depts", authz.Scope{UniversityID: uni, UserID: users["stale"], Role: authz.Member, DeptIDs: []string{fx.DeptA}}},
 	}
 	type sectionFn func(context.Context, *sql.Tx, authz.Scope, string) (bool, error)
 	// columns follow actors
@@ -102,17 +116,17 @@ func TestTruthTable(t *testing.T) {
 		name string
 		pure func(authz.Scope) bool
 		tx   sectionFn
-		want [7]bool
+		want [8]bool
 	}{
-		{name: "IsAdmin", pure: authz.IsAdmin, want: [7]bool{true}},
-		{name: "CanManageDepartment", pure: func(s authz.Scope) bool { return authz.CanManageDepartment(s, fx.DeptA) }, want: [7]bool{true, true}},
-		{name: "CanInvite(member)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.Member) }, want: [7]bool{true, true, true}},
-		{name: "CanInvite(dept_admin)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.DeptAdmin) }, want: [7]bool{true}},
-		{name: "CanInvite(admin)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.Admin) }, want: [7]bool{true}},
-		{name: "CanManageSection", tx: authz.CanManageSection, want: [7]bool{true, true}},
-		{name: "CanManageTAs", tx: authz.CanManageTAs, want: [7]bool{true, true, false, true}},
-		{name: "CanReadSection", tx: authz.CanReadSection, want: [7]bool{true, true, false, true, true, true}},
-		{name: "CanReadRoster", tx: authz.CanReadRoster, want: [7]bool{true, true, false, true, true}},
+		{name: "IsAdmin", pure: authz.IsAdmin, want: [8]bool{true}},
+		{name: "CanManageDepartment", pure: func(s authz.Scope) bool { return authz.CanManageDepartment(s, fx.DeptA) }, want: [8]bool{true, true}},
+		{name: "CanInvite(member)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.Member) }, want: [8]bool{true, true, true}},
+		{name: "CanInvite(dept_admin)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.DeptAdmin) }, want: [8]bool{true}},
+		{name: "CanInvite(admin)", pure: func(s authz.Scope) bool { return authz.CanInvite(s, authz.Admin) }, want: [8]bool{true}},
+		{name: "CanManageSection", tx: authz.CanManageSection, want: [8]bool{true, true}},
+		{name: "CanManageTAs", tx: authz.CanManageTAs, want: [8]bool{true, true, false, true}},
+		{name: "CanReadSection", tx: authz.CanReadSection, want: [8]bool{true, true, false, true, true, true}},
+		{name: "CanReadRoster", tx: authz.CanReadRoster, want: [8]bool{true, true, false, true, true}},
 	}
 	must(pg.WithTx(ctx, db, uni, func(tx *sql.Tx) error {
 		for _, row := range rows {

@@ -46,6 +46,12 @@ func probeEnv(t *testing.T) *env {
 		r.Handle("POST", "/api/v1/universities/{slug}/create", Wrap(d, func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			return 201, map[string]string{"ok": "yes"}, insert(r, tx, s)
 		}))
+		// swallows a failed statement (aborting the tx) and still claims success
+		r.Handle("POST", "/api/v1/universities/{slug}/swallow", Wrap(d, func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+			insert(r, tx, s)
+			insert(r, tx, s) // duplicate code: tx aborted, error ignored
+			return 201, map[string]string{"ok": "yes"}, nil
+		}))
 		r.Handle("DELETE", "/api/v1/universities/{slug}/nobody", Wrap(d, func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			return 204, nil, nil
 		}))
@@ -141,6 +147,12 @@ func TestWrapDeptIDs(t *testing.T) {
 	if _, b, _ = e.probe(c, "a"); len(b.Scope.DeptIDs) != 0 {
 		t.Fatalf("member DeptIDs %v", b.Scope.DeptIDs)
 	}
+	// a plain member with stale department_admins rows still gets no DeptIDs
+	_, c = e.user(e.Fx.UniversityA, "stale@a.edu", "member", "active", e.Fx.DeptA)
+	st, b, raw = e.probe(c, "a")
+	if st != 200 || b.Scope.Role != authz.Member || len(b.Scope.DeptIDs) != 0 || strings.Contains(string(raw), e.Fx.DeptA) {
+		t.Fatalf("stale member: %d %s", st, raw)
+	}
 }
 
 func TestWrapCommitAndRollback(t *testing.T) {
@@ -167,5 +179,17 @@ func TestWrapCommitAndRollback(t *testing.T) {
 	}
 	if st, raw = e.do(c, "DELETE", "/api/v1/universities/a/nobody", nil); st != 204 || len(raw) != 0 {
 		t.Fatalf("204: %d %q", st, raw)
+	}
+}
+
+func TestWrapResponseOnlyAfterCommit(t *testing.T) {
+	e := probeEnv(t)
+	_, c := e.user(e.Fx.UniversityA, "adm3@a.edu", "admin", "active")
+	st, raw := e.do(c, "POST", "/api/v1/universities/a/swallow", nil)
+	if st != 500 || strings.Contains(string(raw), `"ok"`) {
+		t.Fatalf("swallow: %d %s", st, raw)
+	}
+	if n := e.deptCount("PRB"); n != 0 {
+		t.Fatalf("aborted tx left %d rows", n)
 	}
 }

@@ -12,3 +12,8 @@ Finished; awaiting orchestrator verification.
 None.
 ## Blockers
 None.
+## Fix round (review)
+- term dates: parse success tracked per field, year < 1 rejected (0001-01-01 is Go's zero time; Postgres has no year 0).
+- PATCH explicit null: `optStr` (department.go) distinguishes absent/null; null -> 400 "must be a string" on that field. Reuse for later PATCH bodies via `patchNulls(nf(...))`.
+- Same-created_at paging tests (departments, terms); mutation dropping the id tiebreak made them fail. Added department delete with department_admins -> 409.
+- P1-L2a items: Scope.DeptIDs only for dept_admin (middleware SQL); probe `/swallow` pins response-after-commit; truth table gained a "member-stale-depts" actor and B's section now has real staff/enrollment rows; Handler doc notes non-zero status.
