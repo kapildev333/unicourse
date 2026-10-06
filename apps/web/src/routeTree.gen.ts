@@ -23,6 +23,8 @@ import { Route as SlugAdminDepartmentsRouteImport } from './routes/$slug/admin/d
 import { Route as SlugAdminInvitationsRouteImport } from './routes/$slug/admin/invitations'
 import { Route as SlugAdminMembersRouteImport } from './routes/$slug/admin/members'
 import { Route as SlugAdminTermsRouteImport } from './routes/$slug/admin/terms'
+import { Route as SlugCoursesIndexRouteImport } from './routes/$slug/courses/index'
+import { Route as SlugCoursesSectionsRouteImport } from './routes/$slug/courses/sections'
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -95,6 +97,16 @@ const SlugAdminTermsRoute = SlugAdminTermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => SlugAdminRoute,
 } as any)
+const SlugCoursesIndexRoute = SlugCoursesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SlugCoursesRoute,
+} as any)
+const SlugCoursesSectionsRoute = SlugCoursesSectionsRouteImport.update({
+  id: '/sections',
+  path: '/sections',
+  getParentRoute: () => SlugCoursesRoute,
+} as any)
 const SlugSectionsIdRoute = SlugSectionsIdRouteImport.update({
   id: '/sections/$id',
   path: '/sections/$id',
@@ -106,7 +118,7 @@ export interface FileRoutesByFullPath {
   '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/$slug/admin': typeof SlugAdminRouteWithChildren
-  '/$slug/courses': typeof SlugCoursesRoute
+  '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
@@ -115,13 +127,14 @@ export interface FileRoutesByFullPath {
   '/$slug/admin/invitations': typeof SlugAdminInvitationsRoute
   '/$slug/admin/members': typeof SlugAdminMembersRoute
   '/$slug/admin/terms': typeof SlugAdminTermsRoute
+  '/$slug/courses/sections': typeof SlugCoursesSectionsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
+  '/$slug/courses/': typeof SlugCoursesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
-  '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug': typeof SlugIndexRoute
@@ -130,8 +143,10 @@ export interface FileRoutesByTo {
   '/$slug/admin/invitations': typeof SlugAdminInvitationsRoute
   '/$slug/admin/members': typeof SlugAdminMembersRoute
   '/$slug/admin/terms': typeof SlugAdminTermsRoute
+  '/$slug/courses/sections': typeof SlugCoursesSectionsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin': typeof SlugAdminIndexRoute
+  '/$slug/courses': typeof SlugCoursesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -139,7 +154,7 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/$slug/admin': typeof SlugAdminRouteWithChildren
-  '/$slug/courses': typeof SlugCoursesRoute
+  '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
@@ -148,8 +163,10 @@ export interface FileRoutesById {
   '/$slug/admin/invitations': typeof SlugAdminInvitationsRoute
   '/$slug/admin/members': typeof SlugAdminMembersRoute
   '/$slug/admin/terms': typeof SlugAdminTermsRoute
+  '/$slug/courses/sections': typeof SlugCoursesSectionsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
+  '/$slug/courses/': typeof SlugCoursesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,13 +184,14 @@ export interface FileRouteTypes {
     | '/$slug/admin/invitations'
     | '/$slug/admin/members'
     | '/$slug/admin/terms'
+    | '/$slug/courses/sections'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
+    | '/$slug/courses/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sign-in'
-    | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug'
@@ -182,8 +200,10 @@ export interface FileRouteTypes {
     | '/$slug/admin/invitations'
     | '/$slug/admin/members'
     | '/$slug/admin/terms'
+    | '/$slug/courses/sections'
     | '/$slug/sections/$id'
     | '/$slug/admin'
+    | '/$slug/courses'
   id:
     | '__root__'
     | '/'
@@ -199,8 +219,10 @@ export interface FileRouteTypes {
     | '/$slug/admin/invitations'
     | '/$slug/admin/members'
     | '/$slug/admin/terms'
+    | '/$slug/courses/sections'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
+    | '/$slug/courses/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -310,6 +332,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugAdminTermsRouteImport
       parentRoute: typeof SlugAdminRoute
     }
+    '/$slug/courses/': {
+      id: '/$slug/courses/'
+      path: '/'
+      fullPath: '/$slug/courses/'
+      preLoaderRoute: typeof SlugCoursesIndexRouteImport
+      parentRoute: typeof SlugCoursesRoute
+    }
+    '/$slug/courses/sections': {
+      id: '/$slug/courses/sections'
+      path: '/sections'
+      fullPath: '/$slug/courses/sections'
+      preLoaderRoute: typeof SlugCoursesSectionsRouteImport
+      parentRoute: typeof SlugCoursesRoute
+    }
     '/$slug/sections/$id': {
       id: '/$slug/sections/$id'
       path: '/sections/$id'
@@ -342,9 +378,23 @@ const SlugAdminRouteWithChildren = SlugAdminRoute._addFileChildren(
   SlugAdminRouteChildren,
 )
 
+interface SlugCoursesRouteChildren {
+  SlugCoursesSectionsRoute: typeof SlugCoursesSectionsRoute
+  SlugCoursesIndexRoute: typeof SlugCoursesIndexRoute
+}
+
+const SlugCoursesRouteChildren: SlugCoursesRouteChildren = {
+  SlugCoursesSectionsRoute: SlugCoursesSectionsRoute,
+  SlugCoursesIndexRoute: SlugCoursesIndexRoute,
+}
+
+const SlugCoursesRouteWithChildren = SlugCoursesRoute._addFileChildren(
+  SlugCoursesRouteChildren,
+)
+
 interface SlugRouteRouteChildren {
   SlugAdminRoute: typeof SlugAdminRouteWithChildren
-  SlugCoursesRoute: typeof SlugCoursesRoute
+  SlugCoursesRoute: typeof SlugCoursesRouteWithChildren
   SlugMeRoute: typeof SlugMeRoute
   SlugIndexRoute: typeof SlugIndexRoute
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
@@ -352,7 +402,7 @@ interface SlugRouteRouteChildren {
 
 const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugAdminRoute: SlugAdminRouteWithChildren,
-  SlugCoursesRoute: SlugCoursesRoute,
+  SlugCoursesRoute: SlugCoursesRouteWithChildren,
   SlugMeRoute: SlugMeRoute,
   SlugIndexRoute: SlugIndexRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,

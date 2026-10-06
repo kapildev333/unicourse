@@ -1,3 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { CoursesLayout } from '../../features/courses/courses-layout'
 
-export const Route = createFileRoute('/$slug/courses')({ component: () => <h1>courses</h1> })
+export const Route = createFileRoute('/$slug/courses')({ component: CoursesLayout })

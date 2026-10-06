@@ -3,9 +3,11 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 export function useCursorList<T>(
   queryKey: readonly unknown[],
   fetchPage: (cursor: string | undefined) => Promise<{ items: T[]; nextCursor?: string }>,
+  enabled = true,
 ) {
   const q = useInfiniteQuery({
     queryKey,
+    enabled,
     queryFn: ({ pageParam }) => fetchPage(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
