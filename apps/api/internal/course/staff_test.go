@@ -1,0 +1,204 @@
+package course
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"testing"
+
+	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+)
+
+func (e *env) staffPath(sec string) string { return "/sections/" + sec + "/staff" }
+
+func (e *env) count(q string, args ...any) (n int) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error { return tx.QueryRow(q, args...).Scan(&n) })
+	return
+}
+
+func (e *env) newSection(termID, number string) (id string) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,$4) returning id`, e.Fx.UniversityA, e.CourseA, termID, number).Scan(&id)
+	})
+	return
+}
+
+func TestStaffAddActive(t *testing.T) {
+	e := newEnv(t)
+	e.user("newinst@a.edu", "member")
+	e.user("newta@a.edu", "member")
+	st, raw := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), map[string]any{"email": "  NewInst@A.edu ", "role": "instructor"})
+	var got Staff
+	if st != 201 || json.Unmarshal(raw, &got) != nil || got.UserID != e.UserID["newinst@a.edu"] || got.Role != "instructor" || got.Email != "newinst@a.edu" || got.DisplayName == "" {
+		t.Fatalf("dept_admin adds instructor: %d %s", st, raw)
+	}
+	if n, _, after := e.audit("staff.create", e.count0(t, e.UserID["newinst@a.edu"])); n != 1 || !after.Valid {
+		t.Errorf("audit staff.create: %d %v", n, after)
+	}
+	if st, raw := e.call(e.Inst, "POST", e.staffPath(e.SectionA), map[string]any{"email": "newta@a.edu", "role": "ta"}); st != 201 {
+		t.Errorf("instructor adds ta: %d %s", st, raw)
+	}
+	for name, c := range map[string]*http.Cookie{"ta": e.TA, "student": e.Stud, "other": e.Other, "daOut": e.DaOut} {
+		if st, raw := e.call(c, "POST", e.staffPath(e.SectionA), map[string]any{"email": "other@a.edu", "role": "ta"}); st != 403 {
+			t.Errorf("%s adds: %d %s", name, st, raw)
+		}
+	}
+	// another instructor may not add an instructor
+	e.user("inst2@a.edu", "member")
+	if st, _ := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), map[string]any{"email": "inst2@a.edu", "role": "instructor"}); st != 201 {
+		t.Fatal("setup inst2")
+	}
+	if st, raw := e.call(e.Inst, "POST", e.staffPath(e.SectionA), map[string]any{"email": "other@a.edu", "role": "instructor"}); st != 403 {
+		t.Errorf("instructor adds instructor: %d %s", st, raw)
+	}
+	if st, _ := e.call(e.DaOut, "GET", e.staffPath(e.SectionA), nil); st != 200 {
+		t.Errorf("daOut lists (ruling 6): %d", st)
+	}
+}
+
+// count0 returns the section_staff row id of userID in S1 (the audit entity id).
+func (e *env) count0(t *testing.T, userID string) (id string) {
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from section_staff where section_id = $1 and user_id = $2`, e.SectionA, userID).Scan(&id)
+	})
+	return
+}
+
+func TestStaffValidationAndDuplicates(t *testing.T) {
+	e := newEnv(t)
+	for _, b := range []map[string]any{
+		{"email": "nope", "role": "ta"}, {"email": "other@a.edu", "role": "student"}, {"email": "other@a.edu"}, {"role": "ta"},
+		{"email": nil, "role": "ta"}, {"email": "other@a.edu", "role": "ta", "x": 1}, {"email": "o\u0000@a.edu", "role": "ta"},
+	} {
+		if st, raw := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), b); st != 400 {
+			t.Errorf("%v: %d %s", b, st, raw)
+		}
+	}
+	// check order: unknown section 404 before body 400
+	for _, id := range []string{"nope", "00000000-0000-0000-0000-000000000000"} {
+		if st, _ := e.call(e.DaIn, "POST", e.staffPath(id), map[string]any{}); st != 404 {
+			t.Errorf("unknown section %s: %d", id, st)
+		}
+	}
+	// mixed-case/whitespace resolves to the existing member and duplicates 409
+	if st, raw := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), map[string]any{"email": " TA@A.edu ", "role": "ta"}); st != 409 {
+		t.Errorf("duplicate staff: %d %s", st, raw)
+	}
+	if st, raw := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), map[string]any{"email": "OTHER@a.edu", "role": "ta"}); st != 201 {
+		t.Errorf("mixed-case existing member: %d %s", st, raw)
+	}
+}
+
+func TestStaffInviteFlow(t *testing.T) {
+	e := newEnv(t)
+	s2 := e.newSection(e.TermA2, "001")
+	body := map[string]any{"email": "Newbie@Outside.org", "role": "ta"}
+	st, raw := e.call(e.Inst, "POST", e.staffPath(e.SectionA), body)
+	var got struct {
+		Invited    bool
+		Invitation struct{ ID, Email, Role string }
+	}
+	if st != 202 || json.Unmarshal(raw, &got) != nil || !got.Invited || got.Invitation.Email != "newbie@outside.org" || got.Invitation.Role != "member" {
+		t.Fatalf("invite: %d %s", st, raw)
+	}
+	if e.Mails.count() != 1 || e.count(`select count(*) from pending_section_staff`) != 1 {
+		t.Errorf("mails %d", e.Mails.count())
+	}
+	_, raw = e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
+	if p := jmap(t, raw)["pendingStaff"].([]any); len(p) != 1 || p[0].(map[string]any)["email"] != "newbie@outside.org" {
+		t.Errorf("pendingStaff: %s", raw)
+	}
+	if st, _ := e.call(e.Inst, "POST", e.staffPath(e.SectionA), body); st != 409 {
+		t.Errorf("duplicate pending: %d", st)
+	}
+	// same email, second section: reuse the invitation
+	if st, raw := e.call(e.DaIn, "POST", e.staffPath(s2), map[string]any{"email": "newbie@outside.org", "role": "instructor"}); st != 202 {
+		t.Fatalf("second section: %d %s", st, raw)
+	}
+	if n := e.count(`select count(*) from invitations where email = 'newbie@outside.org'`); n != 1 || e.Mails.count() != 1 {
+		t.Errorf("invitations %d mails %d", n, e.Mails.count())
+	}
+	if n := e.count(`select count(*) from pending_section_staff`); n != 2 {
+		t.Errorf("pending rows %d", n)
+	}
+	uid, err := auth.SignIn(context.Background(), e.DB, "newbie@outside.org", "Newbie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`select count(*) from section_staff where user_id = $1`, uid); n != 2 {
+		t.Errorf("section_staff after sign-in: %d", n)
+	}
+	_, raw = e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
+	if p := jmap(t, raw)["pendingStaff"].([]any); len(p) != 0 {
+		t.Errorf("pendingStaff after accept: %s", raw)
+	}
+}
+
+func TestStaffDelete(t *testing.T) {
+	e := newEnv(t)
+	instID, taID := e.UserID["inst@a.edu"], e.UserID["ta@a.edu"]
+	path := func(u string) string { return e.staffPath(e.SectionA) + "/" + u }
+	if st, _ := e.call(e.Inst, "DELETE", path(instID), nil); st != 403 {
+		t.Errorf("instructor removes self: %d", st)
+	}
+	if st, _ := e.call(e.TA, "DELETE", path(taID), nil); st != 403 {
+		t.Errorf("ta removes: %d", st)
+	}
+	if st, _ := e.call(e.DaOut, "DELETE", path(taID), nil); st != 403 {
+		t.Errorf("daOut removes: %d", st)
+	}
+	for _, u := range []string{"nope", "00000000-0000-0000-0000-000000000000", e.UserID["other@a.edu"]} {
+		if st, _ := e.call(e.Inst, "DELETE", path(u), nil); st != 404 {
+			t.Errorf("unknown %s: %d", u, st)
+		}
+	}
+	rowID := e.count0(t, taID)
+	if st, raw := e.call(e.Inst, "DELETE", path(taID), nil); st != 204 {
+		t.Fatalf("instructor removes ta: %d %s", st, raw)
+	}
+	if n, before, _ := e.audit("staff.delete", rowID); n != 1 || !before.Valid {
+		t.Errorf("audit: %d %v", n, before)
+	}
+	if st, _ := e.call(e.DaIn, "DELETE", path(instID), nil); st != 204 {
+		t.Errorf("dept_admin removes instructor: %d", st)
+	}
+}
+
+func TestStaffListPaginated(t *testing.T) {
+	e := newEnv(t)
+	for i := 0; i < 3; i++ {
+		em := fmt.Sprintf("x%d@a.edu", i)
+		e.user(em, "member")
+		if st, _ := e.call(e.DaIn, "POST", e.staffPath(e.SectionA), map[string]any{"email": em, "role": "ta"}); st != 201 {
+			t.Fatal("setup")
+		}
+	}
+	seen, cursor := map[string]bool{}, ""
+	for pages := 0; pages < 10; pages++ {
+		st, raw := e.call(e.Stud, "GET", e.staffPath(e.SectionA)+"?limit=2"+cursor, nil)
+		var l struct {
+			Items      []Staff
+			NextCursor string
+		}
+		if st != 200 || json.Unmarshal(raw, &l) != nil || len(l.Items) > 2 {
+			t.Fatalf("list: %d %s", st, raw)
+		}
+		for _, s := range l.Items {
+			seen[s.UserID] = true
+		}
+		if l.NextCursor == "" {
+			break
+		}
+		cursor = "&cursor=" + l.NextCursor
+	}
+	if len(seen) != 5 {
+		t.Errorf("saw %d staff, want 5", len(seen))
+	}
+	if st, _ := e.call(e.Other, "GET", e.staffPath(e.SectionA), nil); st != 403 {
+		t.Errorf("unrelated member: %d", st)
+	}
+}
