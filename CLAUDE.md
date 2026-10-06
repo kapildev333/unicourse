@@ -47,7 +47,7 @@ Rules that span these files:
 - One directory has one owner at a time, and only one integration suite runs at a time (orchestrator included).
 - The orchestrator verifies every landing itself (re-run suites, then exercise the real database/HTTP/browser) and records the evidence in the lane's status cell. A lane's own report is never verification.
 - The orchestrator does not write features itself while a lane could.
-- Nothing lands on `main` except through a pull request with green `ci`; `main` is protected (PR required, status checks, linear history, admins included).
+- Nothing lands on `main` except through a pull request with green `ci`. GitHub does not enforce this server-side yet (branch protection and rulesets need GitHub Pro or a public repo), so the rule is process-enforced by the orchestrator; enable protection with required checks `api` and `web`, linear history and admins included as soon as the plan allows.
 
 ## Git and GitHub
 
