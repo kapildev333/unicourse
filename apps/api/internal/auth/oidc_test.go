@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
@@ -93,6 +94,8 @@ type fakeIssuer struct {
 	key *rsa.PrivateKey
 	mu  sync.Mutex
 	tok string
+	// challenge, when set, is the code_challenge the token endpoint requires a matching code_verifier for.
+	challenge string
 }
 
 func newFakeIssuer(t *testing.T) *fakeIssuer {
@@ -117,6 +120,13 @@ func newFakeIssuer(t *testing.T) *fakeIssuer {
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		if f.challenge != "" {
+			sum := sha256.Sum256([]byte(r.FormValue("code_verifier")))
+			if b64(sum[:]) != f.challenge {
+				http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"access_token": "x", "token_type": "Bearer", "expires_in": 3600, "id_token": f.tok})
 	})
@@ -178,6 +188,7 @@ func newCB(t *testing.T) *cbFixture {
 		t.Fatalf("auth url %s", u)
 	}
 	f.cookie, f.nonce = cookie, q.Get("nonce")
+	iss.challenge = q.Get("code_challenge") // the fake token endpoint enforces PKCE against it
 	return f
 }
 
@@ -302,4 +313,47 @@ func TestOIDCCallbackNotAllowed(t *testing.T) {
 	if _, _, err, _ := f.call("google", f.cookie, f.nonce); !errors.Is(err, ErrNotAllowed) {
 		t.Fatalf("want ErrNotAllowed, got %v", err)
 	}
+}
+
+func TestOIDCCallbackPKCEEnforced(t *testing.T) {
+	f := newCB(t)
+	f.iss.mint(t, map[string]any{"nonce": f.nonce, "email": "pk@a.edu", "email_verified": true})
+	if _, _, err, _ := f.call("google", f.cookie, f.nonce); err != nil {
+		t.Fatalf("matching verifier rejected: %v", err)
+	}
+	// A cookie whose verifier does not match the challenge the IdP saw must fail the exchange.
+	st, _ := parseState(testSecret, f.cookie, time.Now())
+	st.Verifier = "wrong-verifier-wrong-verifier-wrong-verifier-123"
+	if _, _, err, _ := f.call("google", signState(testSecret, st), f.nonce); !errors.Is(err, errOIDC) || !strings.Contains(err.Error(), "code exchange") {
+		t.Fatalf("want code exchange failure, got %v", err)
+	}
+}
+
+func TestOIDCCallbackBadEmailClaim(t *testing.T) {
+	f := newCB(t)
+	f.iss.mint(t, map[string]any{"nonce": f.nonce, "email": "not an email", "email_verified": true})
+	if _, _, err, _ := f.call("google", f.cookie, f.nonce); !errors.Is(err, errOIDC) || !strings.Contains(err.Error(), "email claim") {
+		t.Fatalf("want errOIDC, got %v", err)
+	}
+}
+
+func TestFailRedirectUnexpectedIs500(t *testing.T) {
+	x := newHX(t)
+	for _, in := range []error{pg.ErrNotFound, pg.ErrConflict, errors.New("boom")} {
+		w := httptest.NewRecorder()
+		err := x.d.failRedirect(w, httptest.NewRequest("GET", "/", nil), in)
+		var he *httpx.Error
+		if !errors.As(err, &he) || he.Status != 500 || errors.Is(err, pg.ErrNotFound) || errors.Is(err, pg.ErrConflict) {
+			t.Errorf("%v -> %v", in, err)
+		}
+	}
+}
+
+func TestLandingSanitisesNextFromState(t *testing.T) {
+	x := newHX(t)
+	_, nonce := x.oidcStart(`{"slug":"a"}`)
+	st := state{Provider: "google", Slug: "a", Next: "//evil.com", Nonce: nonce, Verifier: "v", Exp: time.Now().Add(time.Minute).Unix()}
+	x.iss.mint(t, map[string]any{"nonce": nonce, "email": "admin@a.edu", "email_verified": true})
+	w := x.do("GET", "/api/v1/auth/oidc/google/callback?code=x&state="+nonce, "", &http.Cookie{Name: oidcCookie, Value: signState(testSecret, st)})
+	wantRedirect(t, w, "/a/me")
 }

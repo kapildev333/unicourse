@@ -19,3 +19,7 @@ Exported/shared surface as built (package `auth`):
 - to P1-L1c: move/extend `Deps` as above; the HTTP-level OIDC cases (302 to `/a/me`, `next` landing) belong in handler tests since landing is yours.
 ## Blockers
 None.
+## Fix round (review of SignIn/OIDC)
+- Tests added that kill mutations: removed membership/department_admins stay removed (drop `accepted_at is null`), `invited` -> `active` (drop `status = 'active'` from on-conflict), PKCE enforced by the fake `/token` (drop `VerifierOption`). Each mutation applied, new test failed, reverted.
+- Ruling applied (deviates from design 7): `department_admins` rows are inserted only for ids that exist in the invitation's university; stale/foreign ids are skipped, no 23503.
+- `verifyCallback` normalises the claim email; failure -> errOIDC (unauthenticated). `failRedirect` default branch logs and returns an explicit 500 `httpx.Error` (no 404/409 leak). `landing` runs `safeNext` on `next` (tested with a forged `//evil.com` state).

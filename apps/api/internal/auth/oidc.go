@@ -254,6 +254,10 @@ func (d Deps) verifyCallback(w http.ResponseWriter, r *http.Request) (string, st
 	if err := checkClaims(p.Name, cl); err != nil {
 		return "", state{}, err
 	}
-	userID, err := SignIn(ctx, d.DB, cl.Email, cl.Name)
+	email, err := NormalizeEmail(cl.Email)
+	if err != nil {
+		return "", state{}, oidcFail("email claim: %v", err)
+	}
+	userID, err := SignIn(ctx, d.DB, email, cl.Name)
 	return userID, st, err
 }

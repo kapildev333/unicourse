@@ -69,7 +69,9 @@ func (d Deps) failRedirect(w http.ResponseWriter, r *http.Request, err error) er
 		slog.InfoContext(r.Context(), "sign-in rejected", "code", he.Code, "reason", he.Message)
 		d.signInError(w, r, he.Code)
 	default:
-		return err
+		// Explicit 500: a stray pg.ErrNotFound/ErrConflict must not surface as 404/409 on a redirect flow.
+		slog.ErrorContext(r.Context(), "sign-in failed", "err", err)
+		return &httpx.Error{Status: 500, Code: "internal", Message: "internal error"}
 	}
 	return nil
 }
@@ -77,6 +79,7 @@ func (d Deps) failRedirect(w http.ResponseWriter, r *http.Request, err error) er
 // landing creates the session, sets the cookie and redirects to next (if safe and the user has a
 // membership), else the slug's or first membership's home, else sign-in?error=no_membership.
 func (d Deps) landing(w http.ResponseWriter, r *http.Request, userID, slug, next string) error {
+	next = safeNext(next) // second line of defence for values recovered from the OIDC state
 	tok, err := d.Sessions.Create(r.Context(), userID)
 	if err != nil {
 		return err

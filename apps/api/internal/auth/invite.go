@@ -102,8 +102,11 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 				 on conflict do nothing`, []any{userID, i.id}},
 			}
 			if role == "dept_admin" {
+				// Only ids that exist in this university (RLS scopes departments): a stale or foreign id is
+				// skipped instead of failing the whole sign-in with a foreign-key error.
 				stmts = append(stmts, stmt{`insert into department_admins (university_id, department_id, user_id)
-				 select $1, d::uuid, $2 from unnest(string_to_array($3::text, ',')) d on conflict do nothing`, []any{i.uni, userID, depts}})
+				 select $1, d.id, $2 from departments d where d.id = any(string_to_array($3::text, ',')::uuid[])
+				 on conflict do nothing`, []any{i.uni, userID, depts}})
 			}
 			for _, s := range stmts {
 				if _, err := tx.ExecContext(ctx, s.q, s.args...); err != nil {

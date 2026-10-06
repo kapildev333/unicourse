@@ -104,6 +104,56 @@ func TestSignInAcceptsInvitationOnce(t *testing.T) {
 	}); err != nil || name != "Bob" {
 		t.Fatalf("name %q %v", name, err)
 	}
+	// An admin removes Bob; signing in again must not bring the membership back.
+	texec(t, db, fx.UniversityA, `delete from department_admins where user_id = $1`, uid)
+	texec(t, db, fx.UniversityA, `delete from memberships where user_id = $1`, uid)
+	if _, err := SignIn(ctx, db, "bob@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{`select count(*) from memberships where user_id = $1`, `select count(*) from department_admins where user_id = $1`} {
+		if n := tcount(t, db, fx.UniversityA, q, uid); n != 0 {
+			t.Fatalf("removed access came back: %s = %d", q, n)
+		}
+	}
+}
+
+func TestSignInActivatesInvitedMembership(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	uid, err := SignIn(ctx, db, "inv@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	texec(t, db, fx.UniversityA, `insert into memberships (university_id, user_id, role, status) values ($1, $2, 'member', 'invited')`, fx.UniversityA, uid)
+	insertInvitation(t, db, fx.UniversityA, "inv@a.edu", "member", nil, time.Now().Add(time.Hour))
+	if _, err := SignIn(ctx, db, "inv@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1 and status = 'active'`, uid); n != 1 {
+		t.Fatalf("active memberships %d", n)
+	}
+}
+
+func TestSignInSkipsForeignDepartmentIDs(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	exp := time.Now().Add(time.Hour)
+	// B's invitation lists A's department: it must not lock the invitee out of A or B.
+	insertInvitation(t, db, fx.UniversityB, "multi@other.org", "dept_admin", []string{fx.DeptA}, exp)
+	insertInvitation(t, db, fx.UniversityA, "multi@other.org", "dept_admin", []string{fx.DeptA}, exp)
+	uid, err := SignIn(context.Background(), db, "multi@other.org", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for u, want := range map[string]int{fx.UniversityA: 1, fx.UniversityB: 0} {
+		if n := tcount(t, db, u, `select count(*) from memberships where user_id = $1 and status = 'active'`, uid); n != 1 {
+			t.Fatalf("university %s memberships %d", u, n)
+		}
+		if n := tcount(t, db, u, `select count(*) from department_admins where user_id = $1`, uid); n != want {
+			t.Fatalf("university %s department_admins %d, want %d", u, n, want)
+		}
+	}
 }
 
 func TestSignInAcrossUniversities(t *testing.T) {
