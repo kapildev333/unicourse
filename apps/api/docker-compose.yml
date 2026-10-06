@@ -1,0 +1,28 @@
+# Local Postgres for development and integration tests.
+#   docker compose up -d
+#   export UNICOURSE_DATABASE_URL=postgres://unicourse:unicourse@localhost:5432/unicourse
+#   export UNICOURSE_TEST_DATABASE_URL=postgres://unicourse:unicourse@localhost:5432/unicourse_test
+#   export UNICOURSE_BASE_URL=http://localhost:8080 UNICOURSE_SESSION_SECRET=dev-secret
+#   go run ./cmd/api
+# Optional env: UNICOURSE_ADDR (default :8080), UNICOURSE_GOOGLE_CLIENT_ID/SECRET,
+# UNICOURSE_MICROSOFT_CLIENT_ID/SECRET, UNICOURSE_SMTP_URL (empty = stdout mailer),
+# UNICOURSE_WEB_ORIGIN (CORS, development only).
+# The app connects as role "unicourse" (non-superuser, so RLS applies); "postgres" is the superuser.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pgdata:
