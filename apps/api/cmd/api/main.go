@@ -85,7 +85,7 @@ func main() {
 		logger.Error("auth", "err", err)
 		os.Exit(1)
 	}
-	api := app.NewRouter(app.Deps{Auth: deps})
+	api := app.NewRouter(app.Deps{Auth: deps, Mailer: deps.Magic.Mailer, BaseURL: cfg.BaseURL})
 
 	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, db.PingContext, api), ReadHeaderTimeout: 5 * time.Second}
 	errc := make(chan error, 1)
