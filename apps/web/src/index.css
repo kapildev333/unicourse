@@ -1,1 +1,37 @@
 @import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-canvas: #f6f6f4;        /* page background, table header */
+  --color-surface: #ffffff;       /* cards, tables, dialogs, inputs */
+  --color-line: #e2e1dc;          /* hairlines, table rules */
+  --color-line-strong: #8c8a83;   /* input borders, secondary button border (>= 3:1 on white) */
+  --color-ink: #1b1c1e;           /* body text, 16.9:1 on white */
+  --color-ink-muted: #5b5e65;     /* secondary text, 6.4:1 on white, 6.0:1 on canvas */
+  --color-accent: #1f4f8f;        /* primary buttons, links, active nav; white on it 8.6:1 */
+  --color-accent-hover: #173d70;
+  --color-accent-soft: #e9eff8;   /* active nav background, admin badge background */
+  --color-focus: #1d4ed8;         /* focus outline, >= 3:1 on white and canvas */
+  --color-danger: #b42318;        /* destructive buttons and error text; 6.2:1 on white */
+  --color-danger-hover: #8f1c13;
+  --color-danger-soft: #fdf1f0;   /* error banner background */
+  --color-success: #1e6b3b;       /* success text 6.5:1 on white */
+  --color-success-soft: #eef7f1;
+}
+
+@layer base {
+  html { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); }
+  body { -webkit-font-smoothing: antialiased; }
+}
+
+/* Table recipe lives here once; <Table> applies class "ui-table". */
+@layer components {
+  .ui-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+  .ui-table th { background: var(--color-canvas); color: var(--color-ink-muted); font-size: 0.75rem; font-weight: 600;
+                 text-transform: uppercase; letter-spacing: 0.04em; padding: 0.625rem 1rem; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
+  .ui-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+  .ui-table tbody tr:last-child td { border-bottom: 0; }
+  .ui-table tbody tr:hover td { background: #fafaf8; }
+  .ui-table td.actions, .ui-table th.actions { text-align: right; white-space: nowrap; }
+}
