@@ -214,11 +214,20 @@ func TestSectionsImport(t *testing.T) {
 		"CS999,Fall 2026,004,,\n" +
 		"CS101,Fall 2026,005,other@a.edu,other@a.edu\n"
 	p := e.preview(e.Admin, "/sections/import", csv)
-	want := "2:invite:|3:add:|4:add:|5:add:|6:error:unknown course code CS999|7:error:other@a.edu listed as both instructor and ta"
+	want := "2:invite:section exists; adds staff|3:add:|4:add:|5:add:|6:error:unknown course code CS999|7:error:other@a.edu listed as both instructor and ta"
 	if got := actions(p); got != want {
 		t.Fatalf("got %s", got)
 	}
 	ok := strings.Join(strings.Split(csv, "\n")[:4], "\n") + "\n"
+	// a dept_admin of another department cannot import sections of CS101
+	pd := e.preview(e.DaOut, "/sections/import", ok)
+	if got := actions(pd); !strings.Contains(got, "3:error:course CS101 is not in a department you manage") {
+		t.Fatalf("daout preview %s", got)
+	}
+	if st, _ := e.upload(e.DaOut, "/sections/import", ok, pd.Checksum); st != 400 || e.count(`select count(*) from sections`) != 1 ||
+		e.count(`select count(*) from pending_section_staff`) != 0 {
+		t.Fatalf("daout commit wrote or accepted: %d", st)
+	}
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 		_, err := tx.Exec(`update terms set name = 'Spring 2027' where id = $1`, e.TermA2)
 		return err
@@ -235,6 +244,51 @@ func TestSectionsImport(t *testing.T) {
 	}
 	if p := e.preview(e.Admin, "/sections/import", ok); p.Counts["exists"] != 3 {
 		t.Fatalf("rerun %s", actions(p))
+	}
+	// one staff.create audit row per section_staff row created (3; the fixture's 2 have none)
+	if n := e.count(`select count(*) from audit_log where action = 'staff.create'`); n != 3 {
+		t.Fatalf("staff.create rows = %d", n)
+	}
+	if n := e.count(`select count(*) from audit_log a join section_staff ss on ss.id = a.entity_id join users u on u.id = ss.user_id
+		where a.action = 'staff.create' and a.entity_type = 'staff'
+		and a.after = jsonb_build_object('sectionId', ss.section_id, 'userId', ss.user_id, 'email', u.email, 'role', ss.role)`); n != 3 {
+		t.Fatalf("staff audit rows matching section_staff = %d", n)
+	}
+}
+
+// An existing section is never changed, but listed staff missing from it are added (D31);
+// listed people already on it keep their role and nobody is removed.
+func TestSectionsImportExistingSection(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update terms set name = 'Fall 2026' where id = $1`, e.Fx.TermA)
+		return err
+	})
+	hdr := "courseCode,termName,number,instructorEmails,taEmails\n"
+	add, inv, same := hdr+"CS101,Fall 2026,001,,other@a.edu\n", hdr+"CS101,Fall 2026,001,newbie@a.edu,\n", hdr+"CS101,Fall 2026,001,ta@a.edu,inst@a.edu\n"
+	for csv, want := range map[string]string{add: "2:add:section exists; adds staff", inv: "2:invite:section exists; adds staff", same: "2:exists:"} {
+		if got := actions(e.preview(e.Admin, "/sections/import", csv)); got != want {
+			t.Fatalf("got %s want %s", got, want)
+		}
+	}
+	for _, csv := range []string{add, inv, same} {
+		if st, raw := e.upload(e.Admin, "/sections/import", csv, e.preview(e.Admin, "/sections/import", csv).Checksum); st != 200 {
+			t.Fatalf("%d %s", st, raw)
+		}
+	}
+	if e.count(`select count(*) from sections`) != 1 || e.count(`select count(*) from section_staff`) != 3 ||
+		e.count(`select count(*) from pending_section_staff`) != 1 {
+		t.Fatal("additive commit state wrong")
+	}
+	for _, csv := range []string{add, inv, same} {
+		if got := actions(e.preview(e.Admin, "/sections/import", csv)); got != "2:exists:" {
+			t.Fatalf("rerun %s", got)
+		}
+	}
+	// never re-roled, never removed
+	if e.count(`select count(*) from section_staff ss join users u on u.id = ss.user_id
+		where ss.section_id = $1 and ((u.email = 'inst@a.edu' and ss.role = 'instructor') or (u.email = 'ta@a.edu' and ss.role = 'ta'))`, e.SectionA) != 2 {
+		t.Fatal("staff re-roled or removed")
 	}
 }
 

@@ -72,7 +72,7 @@ func diff(spec map[string]bool, routes []string, pending map[string]bool) []stri
 			out = append(out, "route in Go but not in openapi.json: "+k)
 		}
 		if pending[k] {
-			out = append(out, "route is registered but still in pending_routes.txt: "+k)
+			out = append(out, "route is registered but also in the pending set: "+k)
 		}
 	}
 	for _, k := range sorted(spec) {
@@ -82,7 +82,7 @@ func diff(spec map[string]bool, routes []string, pending map[string]bool) []stri
 	}
 	for _, k := range sorted(pending) {
 		if !spec[k] {
-			out = append(out, "pending_routes.txt line not in openapi.json: "+k)
+			out = append(out, "pending entry not in openapi.json: "+k)
 		}
 	}
 	return out
@@ -107,7 +107,7 @@ func TestDiff(t *testing.T) {
 		{"ok pending", []string{"GET /api/v1/a"}, set("GET /api/v1/b/{}"), ""},
 		{"go only", []string{"GET /api/v1/a", "GET /api/v1/b/{id}", "GET /api/v1/c"}, set(), "in Go but not in openapi.json: GET /api/v1/c"},
 		{"contract only", []string{"GET /api/v1/a"}, set(), "not registered in Go (and not pending): GET /api/v1/b/{}"},
-		{"pending but registered", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set("GET /api/v1/a"), "still in pending_routes.txt: GET /api/v1/a"},
+		{"pending but registered", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set("GET /api/v1/a"), "also in the pending set: GET /api/v1/a"},
 		{"pending not in contract", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set("GET /api/v1/zzz"), "not in openapi.json: GET /api/v1/zzz"},
 		{"missing prefix", []string{"GET /api/v1/a", "GET /b/{id}"}, set("GET /api/v1/b/{}"), "in Go but not in openapi.json: GET /b/{}"},
 	}

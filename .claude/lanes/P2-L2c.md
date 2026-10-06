@@ -15,3 +15,6 @@ Gates run; waiting for review.
 None.
 ## Blockers
 None.
+
+## Fix round
+- Sections import staff audit rows use entity type `staff`; existing-section rows that add staff carry message `section exists; adds staff` (D31); dept check and staff audit now pinned by tests (mutations seen failing); openapi wording, types regenerated, design 8.3/10/14 updated; CreateInvitations precondition documented; contract_test messages no longer name pending_routes.txt.

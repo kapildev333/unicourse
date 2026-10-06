@@ -115,8 +115,8 @@ func invitationMail(name, role, url string, expiresAt time.Time) (subject, text 
 }
 
 // CreateInvitations is the batch form of CreateInvitation (one insert, one audit statement, one
-// mail each, all before commit). Precondition, checked by the caller: emails are normalised,
-// unique, without membership and without a pending invitation. Imports invite members only.
+// mail each, all before commit). Precondition, NOT re-checked here: callers pass distinct, normalised
+// emails that are neither active members nor already pending. Imports invite members only.
 func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, m auth.Mailer, baseURL string) ([]Invitation, error) {
 	if len(emails) == 0 {
 		return []Invitation{}, nil

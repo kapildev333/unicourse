@@ -503,7 +503,7 @@ export interface paths {
         put?: never;
         /**
          * Preview sections import
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". Existing rows are never updated.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role.
          */
         post: operations["previewSectionImport"];
         delete?: never;
@@ -523,7 +523,7 @@ export interface paths {
         put?: never;
         /**
          * Import sections
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". Existing rows are never updated.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role.
          */
         post: operations["importSections"];
         delete?: never;

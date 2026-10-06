@@ -472,11 +472,15 @@ func classifySection(s authz.Scope, rc csvimport.Record, courses, terms map[stri
 			}
 		}
 	}
+	msg := ""
+	if ref.SectionID != "" && (invite || addStaff) {
+		msg = "section exists; adds staff" // D31: an existing section is never changed, only gains staff
+	}
 	switch {
 	case invite:
-		return csvimport.Verdict{Action: csvimport.Invite, Ref: ref}
+		return csvimport.Verdict{Action: csvimport.Invite, Message: msg, Ref: ref}
 	case ref.SectionID == "" || addStaff:
-		return csvimport.Verdict{Action: csvimport.Add, Ref: ref}
+		return csvimport.Verdict{Action: csvimport.Add, Message: msg, Ref: ref}
 	}
 	return csvimport.Verdict{Action: csvimport.Exists}
 }
@@ -552,7 +556,7 @@ func sectionApplier(d tenant.Deps, s authz.Scope) csvimport.Applier {
 					return err
 				}
 				a.Email = emailOf[a.UserID]
-				es = append(es, audit.Entry{ActorUserID: s.UserID, Action: "staff.create", EntityType: "section_staff", EntityID: id, After: a})
+				es = append(es, audit.Entry{ActorUserID: s.UserID, Action: "staff.create", EntityType: "staff", EntityID: id, After: a})
 			}
 			res.Close()
 			if err := res.Err(); err != nil {
