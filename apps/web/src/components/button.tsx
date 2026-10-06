@@ -1,10 +1,16 @@
-export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const { className = '', type = 'button', ...rest } = props
-  return (
-    <button
-      type={type}
-      className={`rounded bg-blue-700 px-3 py-1.5 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${className}`}
-      {...rest}
-    />
-  )
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60'
+const sizes = { md: 'h-9 px-4 text-sm', sm: 'h-8 px-3 text-sm' }
+const variants = {
+  primary: 'bg-accent text-white hover:bg-accent-hover',
+  secondary: 'border border-line-strong bg-surface text-ink hover:bg-canvas',
+  danger: 'bg-danger text-white hover:bg-danger-hover',
+  ghost: 'text-accent hover:bg-accent-soft',
+}
+
+export function Button(
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof typeof variants; size?: keyof typeof sizes },
+) {
+  const { className = '', type = 'button', variant = 'primary', size = 'md', ...rest } = props
+  return <button type={type} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...rest} />
 }
