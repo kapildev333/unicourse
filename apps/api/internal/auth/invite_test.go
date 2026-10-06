@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -292,6 +293,9 @@ func TestSignInConcurrent(t *testing.T) {
 		t.Fatalf("users %d", c)
 	}
 	for q, want := range map[string]int{
+		`select count(*) from audit_log where action = 'invitation.accept'`:                                      1,
+		`select count(*) from audit_log where action = 'membership.create'`:                                      1,
+		`select count(*) from audit_log where action = 'enrollment.create'`:                                      1,
 		`select count(*) from memberships m join users u on u.id = m.user_id where u.email = 'race@a.edu'`:       1,
 		`select count(*) from department_admins d join users u on u.id = d.user_id where u.email = 'race@a.edu'`: 1,
 		`select count(*) from enrollments e join users u on u.id = e.user_id where u.email = 'race@a.edu'`:       1,
@@ -306,5 +310,197 @@ func TestSignInConcurrent(t *testing.T) {
 func TestInvitationURL(t *testing.T) {
 	if got := InvitationURL("http://x", "tok", "a+b@a.edu"); got != "http://x/invite/tok?email=a%2Bb%40a.edu" {
 		t.Fatal(got)
+	}
+}
+
+type auditRow struct {
+	Action, EntityType, EntityID, Actor string
+	Before, After                       map[string]any
+}
+
+// auditRows returns uni's audit rows oldest first.
+func auditRows(t *testing.T, db *sql.DB, uni string) (out []auditRow) {
+	t.Helper()
+	if err := pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		rs, err := tx.Query(`select action, entity_type, entity_id, coalesce(actor_user_id::text, ''), before, after
+			from audit_log order by at, action, entity_id`)
+		if err != nil {
+			return err
+		}
+		defer rs.Close()
+		for rs.Next() {
+			var r auditRow
+			var b, a []byte
+			if err := rs.Scan(&r.Action, &r.EntityType, &r.EntityID, &r.Actor, &b, &a); err != nil {
+				return err
+			}
+			if b != nil {
+				if err := json.Unmarshal(b, &r.Before); err != nil {
+					return err
+				}
+			}
+			if a != nil {
+				if err := json.Unmarshal(a, &r.After); err != nil {
+					return err
+				}
+			}
+			out = append(out, r)
+		}
+		return rs.Err()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func findAudit(t *testing.T, rows []auditRow, action string) auditRow {
+	t.Helper()
+	var got []auditRow
+	for _, r := range rows {
+		if r.Action == action {
+			got = append(got, r)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("%s rows = %d, want 1 (all: %+v)", action, len(got), rows)
+	}
+	return got[0]
+}
+
+func TestSignInAuditAccept(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	inv := insertInvitation(t, db, fx.UniversityA, "bob@a.edu", "dept_admin", []string{fx.DeptA}, time.Now().Add(time.Hour))
+	before := len(auditRows(t, db, fx.UniversityA))
+	uid, err := SignIn(ctx, db, "bob@a.edu", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := auditRows(t, db, fx.UniversityA)
+	if len(rows) != before+2 {
+		t.Fatalf("rows %d, want %d: %+v", len(rows), before+2, rows)
+	}
+	acc := findAudit(t, rows, "invitation.accept")
+	if acc.EntityType != "invitation" || acc.EntityID != inv || acc.Actor != uid || acc.Before != nil ||
+		acc.After["email"] != "bob@a.edu" || acc.After["role"] != "dept_admin" ||
+		len(acc.After["departmentIds"].([]any)) != 1 || acc.After["departmentIds"].([]any)[0] != fx.DeptA {
+		t.Fatalf("accept row %+v", acc)
+	}
+	var mID string
+	if err := pg.WithTx(ctx, db, fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from memberships where user_id = $1`, uid).Scan(&mID)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	m := findAudit(t, rows, "membership.create")
+	if m.EntityType != "membership" || m.EntityID != mID || m.Actor != uid || m.Before != nil ||
+		m.After["role"] != "dept_admin" || m.After["status"] != "active" ||
+		len(m.After["departmentIds"].([]any)) != 1 || m.After["departmentIds"].([]any)[0] != fx.DeptA {
+		t.Fatalf("membership row %+v", m)
+	}
+	// Idempotent second sign-in and another university's log stay untouched.
+	if _, err := SignIn(ctx, db, "bob@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(auditRows(t, db, fx.UniversityA)); n != before+2 {
+		t.Fatalf("second sign-in wrote rows: %d", n)
+	}
+}
+
+func TestSignInAuditMembershipUpdate(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	exp := time.Now().Add(time.Hour)
+	insertInvitation(t, db, fx.UniversityA, "p@a.edu", "member", nil, exp)
+	uid, _ := SignIn(ctx, db, "p@a.edu", "")
+	insertInvitation(t, db, fx.UniversityA, "p@a.edu", "admin", nil, exp)
+	if _, err := SignIn(ctx, db, "p@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	rows := auditRows(t, db, fx.UniversityA)
+	u := findAudit(t, rows, "membership.update")
+	if u.Actor != uid || u.Before["role"] != "member" || u.Before["status"] != "active" ||
+		u.After["role"] != "admin" || u.After["status"] != "active" {
+		t.Fatalf("update row %+v", u)
+	}
+	findAudit(t, rows, "membership.create")
+	// Equal or lower role on an active membership: accept row only, no membership row.
+	insertInvitation(t, db, fx.UniversityA, "p@a.edu", "member", nil, exp)
+	n := len(rows)
+	if _, err := SignIn(ctx, db, "p@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	rows = auditRows(t, db, fx.UniversityA)
+	if len(rows) != n+1 {
+		t.Fatalf("rows %d, want %d", len(rows), n+1)
+	}
+	findAudit(t, rows, "membership.update")
+}
+
+func TestSignInAuditPerUniversity(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	exp := time.Now().Add(time.Hour)
+	ia := insertInvitation(t, db, fx.UniversityA, "adj@other.org", "member", nil, exp)
+	ib := insertInvitation(t, db, fx.UniversityB, "adj@other.org", "admin", nil, exp)
+	if _, err := SignIn(context.Background(), db, "adj@other.org", ""); err != nil {
+		t.Fatal(err)
+	}
+	for uni, inv := range map[string]string{fx.UniversityA: ia, fx.UniversityB: ib} {
+		rows := auditRows(t, db, uni)
+		if got := findAudit(t, rows, "invitation.accept"); got.EntityID != inv {
+			t.Fatalf("university %s accept entity %s, want %s", uni, got.EntityID, inv)
+		}
+		findAudit(t, rows, "membership.create")
+		if len(rows) != 2 {
+			t.Fatalf("university %s rows %+v", uni, rows)
+		}
+	}
+}
+
+func TestSignInAuditStaffAndEnrollments(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	s1, s2 := insertSection(t, db, fx, "CS1"), insertSection(t, db, fx, "CS2")
+	inv := insertInvitation(t, db, fx.UniversityA, "dave@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ($1, $2, $3, 'ta')`, fx.UniversityA, inv, s1)
+	texec(t, db, fx.UniversityA, `insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, fx.UniversityA, inv, s2)
+	uid, err := SignIn(context.Background(), db, "dave@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := auditRows(t, db, fx.UniversityA)
+	st := findAudit(t, rows, "staff.create")
+	if st.EntityType != "staff" || st.EntityID != s1 || st.Actor != uid || st.After["userId"] != uid || st.After["role"] != "ta" {
+		t.Fatalf("staff row %+v", st)
+	}
+	en := findAudit(t, rows, "enrollment.create")
+	if en.EntityType != "enrollment" || en.EntityID != s2 || en.Actor != uid || en.After["userId"] != uid {
+		t.Fatalf("enrollment row %+v", en)
+	}
+	// Already staffed and enrolled: the next invitation's pending rows hit on-conflict and write nothing.
+	inv2 := insertInvitation(t, db, fx.UniversityA, "dave@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ($1, $2, $3, 'ta')`, fx.UniversityA, inv2, s1)
+	texec(t, db, fx.UniversityA, `insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, fx.UniversityA, inv2, s2)
+	if _, err := SignIn(context.Background(), db, "dave@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := auditRows(t, db, fx.UniversityA); len(got) != len(rows)+1 {
+		t.Fatalf("rows %d, want %d: %+v", len(got), len(rows)+1, got)
+	}
+}
+
+func TestSignInAuditNotAllowedWritesNothing(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	if _, err := SignIn(context.Background(), db, "x@nowhere.org", ""); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("want ErrNotAllowed, got %v", err)
+	}
+	for _, u := range []string{fx.UniversityA, fx.UniversityB} {
+		if n := len(auditRows(t, db, u)); n != 0 {
+			t.Fatalf("university %s rows %d", u, n)
+		}
 	}
 }
