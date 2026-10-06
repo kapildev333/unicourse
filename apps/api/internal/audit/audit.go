@@ -76,7 +76,7 @@ type Filter struct {
 	From, To                          time.Time
 }
 
-// Actor is the user behind a row, when known and visible.
+// Actor is the user behind a row; omitted only when the row has no actor (CLI/system rows).
 type Actor struct {
 	ID          string `json:"id"`
 	Email       string `json:"email"`

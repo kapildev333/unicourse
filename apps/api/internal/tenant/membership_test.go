@@ -156,6 +156,14 @@ func TestMembershipLastAdmin(t *testing.T) {
 	if st, _ := e.do(adm, "DELETE", self, nil); st != 409 {
 		t.Fatalf("delete only admin: %d", st)
 	}
+	// an invited admin does not count towards the rule
+	e.user(uni, "inv@a.edu", "admin", "invited")
+	if st, _ := e.do(adm, "PATCH", self, map[string]any{"role": "member"}); st != 409 {
+		t.Fatalf("demote with only an invited admin: %d", st)
+	}
+	if st, _ := e.do(adm, "DELETE", self, nil); st != 409 {
+		t.Fatalf("delete with only an invited admin: %d", st)
+	}
 	a2, _ := e.user(uni, "a2@a.edu", "admin", "active")
 	if st, raw := e.do(adm, "PATCH", self, map[string]any{"role": "member"}); st != 200 {
 		t.Fatalf("self-demote with another admin: %d %s", st, raw)
