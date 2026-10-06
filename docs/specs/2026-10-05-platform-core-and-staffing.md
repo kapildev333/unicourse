@@ -191,6 +191,8 @@ What makes it fit any university, not one:
 - Any number of instructors and TAs per section; staff can hold roles in several universities under one identity.
 - Nothing in the data model or UI copy assumes a country, a grading scale, a calendar or a language beyond the default locale.
 
+## 11. Observability
+
 Structured logs with `log/slog`, JSON in production, one line per request (method, path, status, duration, request id, user id, university id). Audit log is the business-level trail. No metrics or tracing in this spec; `httpx` exposes `/healthz` (process up) and `/readyz` (database reachable).
 
 ## 12. Testing
