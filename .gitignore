@@ -3,3 +3,7 @@ node_modules/
 .env
 .env.*
 .worktrees/
+
+apps/web/e2e/.tmp/
+apps/web/test-results/
+apps/web/playwright-report/

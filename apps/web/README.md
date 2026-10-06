@@ -10,3 +10,9 @@ Node 22, npm. From `apps/web`:
 - `npm run build`: typecheck, then production build.
 - `npm run lint`, `npm run typecheck`, `npm test`.
 - `npm run generate`: regenerate `src/api/types.ts` from `../api/openapi.json`.
+
+## End-to-end test
+
+`npm run e2e` runs the Playwright staffing flow (`e2e/staffing.spec.ts`) in Chromium against the real API binary and a real Postgres. One-time: `npx playwright install chromium`, and the `unicourse_e2e` database must exist (`apps/api/docker/initdb.sql` creates it on a fresh setup).
+
+Global setup builds the web app and both Go binaries into `e2e/.tmp/`, migrates, and starts the API on `127.0.0.1:18180` serving `dist/` (`UNICOURSE_WEB_DIR`). Dev mail goes to `e2e/.tmp/api.log`, which the tests read for magic links. Slugs, domains and emails are unique per run, so runs never collide and the database is never reset. Override the database with `UNICOURSE_E2E_DATABASE_URL`.
