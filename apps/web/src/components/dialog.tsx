@@ -5,12 +5,13 @@ export function Dialog(props: {
   onClose: () => void
   title: string
   description?: string
+  wide?: boolean
   children: React.ReactNode
 }) {
   const titleId = useId()
   const descId = useId()
   const ref = useRef<HTMLDialogElement>(null)
-  const { open, onClose, title, description, children } = props
+  const { open, onClose, title, description, wide, children } = props
 
   useEffect(() => {
     const d = ref.current
@@ -26,7 +27,7 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className="w-full max-w-md rounded-lg border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/40"
+      className={`w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded-lg border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/40`}
     >
       <h2 id={titleId} className="text-base font-semibold">
         {title}
