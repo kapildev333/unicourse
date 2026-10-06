@@ -1,6 +1,7 @@
 # UniCourse - orchestration plan
 
-Spec: `docs/specs/2026-10-05-platform-core-and-staffing.md` · Implementation plan (task detail, TDD steps): `docs/plans/2026-10-05-platform-core-and-staffing.md`
+Spec 1: `docs/specs/2026-10-05-platform-core-and-staffing.md` · plan `docs/plans/2026-10-05-platform-core-and-staffing.md` (done)
+Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-06-student-schedule.md` (Phase 5, not started)
 
 ## Decisions
 | # | Decision | Status |
@@ -38,6 +39,13 @@ Spec: `docs/specs/2026-10-05-platform-core-and-staffing.md` · Implementation pl
 | D31 | The sections CSV import is additive for a section that already exists: the section is never changed, instructors, TAs and invitations listed in the file and missing from it are added, nobody is removed or re-roled; such preview rows say "section exists; adds staff". Spec §6 says existing rows are skipped - the design's reading takes precedence (re-uploading a timetable with staff filled in later needs it) | Orchestrator 2026-10-06, owner to confirm |
 | D32 | The API binary serves the built web app when `UNICOURSE_WEB_DIR` is set: SPA fallback for extension-less paths, JSON 404 envelope for `/api/*` and missing assets, dotfiles never served, a Content-Security-Policy on HTML, the fallback logged as `/*` so invitation tokens never reach the log. A request abandoned by the client is status 499 with no error log | Orchestrator 2026-10-06 |
 | D33 | The end-to-end test uses its own database (`unicourse_e2e`) and port, never resets the database (unique slugs, domains and emails per run), reads sign-in links from the API's mail log, and signs in by magic link; Google and Microsoft sign-in are covered against a fake issuer in Go tests only | Orchestrator 2026-10-06 |
+| D34 | Spec 2 (student course view and schedule) is the next piece of work, ahead of the Phase 4 hardening items: the owner asked for student-facing course management; the brief's "collisions" are read as overlapping meeting times, "class code" as `course.code` + `section.number`, "winter/fall term" as the existing free-form `terms` rows | Orchestrator 2026-10-06, owner to confirm |
+| D35 | Meeting times are one new table `section_meetings (weekday 1-7 ISO, starts_at time, ends_at time, location text)`, wall-clock in the university's timezone, no conversion; no `kind` on terms, no stored clash. Written only through `Section.meetings` on create/patch (replace the whole list, `[]` clears), no `/meetings` route | Orchestrator 2026-10-06, owner to confirm |
+| D36 | Clash detection is client-side: one pure `overlaps()` over meetings the web already holds; no endpoint until a non-browser consumer needs it | Orchestrator 2026-10-06, owner to confirm |
+| D37 | `GET /courses` and `GET /sections` open to every active member (catalog is public inside a university; narrows D22's 403), with `pendingStaff` masked to `[]` for plain members; rosters stay staff-only. Both lists gain `q` and `departmentId` filters | Orchestrator 2026-10-06, owner to confirm |
+| D38 | No student self-enrollment, caps, waitlists or CRN in Spec 2; rosters stay import-driven (spec §2, §8 triggers) | Orchestrator 2026-10-06, owner to confirm |
+| D39 | Sections CSV import gains an optional `meetings` column (`Mon 10:00-11:15 @ Room 101; Wed …`); under D31 it fills meetings only on new sections or sections that have none | Orchestrator 2026-10-06, owner to confirm |
+| D40 | The week grid is CSS grid with native `<input type="time">`; no calendar, date or UI library is added to the web app | Orchestrator 2026-10-06 |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -119,6 +127,15 @@ Spec 1 (`docs/specs/2026-10-05-platform-core-and-staffing.md`) is implemented on
 | P4-L4 - Real OIDC smoke test with Google and Microsoft app registrations | Never exercised with real providers | credentials |
 | P4-L5 - Small API and UI items from the backlog below (cancel one pending staff assignment, search in pickers past 200, case-sensitive JSON keys) | Raised by reviews | priority |
 
+## Phase 5 - Student course view and schedule (Spec 2, not started)
+| Lane | Model | Scope (disjoint) | Status |
+|------|-------|------------------|--------|
+| P5-L1 - Meetings in the API, catalog reads, import column (Task 1, D; sub-lanes a, b) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P5-L1.md`, `apps/api/migrations/0002_section_meetings.sql`, `apps/api/openapi.json`, `apps/api/internal/course`, `apps/web/src/api/types.ts` | not started. L1a (migration, contract, meetings read/write) lands first so P5-L2 can start; L1b (filters, member read, import column) follows on the same branch |
+| P5-L2 - Schedule grid, catalog, meetings editor (Task 2, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P5-L2.md`, `apps/web/src/{lib/schedule.ts,features/my-sections,features/catalog,features/courses,routes}` | not started; starts when P5-L1a is on `main` |
+| P5-L3 - End-to-end extension (Task 3, W) | Sonnet 5.5 | `apps/web/e2e` | not started; after L1 and L2 |
+
+Order: P5-L1 designer → L1a worker → PR → (L1b worker ∥ P5-L2 designer → worker) → P5-L3. Phase 4 hardening stays proposed and runs after, or interleaved on the owner's call.
+
 ## Backlog
 - Spec §4 "the platform CLI uses a separate role for `universities` administration": not built; CLI uses `UNICOURSE_DATABASE_URL`. Add a dedicated role when a non-engineer runs the CLI (raised by orchestrator).
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
@@ -142,3 +159,4 @@ Spec 1 (`docs/specs/2026-10-05-platform-core-and-staffing.md`) is implemented on
 - 2026-10-06: Landed P1-L4 web admin (#16), P1-L1b/c auth (#17), P1-L2a/b tenant (#18), P2-L2a courses and sections (#19), each after review fixes and a real-HTTP pass by the orchestrator. D24-D27 ruled. Running: P1-L2c worker, P2-L3 review.
 - 2026-10-06: Landed P2-L3 courses web (#21), P1-L2c (#22), P1-L3 CLI (#23), P2-L2b (#27); Phase 1 complete. A flaky auth test was traced to host-versus-database clock skew and fixed (D30). Built and in review: P2-L2c imports, P1-L5. Running: P3-L1b end-to-end flow.
 - 2026-10-06: Landed P1-L5 (#29), P2-L2c imports (#30) and P3-L1 end to end (#31): Spec 1 is complete on main with the success criterion running in CI. D31-D33 ruled. The final check on the main checkout passed the Go suite, web lint/typecheck/build and the end-to-end flow, and found one flaky web unit test (`sign-in-page.test.tsx`, "Body has already been read", about one run in three); fixed in [#34](https://github.com/kapildev333/unicourse/pull/34) (the fetch stub shared a cloned request stream; main failed 3 of 12 runs before, 0 of 30 on the branch and 0 of 10 on main after the merge). Phase 4 proposed, not started. The overnight loop was stopped here.
+- 2026-10-06: Owner asked for student-facing course management (professor, clashes, terms, class codes) with every decision delegated. Spec 2 and its plan written, D34-D40 ruled, Phase 5 cut into three lanes; nothing launched yet.
