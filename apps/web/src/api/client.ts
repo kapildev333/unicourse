@@ -2,7 +2,11 @@ import createClient from 'openapi-fetch'
 import type { paths } from './types'
 import { ApiError, type ErrorCode } from './errors'
 
-export const api = createClient<paths>({ baseUrl: `${window.location.origin}/api/v1`, credentials: 'include' })
+export const api = createClient<paths>({
+  baseUrl: `${window.location.origin}/api/v1`,
+  credentials: 'include',
+  fetch: (r) => fetch(r), // late-bound so tests can stub global fetch
+})
 
 type Envelope = { error?: { code?: ErrorCode; message?: string; details?: { field: string; message: string }[] } }
 
