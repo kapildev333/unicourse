@@ -48,16 +48,16 @@ Spec: `docs/specs/2026-10-05-platform-core-and-staffing.md` · Implementation pl
 ## Phase 1 - Platform core
 | Lane | Model | Scope (disjoint) | Status |
 |------|-------|------------------|--------|
-| P1-L1 - Authentication (Task 5, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L1.md`, `apps/api/internal/auth` | design done ([#11](https://github.com/kapildev333/unicourse/pull/11)); P1-L1a (primitives) worker running; then b (`SignIn`, OIDC), c (handlers, wiring) |
-| P1-L2 - Tenant scope, `authz`, departments, terms, memberships, invitations, audit route (Task 6, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L2.md`, `apps/api/internal/{authz,tenant}` | design done (#11); build as P1-L2a (`authz`, `tenant.Wrap`), b (departments, terms), c (memberships, invitations, audit route) after P1-L1a |
+| P1-L1 - Authentication (Task 5, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L1.md`, `apps/api/internal/auth` | P1-L1a **done** - [#14](https://github.com/kapildev333/unicourse/pull/14) (evidence: gates green with `-race` on real Postgres; 10 goroutines consuming one magic link, one wins; only token hashes stored; SMTP tested against a fake server and a silent listener). P1-L1b (`SignIn`, OIDC) built, in review. P1-L1c (handlers, wiring, D11 page) worker running |
+| P1-L2 - Tenant scope, `authz`, departments, terms, memberships, invitations, audit route (Task 6, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L2.md`, `apps/api/internal/{authz,tenant}` | P1-L2a (`authz`, `tenant.Wrap`) and P1-L2b (departments, terms; 8 routes off the pending list) built, in review. P1-L2c (memberships, invitations, audit route) after P1-L1b lands |
 | P1-L3 - `unicourse-admin` CLI (Task 7, W) | Sonnet 5.5 | `apps/api/cmd/unicourse-admin` | not started |
-| P1-L4 - Web `auth` and `admin` features (Task 8, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L4.md`, `apps/web/src/{features/auth,features/admin,routes,components,lib}` | design done; P1-L4a (shared layer, shell, sign-in) built, in review; then b (departments, terms), c (members, invitations, audit log) |
+| P1-L4 - Web `auth` and `admin` features (Task 8, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L4.md`, `apps/web/src/{features/auth,features/admin,routes,components,lib}` | all three sub-lanes built (53 web tests); P1-L4a reviewed and fixed; P1-L4b/c in review. Lands as one PR. Orchestrator rendered every admin screen in headless Chrome against a contract-shaped mock API; verification against the real API follows the auth and tenant lanes |
 
 ## Phase 2 - Courses, sections, staffing, rosters
 | Lane | Model | Scope (disjoint) | Status |
 |------|-------|------------------|--------|
-| P2-L1 - `csvimport` engine (Task 9, W; interface per `docs/design/P2-L2.md` §7) | Sonnet 5.5 | `apps/api/internal/csvimport` | worker running |
-| P2-L2 - Courses, sections, staff, enrollments, imports, my-sections (Task 10, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L2.md`, `apps/api/internal/course` | design done (#11); build as P2-L2a (courses, sections), b (staff, enrollments, my-sections), c (imports) after P1-L2 and P2-L1 |
+| P2-L1 - `csvimport` engine (Task 9, W; interface per `docs/design/P2-L2.md` §7) | Sonnet 5.5 | `apps/api/internal/csvimport` | **done** - [#13](https://github.com/kapildev333/unicourse/pull/13). Evidence: gates green with `-race` on real Postgres; committed fixture has BOM and CRLF bytes; a Windows-1252 file is rejected up front; reviewer measured 5 MB / 119k rows parsed in 29 ms and a 50 MB body capped at 5 MiB read |
+| P2-L2 - Courses, sections, staff, enrollments, imports, my-sections (Task 10, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L2.md`, `apps/api/internal/course` | P2-L2a (courses, sections) worker running on top of the tenant lane branch; then b (staff, enrollments, my-sections), c (imports) |
 | P2-L3 - Web `courses` and `my-sections` features (Task 11, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L3.md`, `apps/web/src/{features/courses,features/my-sections,routes}` | design done (#11); build as P2-L3a, b, c after P1-L4 |
 
 ## Phase 3 - End to end
@@ -76,12 +76,16 @@ Notes P0-L2: the reviewer probed RLS with real SQL and found no cross-tenant rea
 Notes P0-L4: the first API lane with routes mounts `app.NewRouter` in `cmd/api/main.go` under `/api/v1/`; each API lane removes its lines from `internal/app/pending_routes.txt`; P2-L2c deletes the file. Contract changes after this are widenings only and regenerate `apps/web/src/api/types.ts` in the same PR (CI checks drift).
 
 Notes P2-L2 (design): pending (invited) staff cannot be removed individually; revoking the invitation removes them. `pending_routes.txt` and the contract-test skip are deleted by P2-L2c.
+Notes P1-L1a: `auth.Authenticate`, `auth.NewToken`, `auth.NormalizeEmail` (rejects > 254 bytes) are the shared entry points. Go `ToLower` and Postgres `lower()` agree for every letter, so the lowercase email check cannot fire.
+
+Notes P2-L1: `Parse` rejects non-UTF-8 and NUL input; whitespace-only lines are skipped; rows with an empty key are never duplicates; `Apply` relies on `PreviewRows` line order.
 
 ## Backlog
 - Spec §4 "the platform CLI uses a separate role for `universities` administration": not built; CLI uses `UNICOURSE_DATABASE_URL`. Add a dedicated role when a non-engineer runs the CLI (raised by orchestrator).
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
 - Per-IP magic-link limit is in memory and per process; move to Postgres when more than one API process runs (raised by P1-L1).
 - Before production: split the database roles so the API role does not own the tables (an owner can disable RLS); migrations run as a separate owner role, e.g. through `unicourse-admin migrate` (raised by P0-L2 review; changes D4 - owner's call).
+- Magic-link send is synchronous: an SMTP failure or the extra latency is visible only for allowed emails (timing and failure oracle). Fix together with the outbox item (raised by P1-L1a review).
 - Before real SMTP onboarding: send invitation mail after commit through an outbox; today mail is sent inside the request transaction, which a 50k-row roster import would hold open (raised by P1-L2 and P2-L2 designs).
 - A dedicated endpoint to cancel one pending staff assignment, if admins ask (raised by P2-L3 design).
 - Department picker, term select and course picker read one page of 200; add search when a university exceeds that (raised by P1-L4 and P2-L3 designs).
@@ -91,3 +95,4 @@ Notes P2-L2 (design): pending (invited) staff cannot be removed individually; re
 - 2026-10-05: Spec 1 and its implementation plan merged (#4). Owner started `/orchestrate` on a 30-minute loop and delegated decisions overnight (D8). PLAN.md filled from the implementation plan. Docker Desktop started for local Postgres. Launched P0-L1, P0-L3 workers and P0-L4, P1-L1 designers in parallel.
 - 2026-10-06: P0-L1 (#6) and P0-L3 (#7) landed after review fixes and orchestrator verification. P0-L4 and P1-L1 designs done; D9-D16 ruled. Launched P0-L2 and P0-L4 workers and P1-L2, P1-L4 designers.
 - 2026-10-06: Phase 0 complete: P0-L4 (#9) and P0-L2 (#10) landed. All five remaining designs written and merged with orchestrator rulings (#11); D17-D23 ruled. Launched P1-L1a, P2-L1 and P1-L4a workers.
+- 2026-10-06: P2-L1 (#13) and P1-L1a (#14) landed. Built and in review: P1-L1b, P1-L2a, P1-L2b, P1-L4b/c. Running: P1-L1c, P2-L2a. Dependent sub-lanes are built on the predecessor's branch and rebased onto main when it lands; reviewers work in detached worktrees.
