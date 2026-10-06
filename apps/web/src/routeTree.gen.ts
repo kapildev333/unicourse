@@ -9,107 +9,153 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as SlugRouteRouteImport } from './routes/$slug/route'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SlugAdminRouteImport } from './routes/$slug/admin'
 import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as SlugAdminIndexRouteImport } from './routes/$slug/admin/index'
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugRouteRoute = SlugRouteRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SlugAdminRoute = SlugAdminRouteImport.update({
-  id: '/$slug/admin',
-  path: '/$slug/admin',
-  getParentRoute: () => rootRouteImport,
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => SlugRouteRoute,
 } as any)
 const SlugCoursesRoute = SlugCoursesRouteImport.update({
-  id: '/$slug/courses',
-  path: '/$slug/courses',
-  getParentRoute: () => rootRouteImport,
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => SlugRouteRoute,
 } as any)
 const SlugMeRoute = SlugMeRouteImport.update({
-  id: '/$slug/me',
-  path: '/$slug/me',
-  getParentRoute: () => rootRouteImport,
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => SlugRouteRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SlugAdminIndexRoute = SlugAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SlugAdminRoute,
+} as any)
 const SlugSectionsIdRoute = SlugSectionsIdRouteImport.update({
-  id: '/$slug/sections/$id',
-  path: '/$slug/sections/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/sections/$id',
+  path: '/sections/$id',
+  getParentRoute: () => SlugRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/$slug/admin': typeof SlugAdminRoute
+  '/$slug/admin': typeof SlugAdminRouteWithChildren
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
+  '/$slug/admin/': typeof SlugAdminIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/$slug/admin': typeof SlugAdminRoute
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
+  '/$slug/admin': typeof SlugAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/$slug/admin': typeof SlugAdminRoute
+  '/$slug/admin': typeof SlugAdminRouteWithChildren
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
+  '/$slug/admin/': typeof SlugAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
+    | '/$slug'
     | '/sign-in'
     | '/$slug/admin'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/sections/$id'
+    | '/$slug/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/$slug'
     | '/sign-in'
-    | '/$slug/admin'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/sections/$id'
+    | '/$slug/admin'
   id:
     | '__root__'
+    | '/'
+    | '/$slug'
     | '/sign-in'
     | '/$slug/admin'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/sections/$id'
+    | '/$slug/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  SlugRouteRoute: typeof SlugRouteRouteWithChildren
   SignInRoute: typeof SignInRoute
-  SlugAdminRoute: typeof SlugAdminRoute
-  SlugCoursesRoute: typeof SlugCoursesRoute
-  SlugMeRoute: typeof SlugMeRoute
   InviteTokenRoute: typeof InviteTokenRoute
-  SlugSectionsIdRoute: typeof SlugSectionsIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$slug': {
+      id: '/$slug'
+      path: '/$slug'
+      fullPath: '/$slug'
+      preLoaderRoute: typeof SlugRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
@@ -119,24 +165,24 @@ declare module '@tanstack/react-router' {
     }
     '/$slug/admin': {
       id: '/$slug/admin'
-      path: '/$slug/admin'
+      path: '/admin'
       fullPath: '/$slug/admin'
       preLoaderRoute: typeof SlugAdminRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SlugRouteRoute
     }
     '/$slug/courses': {
       id: '/$slug/courses'
-      path: '/$slug/courses'
+      path: '/courses'
       fullPath: '/$slug/courses'
       preLoaderRoute: typeof SlugCoursesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SlugRouteRoute
     }
     '/$slug/me': {
       id: '/$slug/me'
-      path: '/$slug/me'
+      path: '/me'
       fullPath: '/$slug/me'
       preLoaderRoute: typeof SlugMeRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SlugRouteRoute
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -145,23 +191,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$slug/admin/': {
+      id: '/$slug/admin/'
+      path: '/'
+      fullPath: '/$slug/admin/'
+      preLoaderRoute: typeof SlugAdminIndexRouteImport
+      parentRoute: typeof SlugAdminRoute
+    }
     '/$slug/sections/$id': {
       id: '/$slug/sections/$id'
-      path: '/$slug/sections/$id'
+      path: '/sections/$id'
       fullPath: '/$slug/sections/$id'
       preLoaderRoute: typeof SlugSectionsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SlugRouteRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  SignInRoute: SignInRoute,
-  SlugAdminRoute: SlugAdminRoute,
+interface SlugAdminRouteChildren {
+  SlugAdminIndexRoute: typeof SlugAdminIndexRoute
+}
+
+const SlugAdminRouteChildren: SlugAdminRouteChildren = {
+  SlugAdminIndexRoute: SlugAdminIndexRoute,
+}
+
+const SlugAdminRouteWithChildren = SlugAdminRoute._addFileChildren(
+  SlugAdminRouteChildren,
+)
+
+interface SlugRouteRouteChildren {
+  SlugAdminRoute: typeof SlugAdminRouteWithChildren
+  SlugCoursesRoute: typeof SlugCoursesRoute
+  SlugMeRoute: typeof SlugMeRoute
+  SlugSectionsIdRoute: typeof SlugSectionsIdRoute
+}
+
+const SlugRouteRouteChildren: SlugRouteRouteChildren = {
+  SlugAdminRoute: SlugAdminRouteWithChildren,
   SlugCoursesRoute: SlugCoursesRoute,
   SlugMeRoute: SlugMeRoute,
-  InviteTokenRoute: InviteTokenRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,
+}
+
+const SlugRouteRouteWithChildren = SlugRouteRoute._addFileChildren(
+  SlugRouteRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  SlugRouteRoute: SlugRouteRouteWithChildren,
+  SignInRoute: SignInRoute,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

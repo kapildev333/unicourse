@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Outlet, createRootRoute, useNavigate } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ApiError } from '../api/errors'
 
 function Root() {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 2,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  )
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -18,12 +29,13 @@ function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:p-2 focus:bg-white">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:outline-2 focus:outline-focus"
+      >
         Skip to content
       </a>
-      <main id="main" tabIndex={-1} className="p-4">
-        <Outlet />
-      </main>
+      <Outlet />
     </QueryClientProvider>
   )
 }

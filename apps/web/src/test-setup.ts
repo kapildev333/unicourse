@@ -11,4 +11,6 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
   this.dispatchEvent(new Event('close'))
 }
 
+window.scrollTo = () => {} // router scroll restoration; jsdom does not implement it
+
 afterEach(cleanup)

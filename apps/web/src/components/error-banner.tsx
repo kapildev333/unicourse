@@ -13,10 +13,12 @@ export const ErrorBanner = forwardRef<
       role="alert"
       className="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
     >
-      <p className="font-semibold">
-        <span className="sr-only">Error: </span>
-        {title}
-      </p>
+      {title && (
+        <p className="font-semibold">
+          <span className="sr-only">Error: </span>
+          {title}
+        </p>
+      )}
       <div>{children}</div>
       {onRetry && (
         <Button variant="secondary" size="sm" className="mt-2" onClick={onRetry}>
