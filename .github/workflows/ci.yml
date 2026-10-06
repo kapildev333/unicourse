@@ -18,7 +18,7 @@ jobs:
     env:
       UNICOURSE_TEST_DATABASE_URL: postgres://unicourse:unicourse@localhost:5432/unicourse_test?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: present
         run: test -f apps/api/go.mod && echo present=true >> "$GITHUB_OUTPUT" || echo "apps/api not scaffolded yet"
       - if: steps.present.outputs.present == 'true'
@@ -33,7 +33,7 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: present
         run: test -f apps/web/package.json && echo present=true >> "$GITHUB_OUTPUT" || echo "apps/web not scaffolded yet"
       - if: steps.present.outputs.present == 'true'
