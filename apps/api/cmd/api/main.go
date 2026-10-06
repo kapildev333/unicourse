@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,13 +11,13 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/config"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
-// newHandler builds the routed, middleware-wrapped handler.
-func newHandler(logger *slog.Logger) http.Handler {
+// newHandler builds the routed, middleware-wrapped handler; ready backs /readyz.
+func newHandler(logger *slog.Logger, ready func(context.Context) error) http.Handler {
 	mux := http.NewServeMux()
-	// db wired in P0-L2
-	health := httpx.Health(func(context.Context) error { return errors.New("database not configured") })
+	health := httpx.Health(ready)
 	mux.Handle("GET /healthz", health)
 	mux.Handle("GET /readyz", health)
 	mux.Handle("/", httpx.H(func(w http.ResponseWriter, r *http.Request) error { return httpx.NotFound("route") }))
@@ -35,10 +34,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger), ReadHeaderTimeout: 5 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	db, err := pg.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("database", "err", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	if err := pg.Migrate(ctx, db); err != nil {
+		logger.Error("migrate", "err", err)
+		os.Exit(1)
+	}
+
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, db.PingContext), ReadHeaderTimeout: 5 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)

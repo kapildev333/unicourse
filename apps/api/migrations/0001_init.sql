@@ -86,7 +86,8 @@ create table terms (
   ends_on date not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (starts_on < ends_on)
+  check (starts_on < ends_on),
+  unique (university_id, name)
 );
 create index on terms (university_id, created_at, id);
 

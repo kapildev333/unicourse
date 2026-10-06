@@ -109,3 +109,24 @@ func TestWriteWithoutTenantFails(t *testing.T) {
 		t.Fatal("cross-tenant audit write accepted")
 	}
 }
+
+func TestWriteStructPayloads(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	type dept struct {
+		Code string `json:"code"`
+		N    int    `json:"n"`
+	}
+	write(t, db, f.UniversityA, audit.Entry{Action: "department.create", EntityType: "department", EntityID: entity, After: dept{"CS", 3}})
+	got := list(t, db, f.UniversityA, audit.Filter{}, httpx.Page{Limit: 50}).Items[0]
+	if string(got.After) != `{"n": 3, "code": "CS"}` || got.Before != nil {
+		t.Fatalf("before %q after %q", got.Before, got.After)
+	}
+	var sqlNull bool
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select before is null from audit_log`).Scan(&sqlNull)
+	})
+	if !sqlNull {
+		t.Error("nil Before must be SQL NULL, not JSON null")
+	}
+}

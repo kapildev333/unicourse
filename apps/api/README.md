@@ -17,7 +17,7 @@ Compose runs Postgres 16 with superuser `postgres`/`postgres` and an app role `u
 (`NOSUPERUSER NOBYPASSRLS`, so row-level security applies). `docker/initdb.sql` creates the databases
 `unicourse` and `unicourse_test` and only runs on a fresh volume.
 
-Gates: `gofmt -l .`, `go vet ./...`, `go test ./... -count=1`.
+Gates: `gofmt -l .`, `go vet ./...`, `go test ./... -count=1 -race` with `UNICOURSE_TEST_DATABASE_URL` set (unset skips the database tests). DB tests serialise through an advisory lock, so `-p 1` is not needed. The API applies migrations at startup.
 
 ## Environment
 
