@@ -34,9 +34,8 @@ export function CoursesLayout() {
         >
           Courses
         </Link>
-        {/* cast until P2-L3b adds routes/$slug/courses/sections.tsx; then drop it */}
         <Link
-          to={'/$slug/courses/sections' as '/$slug/courses'}
+          to="/$slug/courses/sections"
           params={{ slug }}
           className={tabBase}
           activeProps={tabActive}
