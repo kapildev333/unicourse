@@ -10,6 +10,8 @@ UniCourse: a multi-tenant platform for universities to host courses, manage clas
 apps/api/     Go API — net/http standard library only (no framework, router, ORM or DI); allowed modules: pgx, x/oauth2, go-oidc, x/crypto
 apps/web/     React + Vite + TypeScript web app
 docs/specs/   design specs, YYYY-MM-DD-<topic>.md, approved before any plan or code (not docs/superpowers/specs/)
+docs/plans/   implementation plans, one per spec, same file name; each task is one lane (not docs/superpowers/plans/)
+docs/design/  designer-lane output, <LANE-ID>.md, written before the worker lane builds that task
 .claude/      agents, lane logs, /orchestrate
 ```
 
