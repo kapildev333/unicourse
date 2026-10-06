@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -18,7 +19,7 @@ const (
 )
 
 // logFields is filled by inner layers (auth, tenant) and read by the outer LogMiddleware.
-type logFields struct{ userID, universityID string }
+type logFields struct{ userID, universityID, route string }
 
 func withRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, requestIDKey, id)
@@ -42,6 +43,17 @@ func WithUserID(ctx context.Context, id string) {
 func WithUniversityID(ctx context.Context, id string) {
 	if f, ok := ctx.Value(logFieldsKey).(*logFields); ok {
 		f.universityID = id
+	}
+}
+
+// setRoute records the matched route pattern (path part only, e.g. /api/v1/auth/magic-link/{token}) so
+// the log line never carries path parameters such as secret tokens. No-op without LogMiddleware.
+func setRoute(ctx context.Context, pattern string) {
+	if f, ok := ctx.Value(logFieldsKey).(*logFields); ok {
+		if i := strings.IndexByte(pattern, ' '); i >= 0 {
+			pattern = pattern[i+1:]
+		}
+		f.route = pattern
 	}
 }
 
@@ -90,8 +102,12 @@ func LogMiddleware(l *slog.Logger, next http.Handler) http.Handler {
 		if sw.status == 0 {
 			sw.status = http.StatusOK
 		}
+		path := r.URL.Path
+		if f.route != "" {
+			path = f.route
+		}
 		attrs := []any{
-			"method", r.Method, "path", r.URL.Path, "status", sw.status,
+			"method", r.Method, "path", path, "status", sw.status,
 			"durationMs", time.Since(start).Milliseconds(), "requestId", RequestID(r.Context()),
 		}
 		if f.userID != "" {

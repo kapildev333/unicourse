@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -196,13 +195,6 @@ func checkClaims(provider string, c claims) error {
 		return oidcFail("unknown provider %q", provider)
 	}
 	return nil
-}
-
-// Deps carries what the OIDC callback core needs; P1-L1c adds the rest.
-type Deps struct {
-	DB        *sql.DB
-	Providers map[string]Provider
-	Secret    []byte
 }
 
 // oidcCallback validates the callback of provider {provider} and signs the user in. It clears the state
