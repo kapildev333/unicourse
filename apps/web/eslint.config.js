@@ -1,5 +1,3 @@
-import js from '@eslint/js'
-import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
@@ -8,9 +6,8 @@ export default tseslint.config(
   { ignores: ['dist', 'src/routeTree.gen.ts', 'src/api/types.ts'] },
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended, jsxA11y.flatConfigs.recommended],
+    extends: [...tseslint.configs.recommended, jsxA11y.flatConfigs.recommended],
     plugins: { 'react-hooks': reactHooks },
-    languageOptions: { globals: globals.browser },
     rules: reactHooks.configs.recommended.rules,
   },
 )

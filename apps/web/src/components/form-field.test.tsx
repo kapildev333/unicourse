@@ -13,3 +13,15 @@ it('marks the input invalid and describes it with the error', () => {
   expect(input).toHaveAttribute('aria-invalid', 'true')
   expect(input).toHaveAccessibleDescription('required')
 })
+
+it('merges an existing aria-describedby', () => {
+  render(<FormField label="Name" name="name" error="required"><input aria-describedby="hint" /></FormField>)
+  const input = screen.getByLabelText('Name')
+  expect(input.getAttribute('aria-describedby')).toMatch(/^hint /)
+  expect(input).toHaveAccessibleDescription(/required/)
+})
+
+it('keeps ids unique across fields sharing a name', () => {
+  render(<><FormField label="A" name="x"><input /></FormField><FormField label="B" name="x"><input /></FormField></>)
+  expect(screen.getByLabelText('A')).not.toBe(screen.getByLabelText('B'))
+})

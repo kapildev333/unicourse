@@ -8,6 +8,15 @@ export const api = createClient<paths>({
   fetch: (r) => fetch(r), // late-bound so tests can stub global fetch
 })
 
+const codeByStatus: Record<number, ErrorCode> = {
+  400: 'validation_failed',
+  401: 'unauthenticated',
+  403: 'forbidden',
+  404: 'not_found',
+  409: 'conflict',
+  429: 'rate_limited',
+}
+
 type Envelope = { error?: { code?: ErrorCode; message?: string; details?: { field: string; message: string }[] } }
 
 export async function unwrap<T>(
@@ -19,8 +28,8 @@ export async function unwrap<T>(
     if (response.status === 401) window.dispatchEvent(new Event('unicourse:unauthenticated'))
     throw new ApiError(
       response.status,
-      e?.code ?? 'internal',
-      e?.message ?? response.statusText,
+      e?.code ?? codeByStatus[response.status] ?? 'internal',
+      e?.message || response.statusText || `Request failed (${response.status})`,
       e?.details ?? [],
       response.headers.get('X-Request-Id') ?? undefined,
     )

@@ -38,3 +38,11 @@ it('carries X-Request-Id on 500', async () => {
   const err = await unwrap(api.GET('/me')).catch((e) => e)
   expect(err.requestId).toBe('abc')
 })
+
+it('derives code and message from status when the body is not an envelope', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('404 page not found', { status: 404, headers: { 'Content-Type': 'text/plain' } })))
+  const err = await unwrap(api.GET('/me')).catch((e) => e)
+  expect(err).toBeInstanceOf(ApiError)
+  expect(err.code).toBe('not_found')
+  expect(err.message).not.toBe('')
+})

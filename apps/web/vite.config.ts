@@ -7,5 +7,5 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 export default defineConfig({
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: false }), react(), tailwindcss()],
   server: { proxy: { '/api': 'http://localhost:8080' } },
-  test: { environment: 'jsdom', globals: true, setupFiles: ['./src/test-setup.ts'] },
+  test: { environment: 'jsdom', setupFiles: ['./src/test-setup.ts'] },
 })
