@@ -3,6 +3,7 @@
 package httpx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -69,6 +70,9 @@ type envelope struct {
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Error
 	switch {
+	case errors.Is(err, context.Canceled) && r.Context().Err() != nil:
+		w.WriteHeader(499) // client closed the request; not a server fault, so no error log and no body
+		return
 	case errors.As(err, &e) && e != nil:
 	case errors.Is(err, pg.ErrNotFound):
 		e = &Error{Status: 404, Code: "not_found", Message: "not found"}

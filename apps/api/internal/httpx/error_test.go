@@ -1,8 +1,11 @@
 package httpx
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -79,5 +82,27 @@ func TestWriteErrorTypedNil(t *testing.T) {
 	rec := do(e)
 	if rec.Code != 500 {
 		t.Fatal(rec.Code, rec.Body)
+	}
+}
+
+func TestWriteErrorCanceled(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(old)
+	err := fmt.Errorf("begin: %w", context.Canceled)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	rec := httptest.NewRecorder()
+	WriteError(rec, httptest.NewRequest("GET", "/x", nil).WithContext(ctx), err)
+	if rec.Code != 499 || rec.Body.Len() != 0 || buf.Len() != 0 {
+		t.Fatal(rec.Code, rec.Body, buf.String())
+	}
+
+	rec = httptest.NewRecorder()
+	WriteError(rec, httptest.NewRequest("GET", "/x", nil), err)
+	if rec.Code != 500 || !strings.Contains(rec.Body.String(), `"internal"`) || !strings.Contains(buf.String(), `"level":"ERROR"`) {
+		t.Fatal(rec.Code, rec.Body, buf.String())
 	}
 }
