@@ -196,3 +196,27 @@ func TestCreateInvitationCLI(t *testing.T) {
 		return nil
 	})
 }
+
+func TestCreateInvitationsBatch(t *testing.T) {
+	e := newServer(t, regTenant)
+	uni := e.Fx.UniversityA
+	e.tx(uni, func(tx *sql.Tx) error {
+		inv, err := CreateInvitations(context.Background(), tx, uni, e.Fx.AdminA, []string{"b1@a.edu", "b2@a.edu", "b3@a.edu"}, "member", e.Deps.Mailer, "http://localhost")
+		if err != nil || len(inv) != 3 {
+			t.Fatalf("%v %v", inv, err)
+		}
+		var n, withActor int
+		tx.QueryRow(`select count(*), count(actor_user_id) from audit_log where action = 'invitation.create' and entity_id = any($1::uuid[])`,
+			[]string{inv[0].ID, inv[1].ID, inv[2].ID}).Scan(&n, &withActor)
+		if n != 3 || withActor != 3 {
+			t.Fatalf("audit rows %d, with actor %d", n, withActor)
+		}
+		if out, err := CreateInvitations(context.Background(), tx, uni, "", nil, "member", e.Deps.Mailer, ""); err != nil || len(out) != 0 {
+			t.Fatalf("empty: %v %v", out, err)
+		}
+		return nil
+	})
+	if ms := e.mails(); len(ms) != 3 || !strings.Contains(ms[0].Text, "http://localhost/invite/") {
+		t.Fatalf("mails: %+v", ms)
+	}
+}
