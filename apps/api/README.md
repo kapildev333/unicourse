@@ -19,6 +19,18 @@ Compose runs Postgres 16 with superuser `postgres`/`postgres` and an app role `u
 
 Gates: `gofmt -l .`, `go vet ./...`, `go test ./... -count=1 -race` with `UNICOURSE_TEST_DATABASE_URL` set (unset skips the database tests). DB tests serialise through an advisory lock, so `-p 1` is not needed. The API applies migrations at startup.
 
+## Create the first university
+
+```
+export UNICOURSE_DATABASE_URL=... UNICOURSE_BASE_URL=http://localhost:8080
+go run ./cmd/unicourse-admin migrate
+go run ./cmd/unicourse-admin create-university --name "Example" --slug example \
+  --domains example.edu --timezone America/New_York --admin-email root@example.edu
+```
+
+No mail is sent. The command prints the admin invitation URL (`<base>/invite/<token>?email=...`); send it to
+the admin, who signs in with that email and becomes the university's admin. `create-university -h` lists all flags. Usage output (no arguments, `-h`, unknown command) exits 2 and needs no database. Reserved slugs (`api`, `assets`, `invite`, `sign-in`, ...) are rejected.
+
 ## Environment
 
 Environment only. A missing required variable fails startup with the list of what is missing.
