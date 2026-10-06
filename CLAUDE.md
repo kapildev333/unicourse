@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this directory is
 
-UniCourse: a multi-tenant platform for universities to host courses, manage classes and sections, and link professors and TAs. Product/startup, not a toy. No product code yet, so no build, lint, or test commands; add them here as soon as the stack exists. Design specs go in `docs/superpowers/specs/`.
+UniCourse: a multi-tenant platform for universities to host courses, manage classes and sections, and link professors and TAs. Product/startup, not a toy. No product code yet, so no build, lint, or test commands; add them here as soon as the stack exists. Layout: `specs/` (design specs, approved before planning), `fe/` (frontend), `be/` (backend). Specs go in `specs/`, not `docs/superpowers/specs/`.
 
 ## Orchestration workflow
 
