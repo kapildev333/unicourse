@@ -1,12 +1,4 @@
 GET /api/v1/universities/{slug}/me/sections
-GET /api/v1/universities/{slug}/departments
-POST /api/v1/universities/{slug}/departments
-PATCH /api/v1/universities/{slug}/departments/{id}
-DELETE /api/v1/universities/{slug}/departments/{id}
-GET /api/v1/universities/{slug}/terms
-POST /api/v1/universities/{slug}/terms
-PATCH /api/v1/universities/{slug}/terms/{id}
-DELETE /api/v1/universities/{slug}/terms/{id}
 GET /api/v1/universities/{slug}/invitations
 POST /api/v1/universities/{slug}/invitations
 DELETE /api/v1/universities/{slug}/invitations/{id}
