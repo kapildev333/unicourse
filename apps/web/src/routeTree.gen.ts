@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SlugRouteRouteImport } from './routes/$slug/route'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SlugIndexRouteImport } from './routes/$slug/index'
 import { Route as SlugAdminRouteImport } from './routes/$slug/admin'
 import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
@@ -33,6 +34,11 @@ const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SlugIndexRoute = SlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SlugRouteRoute,
 } as any)
 const SlugAdminRoute = SlugAdminRouteImport.update({
   id: '/admin',
@@ -73,16 +79,17 @@ export interface FileRoutesByFullPath {
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/$slug/': typeof SlugIndexRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/$slug': typeof SlugIndexRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin': typeof SlugAdminIndexRoute
 }
@@ -95,6 +102,7 @@ export interface FileRoutesById {
   '/$slug/courses': typeof SlugCoursesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/$slug/': typeof SlugIndexRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
 }
@@ -108,16 +116,17 @@ export interface FileRouteTypes {
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
+    | '/$slug/'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$slug'
     | '/sign-in'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
+    | '/$slug'
     | '/$slug/sections/$id'
     | '/$slug/admin'
   id:
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
+    | '/$slug/'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
   fileRoutesById: FileRoutesById
@@ -162,6 +172,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/$slug/': {
+      id: '/$slug/'
+      path: '/'
+      fullPath: '/$slug/'
+      preLoaderRoute: typeof SlugIndexRouteImport
+      parentRoute: typeof SlugRouteRoute
     }
     '/$slug/admin': {
       id: '/$slug/admin'
@@ -224,6 +241,7 @@ interface SlugRouteRouteChildren {
   SlugAdminRoute: typeof SlugAdminRouteWithChildren
   SlugCoursesRoute: typeof SlugCoursesRoute
   SlugMeRoute: typeof SlugMeRoute
+  SlugIndexRoute: typeof SlugIndexRoute
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
 }
 
@@ -231,6 +249,7 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugAdminRoute: SlugAdminRouteWithChildren,
   SlugCoursesRoute: SlugCoursesRoute,
   SlugMeRoute: SlugMeRoute,
+  SlugIndexRoute: SlugIndexRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,
 }
 

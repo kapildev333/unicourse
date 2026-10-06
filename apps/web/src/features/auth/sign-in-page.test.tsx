@@ -78,3 +78,31 @@ it('rejects an empty identifier locally and focuses the field', async () => {
   expect(fetchMock).not.toHaveBeenCalled()
   await waitFor(() => expect(screen.getByLabelText('University email or university ID')).toHaveFocus())
 })
+
+const notFound = { error: { code: 'not_found', message: 'nope', details: [] } }
+
+it('focuses the banner when the provider start returns 404 and quotes the submitted value', async () => {
+  mockApi({ 'POST /auth/oidc/google/start': () => ({ status: 404, body: notFound }) })
+  renderWithQuery(<SignInPage />)
+  const input = screen.getByLabelText('University email or university ID')
+  fireEvent.change(input, { target: { value: 'nowhere' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+  const banner = await screen.findByRole('alert')
+  expect(banner).toHaveTextContent('“nowhere”')
+  await waitFor(() => expect(banner).toHaveFocus())
+  fireEvent.change(input, { target: { value: 'edited' } })
+  expect(banner).toHaveTextContent('“nowhere”')
+})
+
+it('focuses the banner on magic-link 429', async () => {
+  mockApi({
+    'POST /auth/magic-link': () => ({
+      status: 429,
+      body: { error: { code: 'rate_limited', message: 'Slow down', details: [] } },
+    }),
+  })
+  renderWithQuery(<SignInPage />)
+  submitMagic('alice@a.edu')
+  const banner = await screen.findByRole('alert')
+  await waitFor(() => expect(banner).toHaveFocus())
+})

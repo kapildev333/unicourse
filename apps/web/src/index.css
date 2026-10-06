@@ -6,7 +6,7 @@
   --color-canvas: #f6f6f4;        /* page background, table header */
   --color-surface: #ffffff;       /* cards, tables, dialogs, inputs */
   --color-line: #e2e1dc;          /* hairlines, table rules */
-  --color-line-strong: #b9b7b0;   /* input borders, secondary button border (3:1 on white) */
+  --color-line-strong: #8c8a83;   /* input borders, secondary button border (>= 3:1 on white) */
   --color-ink: #1b1c1e;           /* body text, 16.9:1 on white */
   --color-ink-muted: #5b5e65;     /* secondary text, 6.4:1 on white, 6.0:1 on canvas */
   --color-accent: #1f4f8f;        /* primary buttons, links, active nav; white on it 8.6:1 */
