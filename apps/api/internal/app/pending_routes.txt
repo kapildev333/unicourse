@@ -1,12 +1,6 @@
-GET /api/v1/universities/{slug}/me/sections
 POST /api/v1/universities/{slug}/courses/import/preview
 POST /api/v1/universities/{slug}/courses/import
 POST /api/v1/universities/{slug}/sections/import/preview
 POST /api/v1/universities/{slug}/sections/import
-GET /api/v1/universities/{slug}/sections/{id}/staff
-POST /api/v1/universities/{slug}/sections/{id}/staff
-DELETE /api/v1/universities/{slug}/sections/{id}/staff/{userId}
-GET /api/v1/universities/{slug}/sections/{id}/enrollments
-DELETE /api/v1/universities/{slug}/sections/{id}/enrollments/{userId}
 POST /api/v1/universities/{slug}/sections/{id}/enrollments/import/preview
 POST /api/v1/universities/{slug}/sections/{id}/enrollments/import
