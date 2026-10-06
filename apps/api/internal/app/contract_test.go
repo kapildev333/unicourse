@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bufio"
 	"encoding/json"
 	"os"
 	"regexp"
@@ -25,23 +24,6 @@ func readJSON(t *testing.T) map[string]any {
 		t.Fatal(err)
 	}
 	return doc
-}
-
-func pendingRoutes(t *testing.T) map[string]bool {
-	t.Helper()
-	f, err := os.Open("pending_routes.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	out := map[string]bool{}
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		if l := strings.TrimSpace(sc.Text()); l != "" && !strings.HasPrefix(l, "#") {
-			out[norm(l)] = true
-		}
-	}
-	return out
 }
 
 func TestContractMatchesRouter(t *testing.T) {
@@ -72,7 +54,7 @@ func TestContractMatchesRouter(t *testing.T) {
 	for _, r := range NewRouter(Deps{}).Routes() {
 		code = append(code, r.Method+" "+r.Pattern)
 	}
-	for _, p := range diff(spec, code, pendingRoutes(t)) {
+	for _, p := range diff(spec, code, map[string]bool{}) {
 		t.Error(p)
 	}
 }
