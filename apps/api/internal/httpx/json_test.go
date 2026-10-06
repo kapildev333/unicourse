@@ -42,3 +42,37 @@ func TestWriteJSONContentType(t *testing.T) {
 		t.Fatal(rec.Code, rec.Header())
 	}
 }
+
+func decodeErr(t *testing.T, body string, dst any) *Error {
+	t.Helper()
+	var e *Error
+	if err := DecodeJSON(httptest.NewRequest("POST", "/", strings.NewReader(body)), dst); !errors.As(err, &e) {
+		t.Fatalf("%q: %#v", body, err)
+	}
+	return e
+}
+
+func TestDecodeJSONTrailingData(t *testing.T) {
+	var dst struct{ A int }
+	for _, b := range []string{`{"a":1} garbage`, `{"a":1}{"a":2}`} {
+		if e := decodeErr(t, b, &dst); e.Code != "validation_failed" || e.Details[0].Field != "body" {
+			t.Errorf("%q: %#v", b, e)
+		}
+	}
+}
+
+func TestDecodeJSONEmpty(t *testing.T) {
+	var dst struct{ A int }
+	if e := decodeErr(t, ``, &dst); e.Details[0].Field != "body" || e.Details[0].Message != "body is required" {
+		t.Fatalf("%#v", e)
+	}
+}
+
+func TestDecodeJSONTypeError(t *testing.T) {
+	var dst struct {
+		A int `json:"a"`
+	}
+	if e := decodeErr(t, `{"a":"x"}`, &dst); e.Details[0].Field != "a" || e.Details[0].Message != "invalid value" {
+		t.Fatalf("%#v", e)
+	}
+}

@@ -14,6 +14,17 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 )
 
+// newHandler builds the routed, middleware-wrapped handler.
+func newHandler(logger *slog.Logger) http.Handler {
+	mux := http.NewServeMux()
+	// db wired in P0-L2
+	health := httpx.Health(func(context.Context) error { return errors.New("database not configured") })
+	mux.Handle("GET /healthz", health)
+	mux.Handle("GET /readyz", health)
+	mux.Handle("/", httpx.H(func(w http.ResponseWriter, r *http.Request) error { return httpx.NotFound("route") }))
+	return httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, httpx.Recover(mux)))
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -24,30 +35,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	mux := http.NewServeMux()
-	// db wired in P0-L2
-	mux.Handle("/", httpx.Health(func(context.Context) error { return errors.New("database not configured") }))
-
-	srv := &http.Server{
-		Addr:              cfg.Addr,
-		Handler:           httpx.Recover(httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, mux))),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger), ReadHeaderTimeout: 5 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			logger.Error("shutdown", "err", err)
-		}
-	}()
 
+	errc := make(chan error, 1)
+	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+
+	select {
+	case err := <-errc:
 		logger.Error("server", "err", err)
+		os.Exit(1)
+	case <-ctx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Error("shutdown", "err", err)
 		os.Exit(1)
 	}
 }

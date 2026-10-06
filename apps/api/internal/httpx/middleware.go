@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -19,7 +20,7 @@ const (
 // logFields is filled by inner layers (auth, tenant) and read by the outer LogMiddleware.
 type logFields struct{ userID, universityID string }
 
-func WithRequestID(ctx context.Context, id string) context.Context {
+func withRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, requestIDKey, id)
 }
 
@@ -44,16 +45,18 @@ func WithUniversityID(ctx context.Context, id string) {
 	}
 }
 
+var validRequestID = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
+
 func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-Id")
-		if id == "" {
+		if !validRequestID.MatchString(id) {
 			b := make([]byte, 16)
 			_, _ = rand.Read(b)
 			id = hex.EncodeToString(b)
 		}
 		w.Header().Set("X-Request-Id", id)
-		next.ServeHTTP(w, r.WithContext(WithRequestID(r.Context(), id)))
+		next.ServeHTTP(w, r.WithContext(withRequestID(r.Context(), id)))
 	})
 }
 
@@ -105,6 +108,9 @@ func Recover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
+				if v == http.ErrAbortHandler {
+					panic(v)
+				}
 				slog.Error("panic", "panic", v, "requestId", RequestID(r.Context()))
 				WriteError(w, r, &Error{Status: 500, Code: "internal", Message: "internal error"})
 			}

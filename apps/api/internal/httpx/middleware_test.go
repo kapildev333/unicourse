@@ -19,6 +19,15 @@ func TestRequestIDMiddleware(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9a-f]{32}$`).MatchString(seen) || rec.Header().Get("X-Request-Id") != seen {
 		t.Fatalf("generated %q header %q", seen, rec.Header().Get("X-Request-Id"))
 	}
+	for _, bad := range []string{"has space", strings.Repeat("a", 65), "a\nb", "a/b"} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.Header.Set("X-Request-Id", bad)
+		seen = ""
+		h.ServeHTTP(httptest.NewRecorder(), r)
+		if seen == bad || len(seen) != 32 {
+			t.Fatalf("accepted %q -> %q", bad, seen)
+		}
+	}
 	r := httptest.NewRequest("GET", "/", nil)
 	r.Header.Set("X-Request-Id", "abc")
 	rec = httptest.NewRecorder()
@@ -63,6 +72,44 @@ func TestLogMiddlewareContextIDs(t *testing.T) {
 	if m["userId"] != "u1" || m["universityId"] != "uni1" || m["status"] != float64(200) {
 		t.Fatal(m)
 	}
+}
+
+func TestFullChainPanic(t *testing.T) {
+	var buf bytes.Buffer
+	l := slog.New(slog.NewJSONHandler(&buf, nil))
+	h := RequestIDMiddleware(LogMiddleware(l, Recover(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { panic("x") }))))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	id := rec.Header().Get("X-Request-Id")
+	if rec.Code != 500 || id == "" || !strings.Contains(rec.Body.String(), `"code":"internal"`) {
+		t.Fatal(rec.Code, rec.Header(), rec.Body)
+	}
+	var found int
+	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		if m["msg"] == "request" {
+			found++
+			if m["status"] != float64(500) || m["requestId"] != id {
+				t.Fatal(m)
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("request lines: %d", found)
+	}
+}
+
+func TestRecoverRepanicsAbortHandler(t *testing.T) {
+	defer func() {
+		if recover() != http.ErrAbortHandler {
+			t.Fatal("ErrAbortHandler must propagate")
+		}
+	}()
+	Recover(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { panic(http.ErrAbortHandler) })).
+		ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
 }
 
 func TestRecover(t *testing.T) {

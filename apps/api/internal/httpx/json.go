@@ -3,6 +3,7 @@ package httpx
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -19,19 +20,29 @@ func DecodeJSON(r *http.Request, dst any) error {
 	dec.DisallowUnknownFields()
 	err := dec.Decode(dst)
 	if err == nil {
-		return nil
+		// A second value (or garbage) after the first is an error; io.EOF means clean end.
+		if err = dec.Decode(&struct{}{}); err == io.EOF {
+			return nil
+		}
+		return Validation(FieldError{Field: "body", Message: "must contain a single JSON value"})
 	}
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {
 		return &Error{Status: 400, Code: "validation_failed", Message: "body too large", Details: []FieldError{}}
 	}
-	field, msg := "body", err.Error()
-	if rest, ok := strings.CutPrefix(msg, "json: unknown field "); ok {
-		field, msg = strings.Trim(rest, `"`), "unknown field"
+	if errors.Is(err, io.EOF) {
+		return Validation(FieldError{Field: "body", Message: "body is required"})
+	}
+	if rest, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+		return Validation(FieldError{Field: strings.Trim(rest, `"`), Message: "unknown field"})
 	}
 	var ute *json.UnmarshalTypeError
-	if errors.As(err, &ute) && ute.Field != "" {
-		field = ute.Field
+	if errors.As(err, &ute) {
+		field := ute.Field
+		if field == "" {
+			field = "body"
+		}
+		return Validation(FieldError{Field: field, Message: "invalid value"})
 	}
-	return Validation(FieldError{Field: field, Message: msg})
+	return Validation(FieldError{Field: "body", Message: "invalid JSON"})
 }

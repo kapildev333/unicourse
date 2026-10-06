@@ -14,7 +14,7 @@ import (
 func do(err error) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
-	r = r.WithContext(WithRequestID(r.Context(), "req-1"))
+	r = r.WithContext(withRequestID(r.Context(), "req-1"))
 	WriteError(rec, r, err)
 	return rec
 }
@@ -71,5 +71,13 @@ func TestH(t *testing.T) {
 	H(func(w http.ResponseWriter, r *http.Request) error { return Forbidden() })(rec, httptest.NewRequest("GET", "/", nil))
 	if rec.Code != 403 {
 		t.Fatal(rec.Code)
+	}
+}
+
+func TestWriteErrorTypedNil(t *testing.T) {
+	var e *Error
+	rec := do(e)
+	if rec.Code != 500 {
+		t.Fatal(rec.Code, rec.Body)
 	}
 }

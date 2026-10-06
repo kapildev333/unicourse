@@ -69,7 +69,7 @@ type envelope struct {
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Error
 	switch {
-	case errors.As(err, &e):
+	case errors.As(err, &e) && e != nil:
 	case errors.Is(err, pg.ErrNotFound):
 		e = &Error{Status: 404, Code: "not_found", Message: "not found"}
 	case errors.Is(err, pg.ErrConflict):

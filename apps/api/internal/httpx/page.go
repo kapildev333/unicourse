@@ -3,12 +3,15 @@ package httpx
 import (
 	"encoding/base64"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 // Page is keyset pagination over (created_at, id); see page_test.go for the query shape.
+var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
 type Page struct {
 	Limit  int
 	Cursor string
@@ -25,6 +28,9 @@ func ParsePage(r *http.Request) (Page, error) {
 		n, err := strconv.Atoi(s)
 		if err != nil {
 			return Page{}, Validation(FieldError{"limit", "must be an integer"})
+		}
+		if n < 0 {
+			return Page{}, Validation(FieldError{"limit", "must not be negative"})
 		}
 		if n >= 1 {
 			p.Limit = min(n, 200)
@@ -45,7 +51,7 @@ func (p Page) After() (createdAt time.Time, id string, ok bool) {
 		return time.Time{}, "", false
 	}
 	ts, id, found := strings.Cut(string(raw), "|")
-	if !found || id == "" {
+	if !found || !uuidRe.MatchString(id) {
 		return time.Time{}, "", false
 	}
 	createdAt, err = time.Parse(time.RFC3339Nano, ts)
