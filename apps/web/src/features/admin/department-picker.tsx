@@ -1,16 +1,16 @@
-import { useId } from "react";
-import { useAllDepartments } from "./queries";
+import { useId } from 'react'
+import { useAllDepartments } from './queries'
 
 export function DepartmentPicker(props: {
-  slug: string;
-  value: string[];
-  onChange: (ids: string[]) => void;
-  error?: string;
+  slug: string
+  value: string[]
+  onChange: (ids: string[]) => void
+  error?: string
 }) {
-  const { slug, value, onChange, error } = props;
-  const errId = useId();
-  const q = useAllDepartments(slug);
-  const items = q.data?.items ?? [];
+  const { slug, value, onChange, error } = props
+  const errId = useId()
+  const q = useAllDepartments(slug)
+  const items = q.data?.items ?? []
   return (
     <fieldset aria-describedby={error ? errId : undefined}>
       <legend className="text-sm font-medium">Departments</legend>
@@ -24,9 +24,7 @@ export function DepartmentPicker(props: {
             Couldn't load departments. Close this dialog and try again.
           </p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            No departments yet. Create one under Departments.
-          </p>
+          <p className="text-sm text-ink-muted">No departments yet. Create one under Departments.</p>
         ) : (
           items.map((d) => (
             <label key={d.id} className="flex items-center gap-2 py-1 text-sm">
@@ -35,13 +33,7 @@ export function DepartmentPicker(props: {
                 className="size-4 accent-accent"
                 aria-invalid={error ? true : undefined}
                 checked={value.includes(d.id)}
-                onChange={(e) =>
-                  onChange(
-                    e.target.checked
-                      ? [...value, d.id]
-                      : value.filter((x) => x !== d.id),
-                  )
-                }
+                onChange={(e) => onChange(e.target.checked ? [...value, d.id] : value.filter((x) => x !== d.id))}
               />
               {d.name}
               <span className="text-xs text-ink-muted">{d.code}</span>
@@ -56,5 +48,5 @@ export function DepartmentPicker(props: {
         </p>
       )}
     </fieldset>
-  );
+  )
 }
