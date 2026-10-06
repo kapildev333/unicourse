@@ -174,7 +174,12 @@ export function AuditLogPage({ slug }: { slug: string }) {
   return (
     <>
       <PageHeader title="Audit log" description="Every change made in this university, newest first." />
-      <form role="search" aria-label="Filter audit log" className="mb-4 flex flex-wrap items-end gap-3">
+      <form
+        role="search"
+        aria-label="Filter audit log"
+        onSubmit={(e) => e.preventDefault()}
+        className="mb-4 flex flex-wrap items-end gap-3"
+      >
         <div className="w-48">
           <FormField label="Entity" name="entityType">
             <select className={inputClass} value={f.entityType} onChange={set('entityType')}>

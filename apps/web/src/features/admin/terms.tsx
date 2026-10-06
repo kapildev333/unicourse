@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -15,6 +15,7 @@ import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
+import { useRefresh } from './queries'
 
 type Term = components['schemas']['Term']
 
@@ -29,18 +30,9 @@ const deleteCopy = {
   conflict: 'This term still has sections. Delete them first.',
 }
 
-function useRefresh(slug: string) {
-  const qc = useQueryClient()
-  return () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: [slug, 'terms'] }),
-      qc.invalidateQueries({ queryKey: [slug, 'audit-log'] }),
-    ])
-}
-
 function TermForm(props: { slug: string; term: Term | null; onDone: (notice?: string) => void; onCancel: () => void }) {
   const { slug, term, onDone, onCancel } = props
-  const refresh = useRefresh(slug)
+  const refresh = useRefresh(slug, 'terms')
   const [name, setName] = useState(term?.name ?? '')
   const [startsOn, setStartsOn] = useState(term?.startsOn ?? '')
   const [endsOn, setEndsOn] = useState(term?.endsOn ?? '')
@@ -108,7 +100,7 @@ function TermForm(props: { slug: string; term: Term | null; onDone: (notice?: st
 
 function DeleteForm(props: { slug: string; term: Term; onDone: (notice?: string) => void; onCancel: () => void }) {
   const { slug, term, onDone, onCancel } = props
-  const refresh = useRefresh(slug)
+  const refresh = useRefresh(slug, 'terms')
   const m = useMutation({
     mutationFn: () =>
       unwrap(

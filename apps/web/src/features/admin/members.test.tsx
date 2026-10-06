@@ -3,7 +3,16 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { MembersPage } from './members'
 
-afterEach(() => vi.unstubAllGlobals())
+const navigate = vi.fn()
+vi.mock('@tanstack/react-router', async (orig) => ({
+  ...(await orig<typeof import('@tanstack/react-router')>()),
+  useNavigate: () => navigate,
+}))
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  navigate.mockClear()
+})
 
 const bob = {
   id: 'm1',
@@ -77,4 +86,33 @@ it('sends an empty department list for member and shows the last-admin 409', asy
   expect(screen.getByRole('dialog')).toHaveAttribute('open')
   const patch = fn.mock.calls.map((c) => c[0] as Request).find((r) => r.method === 'PATCH')!
   expect(await patch.clone().json()).toEqual({ role: 'member', departmentIds: [] })
+})
+
+it('sends a demoted caller to the admin index and refetches me', async () => {
+  const fn = mockApi({
+    ...base,
+    [L]: () => ({ body: { items: [{ ...bob, userId: 'u0', role: 'admin', departmentIds: [] }] } }),
+    'PATCH /universities/x/memberships/m1': () => ({ body: { ...bob, userId: 'u0' } }),
+  })
+  await openRoleDialog()
+  fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'member' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save role' }))
+  await waitFor(() =>
+    expect(navigate).toHaveBeenCalledWith({ to: '/$slug/admin', params: { slug: 'x' }, replace: true }),
+  )
+  const meGets = () => fn.mock.calls.filter((c) => new URL((c[0] as Request).url).pathname.endsWith('/me')).length
+  await waitFor(() => expect(meGets()).toBe(2))
+})
+
+it("changing someone else's role neither navigates nor refetches me", async () => {
+  const fn = mockApi({
+    ...base,
+    'PATCH /universities/x/memberships/m1': () => ({ body: bob }),
+  })
+  await openRoleDialog()
+  fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'member' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save role' }))
+  expect(await screen.findByText(/bob@a.edu is now/)).toBeInTheDocument()
+  expect(navigate).not.toHaveBeenCalled()
+  expect(fn.mock.calls.filter((c) => new URL((c[0] as Request).url).pathname.endsWith('/me'))).toHaveLength(1)
 })

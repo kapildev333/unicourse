@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -14,6 +14,7 @@ import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
+import { useRefresh } from './queries'
 
 type Department = components['schemas']['Department']
 
@@ -27,15 +28,6 @@ const deleteCopy = {
   conflict: 'This department still has courses or department admins. Move or remove them first.',
 }
 
-function useRefresh(slug: string) {
-  const qc = useQueryClient()
-  return () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: [slug, 'departments'] }),
-      qc.invalidateQueries({ queryKey: [slug, 'audit-log'] }),
-    ])
-}
-
 function DepartmentForm(props: {
   slug: string
   department: Department | null
@@ -43,7 +35,7 @@ function DepartmentForm(props: {
   onCancel: () => void
 }) {
   const { slug, department, onDone, onCancel } = props
-  const refresh = useRefresh(slug)
+  const refresh = useRefresh(slug, 'departments')
   const [name, setName] = useState(department?.name ?? '')
   const [code, setCode] = useState(department?.code ?? '')
   const formRef = useRef<HTMLFormElement>(null)
@@ -119,7 +111,7 @@ function DeleteForm(props: {
   onCancel: () => void
 }) {
   const { slug, department, onDone, onCancel } = props
-  const refresh = useRefresh(slug)
+  const refresh = useRefresh(slug, 'departments')
   const m = useMutation({
     mutationFn: () =>
       unwrap(

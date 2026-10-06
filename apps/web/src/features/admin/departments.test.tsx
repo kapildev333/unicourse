@@ -76,7 +76,12 @@ it('confirms before deleting and shows the 409 copy', async () => {
   expect(within(dialog).getByText(/Computer Science \(CS\) will be removed/)).toBeInTheDocument()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
   expect(await within(dialog).findByText(/still has courses or department admins/)).toBeInTheDocument()
-  expect(fn.mock.calls.some((c) => (c[0] as Request).method === 'DELETE')).toBe(true)
+  expect(
+    fn.mock.calls.some(
+      (c) =>
+        (c[0] as Request).method === 'DELETE' && new URL((c[0] as Request).url).pathname.endsWith('/departments/1'),
+    ),
+  ).toBe(true)
   expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeEnabled()
 })
 
@@ -95,4 +100,22 @@ it('shows an error banner with retry when the list fails', async () => {
   })
   renderWithQuery(<DepartmentsPage slug="x" />)
   expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
+})
+
+it('edits sending only changed fields and sends nothing when unchanged', async () => {
+  const fn = mockApi({
+    [L]: list([cs]),
+    'PATCH /universities/x/departments/1': () => ({ body: { ...cs, name: 'X' } }),
+  })
+  const patches = () => fn.mock.calls.map((c) => c[0] as Request).filter((r) => r.method === 'PATCH')
+  renderWithQuery(<DepartmentsPage slug="x" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Computer Science' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(patches()).toHaveLength(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Computer Science' }))
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'X' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(patches()).toHaveLength(1))
+  expect(await patches()[0].clone().json()).toEqual({ name: 'X' })
 })

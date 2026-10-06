@@ -106,5 +106,10 @@ it('revokes through a confirmation dialog', async () => {
   const dialog = await screen.findByRole('dialog', { name: 'Revoke invitation?' })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }))
   expect(await screen.findByText(/Invitation for pen@a\.edu revoked\./)).toBeInTheDocument()
-  expect(fn.mock.calls.some((c) => (c[0] as Request).method === 'DELETE')).toBe(true)
+  expect(
+    fn.mock.calls.some(
+      (c) =>
+        (c[0] as Request).method === 'DELETE' && new URL((c[0] as Request).url).pathname.endsWith('/invitations/pen'),
+    ),
+  ).toBe(true)
 })

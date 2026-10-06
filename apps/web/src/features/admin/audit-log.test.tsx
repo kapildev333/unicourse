@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { AuditLogPage } from './audit-log'
@@ -71,4 +71,18 @@ it('shows the empty state', async () => {
   mockApi({ ...members, [L]: () => ({ body: { items: [] } }) })
   renderWithQuery(<AuditLogPage slug="x" />)
   expect(await screen.findByText('No changes recorded yet')).toBeInTheDocument()
+})
+
+it('sends local-day bounds for the date filters', async () => {
+  const fn = mockApi({ ...members, [L]: () => ({ body: { items: [entry('e1')] } }) })
+  renderWithQuery(<AuditLogPage slug="x" />)
+  await screen.findByText('Alice')
+  fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } })
+  fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-01' } })
+  await screen.findByRole('button', { name: 'Clear filters' })
+  await waitFor(() => {
+    const last = gets(fn).at(-1)!
+    expect(last.get('from')).toBe(new Date(2026, 9, 1).toISOString())
+    expect(last.get('to')).toBe(new Date(2026, 9, 2).toISOString())
+  })
 })

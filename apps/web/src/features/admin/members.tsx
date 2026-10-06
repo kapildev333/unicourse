@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -40,6 +41,8 @@ function RoleForm(props: {
 }) {
   const { slug, member, onDone, onCancel } = props
   const refresh = useRefresh(slug, 'memberships')
+  const navigate = useNavigate()
+  const isMe = member.userId === useMe().data?.user.id
   const [role, setRole] = useState<Role>(member.role)
   const [departmentIds, setDepartmentIds] = useState(member.departmentIds)
   const formRef = useRef<HTMLFormElement>(null)
@@ -53,8 +56,9 @@ function RoleForm(props: {
         }),
       ),
     onSuccess: async (_, body) => {
-      await refresh(['me'])
+      await (isMe ? refresh(['me']) : refresh())
       onDone(`${member.email} is now ${roleLabel(body.role)}.`)
+      if (isMe && body.role !== 'admin') navigate({ to: '/$slug/admin', params: { slug }, replace: true })
     },
   })
   const fields = useFieldErrors(m.error, roleCopy)
@@ -104,6 +108,7 @@ function RemoveForm(props: {
 }) {
   const { slug, member, onDone, onCancel } = props
   const refresh = useRefresh(slug, 'memberships')
+  const isMe = member.userId === useMe().data?.user.id
   const m = useMutation({
     mutationFn: () =>
       unwrap(
@@ -112,7 +117,7 @@ function RemoveForm(props: {
         }),
       ),
     onSuccess: async () => {
-      await refresh(['me'])
+      await (isMe ? refresh(['me']) : refresh())
       onDone(`${member.email} removed.`)
     },
   })
