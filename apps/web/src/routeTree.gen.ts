@@ -18,6 +18,8 @@ import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as SlugAdminIndexRouteImport } from './routes/$slug/admin/index'
+import { Route as SlugAdminDepartmentsRouteImport } from './routes/$slug/admin/departments'
+import { Route as SlugAdminTermsRouteImport } from './routes/$slug/admin/terms'
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +67,16 @@ const SlugAdminIndexRoute = SlugAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SlugAdminRoute,
 } as any)
+const SlugAdminDepartmentsRoute = SlugAdminDepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => SlugAdminRoute,
+} as any)
+const SlugAdminTermsRoute = SlugAdminTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => SlugAdminRoute,
+} as any)
 const SlugSectionsIdRoute = SlugSectionsIdRouteImport.update({
   id: '/sections/$id',
   path: '/sections/$id',
@@ -80,6 +92,8 @@ export interface FileRoutesByFullPath {
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
+  '/$slug/admin/departments': typeof SlugAdminDepartmentsRoute
+  '/$slug/admin/terms': typeof SlugAdminTermsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
 }
@@ -90,6 +104,8 @@ export interface FileRoutesByTo {
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug': typeof SlugIndexRoute
+  '/$slug/admin/departments': typeof SlugAdminDepartmentsRoute
+  '/$slug/admin/terms': typeof SlugAdminTermsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin': typeof SlugAdminIndexRoute
 }
@@ -103,6 +119,8 @@ export interface FileRoutesById {
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
+  '/$slug/admin/departments': typeof SlugAdminDepartmentsRoute
+  '/$slug/admin/terms': typeof SlugAdminTermsRoute
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
 }
@@ -117,6 +135,8 @@ export interface FileRouteTypes {
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/'
+    | '/$slug/admin/departments'
+    | '/$slug/admin/terms'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -127,6 +147,8 @@ export interface FileRouteTypes {
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug'
+    | '/$slug/admin/departments'
+    | '/$slug/admin/terms'
     | '/$slug/sections/$id'
     | '/$slug/admin'
   id:
@@ -139,6 +161,8 @@ export interface FileRouteTypes {
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/'
+    | '/$slug/admin/departments'
+    | '/$slug/admin/terms'
     | '/$slug/sections/$id'
     | '/$slug/admin/'
   fileRoutesById: FileRoutesById
@@ -215,6 +239,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugAdminIndexRouteImport
       parentRoute: typeof SlugAdminRoute
     }
+    '/$slug/admin/departments': {
+      id: '/$slug/admin/departments'
+      path: '/departments'
+      fullPath: '/$slug/admin/departments'
+      preLoaderRoute: typeof SlugAdminDepartmentsRouteImport
+      parentRoute: typeof SlugAdminRoute
+    }
+    '/$slug/admin/terms': {
+      id: '/$slug/admin/terms'
+      path: '/terms'
+      fullPath: '/$slug/admin/terms'
+      preLoaderRoute: typeof SlugAdminTermsRouteImport
+      parentRoute: typeof SlugAdminRoute
+    }
     '/$slug/sections/$id': {
       id: '/$slug/sections/$id'
       path: '/sections/$id'
@@ -226,10 +264,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface SlugAdminRouteChildren {
+  SlugAdminDepartmentsRoute: typeof SlugAdminDepartmentsRoute
+  SlugAdminTermsRoute: typeof SlugAdminTermsRoute
   SlugAdminIndexRoute: typeof SlugAdminIndexRoute
 }
 
 const SlugAdminRouteChildren: SlugAdminRouteChildren = {
+  SlugAdminDepartmentsRoute: SlugAdminDepartmentsRoute,
+  SlugAdminTermsRoute: SlugAdminTermsRoute,
   SlugAdminIndexRoute: SlugAdminIndexRoute,
 }
 
