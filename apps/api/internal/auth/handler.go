@@ -43,9 +43,13 @@ func Register(r *httpx.Router, d Deps) {
 
 // safeNext returns s when it is a same-site relative path, else "".
 func safeNext(s string) string {
-	if len(s) > 512 || !strings.HasPrefix(s, "/") || strings.HasPrefix(s, "//") || strings.HasPrefix(s, `/\`) ||
-		strings.ContainsAny(s, "\r\n\t") {
+	if len(s) > 512 || !strings.HasPrefix(s, "/") || strings.HasPrefix(s, "//") || strings.HasPrefix(s, `/\`) {
 		return ""
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x7f {
+			return ""
+		}
 	}
 	return s
 }
@@ -65,8 +69,8 @@ func (d Deps) failRedirect(w http.ResponseWriter, r *http.Request, err error) er
 		d.signInError(w, r, "unauthenticated")
 	case errors.Is(err, ErrNotAllowed):
 		d.signInError(w, r, "forbidden")
-	case errors.As(err, &he) && (he.Code == "validation_failed" || he.Code == "rate_limited"):
-		slog.InfoContext(r.Context(), "sign-in rejected", "code", he.Code, "reason", he.Message)
+	case errors.As(err, &he) && he.Code == "validation_failed":
+		slog.InfoContext(r.Context(), "sign-in rejected", "code", he.Code, "reason", he.Message, "requestId", httpx.RequestID(r.Context()))
 		d.signInError(w, r, he.Code)
 	default:
 		// Explicit 500: a stray pg.ErrNotFound/ErrConflict must not surface as 404/409 on a redirect flow.
@@ -79,7 +83,12 @@ func (d Deps) failRedirect(w http.ResponseWriter, r *http.Request, err error) er
 // landing creates the session, sets the cookie and redirects to next (if safe and the user has a
 // membership), else the slug's or first membership's home, else sign-in?error=no_membership.
 func (d Deps) landing(w http.ResponseWriter, r *http.Request, userID, slug, next string) error {
-	next = safeNext(next) // second line of defence for values recovered from the OIDC state
+	next = safeNext(next)                              // second line of defence for values recovered from the OIDC state
+	if c, err := r.Cookie(SessionCookie); err == nil { // re-sign-in must not leave the old session valid
+		if err := d.Sessions.Revoke(r.Context(), c.Value); err != nil {
+			return err
+		}
+	}
 	tok, err := d.Sessions.Create(r.Context(), userID)
 	if err != nil {
 		return err
@@ -264,12 +273,21 @@ func (d Deps) confirmMagicLink(w http.ResponseWriter, r *http.Request) error {
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "no-store")
 	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
 	return confirmPage.Execute(w, map[string]string{"Action": action})
 }
 
 func (d Deps) consumeMagicLink(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
+	// Login-CSRF guard: a cross-site POST must not consume the token. Origin is unusable here
+	// (no-referrer makes the legitimate form send "null"); old browsers without the header pass.
+	if sfs := r.Header.Get("Sec-Fetch-Site"); sfs != "" && sfs != "same-origin" {
+		slog.InfoContext(r.Context(), "sign-in rejected", "code", "validation_failed", "reason", "cross-site magic-link POST", "requestId", httpx.RequestID(r.Context()))
+		d.signInError(w, r, "validation_failed")
+		return nil
+	}
 	email, err := d.Magic.Consume(r.Context(), r.PathValue("token"))
 	if err != nil {
 		return d.failRedirect(w, r, err)

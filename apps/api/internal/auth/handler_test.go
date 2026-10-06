@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
 
@@ -54,7 +55,14 @@ func newHXLimit(t *testing.T, perEmail int) *hx {
 }
 
 func (x *hx) do(method, path, body string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	return x.doH(method, path, body, nil, cookies...)
+}
+
+func (x *hx) doH(method, path, body string, hdr map[string]string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	for k, v := range hdr {
+		r.Header.Set(k, v)
+	}
 	for _, c := range cookies {
 		r.AddCookie(c)
 	}
@@ -110,7 +118,7 @@ func wantRedirect(t *testing.T, w *httptest.ResponseRecorder, loc string) {
 
 func TestSafeNext(t *testing.T) {
 	for in, want := range map[string]string{"/a/courses": "/a/courses", "": "", "//evil.com": "", `/\evil.com`: "", "https://evil.com": "",
-		"/a\r\nX: y": "", "a/b": "", "/" + strings.Repeat("x", 512): ""} {
+		"/a\r\nX: y": "", "/a\x00b": "", "/a\x1fb": "", "/a\x7fb": "", "/a\tb": "", "a/b": "", "/" + strings.Repeat("x", 512): ""} {
 		if got := safeNext(in); got != want {
 			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
 		}
@@ -307,6 +315,145 @@ func TestOIDCStartErrors(t *testing.T) {
 	for _, b := range []string{`{}`, `{"slug":"a","email":"x@a.edu"}`, `{"email":"nope"}`} {
 		if w := x.do("POST", "/api/v1/auth/oidc/google/start", b); w.Code != 400 {
 			t.Errorf("%s: %d", b, w.Code)
+		}
+	}
+}
+
+func TestMagicLinkCrossSitePostDoesNotConsume(t *testing.T) {
+	x := newHX(t)
+	path := x.link("admin@a.edu", "")
+	w := x.doH("POST", path, "", map[string]string{"Sec-Fetch-Site": "cross-site"})
+	wantRedirect(t, w, "/sign-in?error=validation_failed")
+	if len(w.Result().Cookies()) != 0 {
+		t.Fatalf("cookies set: %v", w.Result().Cookies())
+	}
+	wantRedirect(t, x.doH("POST", path, "", map[string]string{"Sec-Fetch-Site": "same-origin"}), "/a/me") // token survived
+}
+
+func TestMagicLinkNoFetchMetadataStillWorks(t *testing.T) {
+	x := newHX(t)
+	wantRedirect(t, x.do("POST", x.link("admin@a.edu", ""), ""), "/a/me")
+}
+
+func TestConfirmPageFramingHeaders(t *testing.T) {
+	x := newHX(t)
+	w := x.do("GET", x.link("admin@a.edu", ""), "")
+	if w.Header().Get("X-Frame-Options") != "DENY" ||
+		w.Header().Get("Content-Security-Policy") != "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'" {
+		t.Fatalf("headers: %v", w.Header())
+	}
+}
+
+func TestConfirmPageDropsInvalidNext(t *testing.T) {
+	x := newHX(t)
+	p := strings.SplitN(x.link("admin@a.edu", ""), "?", 2)[0]
+	if b := x.do("GET", p+"?next="+url.QueryEscape("//evil.com"), "").Body.String(); strings.Contains(b, "next=") || strings.Contains(b, "evil") {
+		t.Fatalf("invalid next rendered: %s", b)
+	}
+}
+
+func TestRequestMagicLinkDropsInvalidNext(t *testing.T) {
+	x := newHX(t)
+	x.link("admin@a.edu", "//evil.com")
+	if strings.Contains(x.mail.String(), "next=") || strings.Contains(x.mail.String(), "evil") {
+		t.Fatalf("mailed link carries next: %s", x.mail)
+	}
+}
+
+func TestNoMembershipIgnoresNext(t *testing.T) {
+	x := newHX(t)
+	wantRedirect(t, x.do("POST", x.link("new@a.edu", "/a/courses"), ""), "/sign-in?error=no_membership")
+}
+
+func TestOIDCStartDropsInvalidNext(t *testing.T) {
+	x := newHX(t)
+	for _, bad := range []string{"@evil.com", "//evil.com"} {
+		c, nonce := x.oidcStart(`{"email":"admin@a.edu","next":"` + bad + `"}`)
+		st, err := parseState(x.d.Secret, c.Value, time.Now())
+		if err != nil || st.Next != "" {
+			t.Fatalf("%q: state %+v err %v", bad, st, err)
+		}
+		x.iss.mint(t, map[string]any{"nonce": nonce, "email": "admin@a.edu", "email_verified": true})
+		wantRedirect(t, x.do("GET", "/api/v1/auth/oidc/google/callback?code=x&state="+nonce, "", c), "/a/me")
+	}
+}
+
+func TestMeActiveMembershipsAndOwnDepartments(t *testing.T) {
+	x := newHX(t)
+	f := x.fx
+	tx := func(uni, q string, args ...any) {
+		t.Helper()
+		err := pg.WithTx(context.Background(), x.db, uni, func(tx *sql.Tx) error { _, err := tx.Exec(q, args...); return err })
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	sqlExec(t, x.db, `insert into users (email, display_name) values ('multi@a.edu', 'Multi'), ('inv@a.edu', 'Inv')`)
+	for _, u := range []string{f.UniversityA, f.UniversityB} {
+		tx(u, `insert into memberships (university_id, user_id, role, status) select $1, id, 'dept_admin', 'active' from users where email = 'multi@a.edu'`, u)
+	}
+	tx(f.UniversityB, `insert into departments (university_id, name, code) values ($1, 'Math', 'MA')`, f.UniversityB)
+	tx(f.UniversityA, `insert into department_admins (university_id, department_id, user_id) select $1, $2, id from users where email = 'multi@a.edu'`, f.UniversityA, f.DeptA)
+	tx(f.UniversityB, `insert into department_admins (university_id, department_id, user_id) select $1, d.id, u.id from departments d, users u where d.university_id = $1 and u.email = 'multi@a.edu'`, f.UniversityB)
+	tx(f.UniversityA, `insert into memberships (university_id, user_id, role, status) select $1, id, 'member', 'active' from users where email = 'inv@a.edu'`, f.UniversityA)
+	tx(f.UniversityB, `insert into memberships (university_id, user_id, role, status) select $1, id, 'member', 'invited' from users where email = 'inv@a.edu'`, f.UniversityB)
+
+	var got struct {
+		Memberships []struct {
+			University    struct{ ID string }
+			DepartmentIDs []string
+		}
+	}
+	w := x.do("GET", "/api/v1/me", "", x.signedIn("multi@a.edu"))
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || len(got.Memberships) != 2 {
+		t.Fatalf("%d %s %v", w.Code, w.Body, err)
+	}
+	for _, m := range got.Memberships {
+		if len(m.DepartmentIDs) != 1 {
+			t.Fatalf("each university lists only its own department: %s", w.Body)
+		}
+		if m.University.ID == f.UniversityA && m.DepartmentIDs[0] != f.DeptA {
+			t.Fatalf("A lists foreign department: %s", w.Body)
+		}
+	}
+	w = x.do("GET", "/api/v1/me", "", x.signedIn("inv@a.edu"))
+	if strings.Contains(w.Body.String(), f.UniversityB) || !strings.Contains(w.Body.String(), f.UniversityA) {
+		t.Fatalf("invited membership listed: %s", w.Body)
+	}
+}
+
+func TestReSignInRevokesOldSession(t *testing.T) {
+	x := newHX(t)
+	first := cookieNamed(x.do("POST", x.link("admin@a.edu", ""), ""), SessionCookie)
+	second := cookieNamed(x.do("POST", x.link("admin@a.edu", ""), "", first), SessionCookie)
+	if w := x.do("GET", "/api/v1/me", "", first); w.Code != 401 {
+		t.Fatalf("old session still valid: %d", w.Code)
+	}
+	if w := x.do("GET", "/api/v1/me", "", second); w.Code != 200 {
+		t.Fatalf("new session: %d", w.Code)
+	}
+}
+
+func TestRejectionLogsCarryRequestID(t *testing.T) {
+	x := newHX(t)
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(old)
+	x.do("POST", "/api/v1/auth/magic-link/garbage", "")
+	x.do("GET", "/api/v1/auth/oidc/google/callback?code=x&state=tampered", "")
+	for _, msg := range []string{"sign-in rejected", "oidc callback rejected"} {
+		found := false
+		for _, line := range strings.Split(buf.String(), "\n") {
+			if strings.Contains(line, msg) {
+				found = true
+				if !strings.Contains(line, `"requestId":"`) || strings.Contains(line, `"requestId":""`) {
+					t.Errorf("%s: no requestId: %s", msg, line)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no %q log line in %s", msg, buf.String())
 		}
 	}
 }

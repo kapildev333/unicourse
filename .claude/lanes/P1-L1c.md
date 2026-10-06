@@ -15,3 +15,8 @@ Finished; awaiting orchestrator verification.
 - to orchestrator: `app.go` and `pending_routes.txt` edits are minimal (import, `Auth` field, one `Register` call; 7 lines removed) for the merge with the tenant lane.
 ## Blockers
 None.
+## Fix round (review of P1-L1c)
+- Magic-link POST rejects `Sec-Fetch-Site` other than empty/`same-origin` (redirect `validation_failed`, token not consumed); confirm page sends `X-Frame-Options: DENY` and a CSP (`style-src 'unsafe-inline'` kept: the page uses inline styles).
+- `landing` revokes the request's existing session cookie before creating the new one; `safeNext` is applied at the top of `landing`, covering every caller. `safeNext` rejects all bytes < 0x20 and 0x7f.
+- Rejection log lines carry `requestId`; dead `rate_limited` case removed from `failRedirect`.
+- Tests added for each pinned design behaviour (active-only memberships, own-university departmentIds, invalid `next` on mail/OIDC/confirm page, no_membership ignores `next`); each verified by mutation.

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/config"
+	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 )
 
 const (
@@ -204,7 +205,7 @@ func checkClaims(provider string, c claims) error {
 func (d Deps) oidcCallback(w http.ResponseWriter, r *http.Request) (userID string, st state, err error) {
 	userID, st, err = d.verifyCallback(w, r)
 	if errors.Is(err, errOIDC) {
-		slog.InfoContext(r.Context(), "oidc callback rejected", "reason", err.Error())
+		slog.InfoContext(r.Context(), "oidc callback rejected", "reason", err.Error(), "requestId", httpx.RequestID(r.Context()))
 	}
 	return userID, st, err
 }
