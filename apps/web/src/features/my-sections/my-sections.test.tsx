@@ -29,13 +29,18 @@ const data = {
   ],
 }
 
-function renderPage() {
+function renderPage(role = 'member') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['me'], {
+    user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
+    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role, departmentIds: [] }],
+  })
   const root = createRootRoute()
   const me = createRoute({ getParentRoute: () => root, path: '$slug', component: () => <MySectionsPage slug="a" /> })
   const detail = createRoute({ getParentRoute: () => root, path: '$slug/sections/$id', component: () => null })
+  const courses = createRoute({ getParentRoute: () => root, path: '$slug/courses', component: () => null })
   const router = createRouter({
-    routeTree: root.addChildren([me, detail]),
+    routeTree: root.addChildren([me, detail, courses]),
     history: createMemoryHistory({ initialEntries: ['/a'] }),
   })
   return render(
@@ -81,4 +86,17 @@ it('shows an error with retry', async () => {
   fail = false
   fireEvent.click(retry)
   expect(await screen.findByText('CS101')).toBeInTheDocument()
+})
+
+it.each([
+  ['admin', true],
+  ['dept_admin', true],
+  ['member', false],
+])('%s: Go to Courses link in the empty state is %s', async (role, shown) => {
+  mockApi({ [U]: () => ({ body: { terms: [] } }) })
+  renderPage(role)
+  await screen.findByText('No sections yet')
+  const link = screen.queryByRole('link', { name: 'Go to Courses' })
+  if (shown) expect(link).toHaveAttribute('href', '/a/courses')
+  else expect(link).toBeNull()
 })

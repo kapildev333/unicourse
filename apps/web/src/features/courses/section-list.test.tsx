@@ -48,18 +48,18 @@ const s2 = section('s2', 'MATH1', 'd2')
 const T = 'GET /universities/a/terms'
 const L = 'GET /universities/a/sections'
 
-function Page() {
-  const [id, setId] = useState<string>()
+function Page({ initial }: { initial?: string }) {
+  const [id, setId] = useState<string | undefined>(initial)
   return <SectionListPage slug="a" termId={id} onTermChange={setId} />
 }
-function renderPage(membership: { role: string; departmentIds: string[] }) {
+function renderPage(membership: { role: string; departmentIds: string[] }, initialTerm?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(['me'], {
     user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
     memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, ...membership }],
   })
   const root = createRootRoute()
-  const slug = createRoute({ getParentRoute: () => root, path: '$slug', component: Page })
+  const slug = createRoute({ getParentRoute: () => root, path: '$slug', component: () => <Page initial={initialTerm} /> })
   const sec = createRoute({ getParentRoute: () => root, path: 'sections/$id', component: () => null })
   const router = createRouter({
     routeTree: root.addChildren([slug, sec]),
@@ -136,4 +136,48 @@ it('creates and deletes a section', async () => {
   fireEvent.click(within(del).getByRole('button', { name: 'Delete' }))
   expect(await screen.findByText(/Section CS101 001 deleted\./)).toBeInTheDocument()
   await waitFor(() => expect(screen.queryByRole('link', { name: 'CS101' })).toBeNull())
+})
+
+it('falls back to the default term for an unknown termId', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({ [T]: () => ({ body: { items: terms } }), [L]: () => ({ body: { items: [s1] } }) })
+  renderPage(admin, 'nope')
+  expect(await screen.findByText('CS101')).toBeInTheDocument()
+  expect(screen.queryByText('No terms yet')).toBeNull()
+})
+
+it('does not request sections when there are no terms', async () => {
+  const fn = mockApi({ [T]: () => ({ body: { items: [] } }) })
+  renderPage(admin)
+  await screen.findByText('No terms yet')
+  expect(fn.mock.calls.some((c) => new URL((c[0] as Request).url).pathname.endsWith('/sections'))).toBe(false)
+})
+
+it('hints when the course picker is truncated', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({
+    [T]: () => ({ body: { items: terms } }),
+    [L]: () => ({ body: { items: [s1] } }),
+    'GET /universities/a/courses': () => ({ body: { items: [course('CS102', 'd1')], nextCursor: 'n' } }),
+  })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'New section' }))
+  expect(await screen.findByText('Showing the first 200 courses. Use Import sections for the others.')).toBeInTheDocument()
+})
+
+it('requests only the department courses for a dept_admin with one department', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  const fn = mockApi({
+    [T]: () => ({ body: { items: terms } }),
+    [L]: () => ({ body: { items: [s1] } }),
+    'GET /universities/a/courses': () => ({ body: { items: [course('CS102', 'd1')] } }),
+  })
+  renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'New section' }))
+  await screen.findByRole('option', { name: 'CS102 — CS102 title' })
+  const u = fn.mock.calls.map((c) => new URL((c[0] as Request).url)).find((u) => u.pathname.endsWith('/courses'))!
+  expect(u.searchParams.get('departmentId')).toBe('d1')
+  expect(screen.queryByText(/Showing the first 200/)).toBeNull()
 })

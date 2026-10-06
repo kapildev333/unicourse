@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { expect, it } from 'vitest'
 import { Dialog } from './dialog'
 
@@ -49,4 +50,31 @@ it('returns focus to the trigger when closed or unmounted', () => {
   rerender(dlg(false))
   expect(document.activeElement).toBe(trigger)
   unmount()
+})
+
+it('returns focus to the trigger of a conditionally mounted dialog under StrictMode', () => {
+  // like a browser, showModal moves focus into the dialog
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+    this.querySelector('input')?.focus()
+  }
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+  }
+  const ui = (shown: boolean) => (
+    <StrictMode>
+      <button>trigger</button>
+      {shown && (
+        <Dialog open onClose={() => {}} title="T">
+          <input aria-label="x" />
+        </Dialog>
+      )}
+    </StrictMode>
+  )
+  const { rerender } = render(ui(false))
+  const trigger = screen.getByText('trigger')
+  trigger.focus()
+  rerender(ui(true))
+  rerender(ui(false))
+  expect(document.activeElement).toBe(trigger)
 })

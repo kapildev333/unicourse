@@ -160,3 +160,12 @@ it('lets a dept_admin choose All departments and keeps it', async () => {
   })
   expect(select).toHaveValue('')
 })
+
+it('preselects the only manageable department in the course dialog', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => ({ body: { items: [c1] } }) })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'New course' }))
+  const dialog = await screen.findByRole('dialog', { name: 'New course', hidden: true })
+  expect(within(dialog).getByLabelText('Department')).toHaveValue('d1')
+})

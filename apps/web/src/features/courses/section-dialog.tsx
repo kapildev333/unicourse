@@ -26,7 +26,9 @@ export function SectionDialog(props: {
 }) {
   const { slug, term, onClose, onSaved } = props
   const { membership } = useUniversity()
-  const courses = (useAllCourses(slug).data?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
+  const onlyDept = membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
+  const courseData = useAllCourses(slug, onlyDept).data
+  const courses = (courseData?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
   const refresh = useRefresh(slug, 'sections')
   const [courseId, setCourseId] = useState('')
   const [number, setNumber] = useState('')
@@ -57,7 +59,12 @@ export function SectionDialog(props: {
       >
         {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={copy} />}
         <p className="text-sm text-ink-muted">Term: {term.name}</p>
-        <FormField label="Course" name="courseId" error={fields.courseId}>
+        <FormField
+          label="Course"
+          name="courseId"
+          hint={courseData?.nextCursor ? 'Showing the first 200 courses. Use Import sections for the others.' : undefined}
+          error={fields.courseId}
+        >
           <select className={inputClass} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
             <option value="">Choose a course</option>
             {courses.map((c) => (

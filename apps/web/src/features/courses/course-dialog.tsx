@@ -33,9 +33,14 @@ export function CourseDialog(props: {
   const departments = useAllDepartments(slug).data?.items ?? []
   const managed = membership.role === 'admin' ? departments : departments.filter((d) => membership.departmentIds.includes(d.id))
   const refresh = useRefresh(slug, 'courses')
-  const [departmentId, setDepartmentId] = useState(
-    course?.departmentId ?? (managed.some((d) => d.id === defaultDepartmentId) ? defaultDepartmentId! : ''),
-  )
+  // derived so a default also applies when the departments arrive after the first render
+  const [chosen, setDepartmentId] = useState<string>()
+  const preselected = managed.some((d) => d.id === defaultDepartmentId)
+    ? defaultDepartmentId!
+    : managed.length === 1
+      ? managed[0].id
+      : ''
+  const departmentId = chosen ?? course?.departmentId ?? preselected
   const [code, setCode] = useState(course?.code ?? '')
   const [title, setTitle] = useState(course?.title ?? '')
   const formRef = useRef<HTMLFormElement>(null)

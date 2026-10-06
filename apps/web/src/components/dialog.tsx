@@ -11,18 +11,23 @@ export function Dialog(props: {
   const titleId = useId()
   const descId = useId()
   const ref = useRef<HTMLDialogElement>(null)
+  const trigger = useRef<Element | null>(null)
   const { open, onClose, title, description, wide, children } = props
 
   useEffect(() => {
     const d = ref.current
     if (!d) return
-    const trigger = document.activeElement // read before showModal moves focus
-    if (open && !d.open) d.showModal()
+    // record on the transition only: StrictMode's second run would otherwise record an element inside the dialog
+    if (open && !d.open) {
+      trigger.current = document.activeElement // read before showModal moves focus
+      d.showModal()
+    }
     if (!open && d.open) d.close()
     if (!open) return
     // conditionally mounted dialogs are removed without close(); hand focus back to the trigger either way
     return () => {
-      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
+      const t = trigger.current
+      if (t instanceof HTMLElement && t.isConnected) t.focus()
     }
   }, [open])
 

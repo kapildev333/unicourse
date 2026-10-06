@@ -61,7 +61,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const { membership } = useUniversity()
   const termsQuery = useAllTerms(slug)
   const terms = [...(termsQuery.data?.items ?? [])].sort((a, b) => b.startsOn.localeCompare(a.startsOn))
-  const effectiveId = termId ?? defaultTermId(terms, todayIso())
+  const effectiveId = terms.some((t) => t.id === termId) ? termId : defaultTermId(terms, todayIso())
   const term = terms.find((t) => t.id === effectiveId)
   const refresh = useRefresh(slug, 'sections')
   const [creating, setCreating] = useState(false)
@@ -75,6 +75,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
         params: { path: { slug }, query: { cursor, limit: 50, termId: effectiveId } },
       }),
     ),
+    !!term,
   )
   const del = useMutation({
     mutationFn: (s: Section) =>

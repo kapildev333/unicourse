@@ -11,7 +11,8 @@ import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
-import { personName } from '../courses/access'
+import { useUniversity } from '../auth/use-me'
+import { canManageCourses, personName } from '../courses/access'
 
 type TermGroup = components['schemas']['MySections']['terms'][number]
 
@@ -69,12 +70,25 @@ export function MySectionsPage({ slug }: { slug: string }) {
     queryKey: [slug, 'my-sections'],
     queryFn: () => unwrap(api.GET('/universities/{slug}/me/sections', { params: { path: { slug } } })),
   })
+  const { membership } = useUniversity()
   const groups = q.data?.terms.filter((g) => g.sections.length > 0) ?? []
   let body: React.ReactNode
   if (q.isPending) body = <Loading />
   else if (q.error) body = <ErrorBanner onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
   else if (groups.length === 0)
-    body = <EmptyState title="No sections yet" body="Sections you teach, assist or take will appear here." />
+    body = (
+      <EmptyState
+        title="No sections yet"
+        body="Sections you teach, assist or take will appear here."
+        action={
+          canManageCourses(membership) ? (
+            <Link to="/$slug/courses" params={{ slug }} className="text-accent underline">
+              Go to Courses
+            </Link>
+          ) : undefined
+        }
+      />
+    )
   else body = groups.map((g) => <TermTable key={g.term.id} slug={slug} group={g} />)
   return (
     <>

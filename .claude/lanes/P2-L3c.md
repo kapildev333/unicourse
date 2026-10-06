@@ -12,3 +12,8 @@ Finished; awaiting orchestrator verification.
 None.
 ## Blockers
 None.
+
+## Fix round (review items 1-12)
+- All 12 review items fixed test-first in `apps/web`; `useCursorList` gained an `enabled` argument (default true); `useAllCourses(slug, departmentId?)`.
+- Staff editor: Enter in the email field does nothing when both add buttons show (role ambiguous); with one button it uses that role.
+- Dialog: trigger is now recorded only on the closed-to-open transition (ref). The StrictMode regression test passed on the old code too, so that reported failure was not reproduced; the fix is defensive.

@@ -2,11 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '../../api/client'
 
 /** First 200 courses for pickers (ceiling: a search endpoint past 200). */
-export function useAllCourses(slug: string) {
+export function useAllCourses(slug: string, departmentId?: string) {
   return useQuery({
-    queryKey: [slug, 'courses', 'all'],
+    queryKey: [slug, 'courses', 'all', { departmentId }],
     queryFn: () =>
-      unwrap(api.GET('/universities/{slug}/courses', { params: { path: { slug }, query: { limit: 200 } } })),
+      unwrap(
+        api.GET('/universities/{slug}/courses', { params: { path: { slug }, query: { limit: 200, departmentId } } }),
+      ),
     staleTime: 60_000,
   })
 }
