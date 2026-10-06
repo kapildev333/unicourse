@@ -27,6 +27,13 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("DELETE", base+"/sections/{id}/staff/{userId}", tenant.Wrap(d, deleteStaff))
 	r.Handle("GET", base+"/sections/{id}/enrollments", tenant.Wrap(d, listEnrollments))
 	r.Handle("DELETE", base+"/sections/{id}/enrollments/{userId}", tenant.Wrap(d, deleteEnrollment))
+	for _, im := range []struct {
+		path string
+		mk   importer
+	}{{"/courses/import", coursesImport}, {"/sections/import", sectionsImport}, {"/sections/{id}/enrollments/import", enrollmentsImport}} {
+		r.Handle("POST", base+im.path+"/preview", tenant.Wrap(d, importHandler(d, false, im.mk)))
+		r.Handle("POST", base+im.path, tenant.Wrap(d, importHandler(d, true, im.mk)))
+	}
 	r.Handle("GET", base+"/me/sections", tenant.Wrap(d, getMySections))
 }
 

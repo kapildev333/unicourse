@@ -1,6 +1,0 @@
-POST /api/v1/universities/{slug}/courses/import/preview
-POST /api/v1/universities/{slug}/courses/import
-POST /api/v1/universities/{slug}/sections/import/preview
-POST /api/v1/universities/{slug}/sections/import
-POST /api/v1/universities/{slug}/sections/{id}/enrollments/import/preview
-POST /api/v1/universities/{slug}/sections/{id}/enrollments/import

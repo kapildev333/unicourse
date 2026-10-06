@@ -102,12 +102,74 @@ func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, m auth.
 	if err := tx.QueryRowContext(ctx, `select name from universities where id = $1`, in.UniversityID).Scan(&name); err != nil {
 		return Invitation{}, err
 	}
-	text := "You have been invited to join " + name + " on UniCourse as " + string(in.Role) + ".\n\nAccept the invitation:\n" +
-		auth.InvitationURL(baseURL, token, email) + "\n\nThis invitation expires on " + inv.ExpiresAt.Format("2006-01-02") + ".\n"
-	if err := m.Send(ctx, email, "You are invited to "+name+" on UniCourse", text); err != nil {
+	subject, text := invitationMail(name, string(in.Role), auth.InvitationURL(baseURL, token, email), inv.ExpiresAt)
+	if err := m.Send(ctx, email, subject, text); err != nil {
 		return Invitation{}, err
 	}
 	return inv, nil
+}
+
+func invitationMail(name, role, url string, expiresAt time.Time) (subject, text string) {
+	return "You are invited to " + name + " on UniCourse", "You have been invited to join " + name + " on UniCourse as " + role +
+		".\n\nAccept the invitation:\n" + url + "\n\nThis invitation expires on " + expiresAt.Format("2006-01-02") + ".\n"
+}
+
+// CreateInvitations is the batch form of CreateInvitation (one insert, one audit statement, one
+// mail each, all before commit). Precondition, NOT re-checked here: callers pass distinct, normalised
+// emails that are neither active members nor already pending. Imports invite members only.
+func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, m auth.Mailer, baseURL string) ([]Invitation, error) {
+	if len(emails) == 0 {
+		return []Invitation{}, nil
+	}
+	tokens, hashes := make([]string, len(emails)), make([][]byte, len(emails))
+	for i := range emails {
+		var err error
+		if tokens[i], hashes[i], err = auth.NewToken(); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := tx.QueryContext(ctx, `insert into invitations (university_id, email, role, token_hash, expires_at)
+		select $1, e, $2, h, now() + interval '14 days' from unnest($3::text[], $4::bytea[]) as x(e, h)
+		returning id, email, role, to_json(department_ids), expires_at, accepted_at, created_at`,
+		universityID, string(role), emails, hashes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Invitation
+	for rows.Next() {
+		v, err := scanInvitation(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	tokenOf := make(map[string]string, len(emails))
+	for i, e := range emails {
+		tokenOf[e] = tokens[i]
+	}
+	es := make([]audit.Entry, len(out))
+	for i, v := range out {
+		es[i] = audit.Entry{ActorUserID: actorUserID, Action: "invitation.create", EntityType: "invitation", EntityID: v.ID, After: v}
+	}
+	if err := audit.WriteMany(ctx, tx, universityID, es); err != nil {
+		return nil, err
+	}
+	var name string
+	if err := tx.QueryRowContext(ctx, `select name from universities where id = $1`, universityID).Scan(&name); err != nil {
+		return nil, err
+	}
+	for _, v := range out {
+		subject, text := invitationMail(name, string(role), auth.InvitationURL(baseURL, tokenOf[v.Email], v.Email), v.ExpiresAt)
+		if err := m.Send(ctx, v.Email, subject, text); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func listInvitations(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
