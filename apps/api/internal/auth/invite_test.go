@@ -1,0 +1,260 @@
+package auth
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
+	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
+)
+
+// tcount runs a one-int query in a tenant transaction for uni.
+func tcount(t *testing.T, db *sql.DB, uni, q string, args ...any) (n int) {
+	t.Helper()
+	if err := pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		return tx.QueryRow(q, args...).Scan(&n)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func texec(t *testing.T, db *sql.DB, uni, q string, args ...any) {
+	t.Helper()
+	if err := pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		_, err := tx.Exec(q, args...)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// insertInvitation returns the invitation id.
+func insertInvitation(t *testing.T, db *sql.DB, uni, email, role string, deptIDs []string, expiresAt time.Time) (id string) {
+	t.Helper()
+	_, hash, err := NewToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into invitations (university_id, email, role, department_ids, token_hash, expires_at)
+			values ($1, $2, $3, string_to_array($4, ',')::uuid[], $5, $6) returning id`,
+			uni, email, role, strings.Join(deptIDs, ","), hash, expiresAt).Scan(&id)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func insertSection(t *testing.T, db *sql.DB, fx testdb.Fixture, code string) (id string) {
+	t.Helper()
+	if err := pg.WithTx(context.Background(), db, fx.UniversityA, func(tx *sql.Tx) error {
+		var course string
+		if err := tx.QueryRow(`insert into courses (university_id, department_id, code, title) values ($1, $2, $3, 'T') returning id`,
+			fx.UniversityA, fx.DeptA, code).Scan(&course); err != nil {
+			return err
+		}
+		return tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1, $2, $3, '1') returning id`,
+			fx.UniversityA, course, fx.TermA).Scan(&id)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestSignInAcceptsInvitationOnce(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	insertInvitation(t, db, fx.UniversityA, "bob@a.edu", "dept_admin", []string{fx.DeptA}, time.Now().Add(time.Hour))
+
+	uid, err := SignIn(ctx, db, "  Bob@A.edu ", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func() {
+		t.Helper()
+		if n := sqlCount(t, db, `select count(*) from users where email = 'bob@a.edu'`); n != 1 {
+			t.Fatalf("users %d", n)
+		}
+		if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1 and role = 'dept_admin' and status = 'active'`, uid); n != 1 {
+			t.Fatalf("memberships %d", n)
+		}
+		if n := tcount(t, db, fx.UniversityA, `select count(*) from department_admins where user_id = $1 and department_id = $2`, uid, fx.DeptA); n != 1 {
+			t.Fatalf("department_admins %d", n)
+		}
+		if n := tcount(t, db, fx.UniversityA, `select count(*) from invitations where email = 'bob@a.edu' and accepted_at is not null`); n != 1 {
+			t.Fatalf("accepted %d", n)
+		}
+	}
+	check()
+	uid2, err := SignIn(ctx, db, "bob@a.edu", "Other")
+	if err != nil || uid2 != uid {
+		t.Fatalf("second: %v %s", err, uid2)
+	}
+	check()
+	var name string
+	if err := pg.WithPlatformTx(ctx, db, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select display_name from users where id = $1`, uid).Scan(&name)
+	}); err != nil || name != "Bob" {
+		t.Fatalf("name %q %v", name, err)
+	}
+}
+
+func TestSignInAcrossUniversities(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	exp := time.Now().Add(time.Hour)
+	insertInvitation(t, db, fx.UniversityA, "adj@other.org", "member", nil, exp)
+	insertInvitation(t, db, fx.UniversityB, "adj@other.org", "admin", nil, exp)
+	uid, err := SignIn(context.Background(), db, "adj@other.org", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range []string{fx.UniversityA, fx.UniversityB} {
+		if n := tcount(t, db, u, `select count(*) from memberships where user_id = $1 and status = 'active'`, uid); n != 1 {
+			t.Fatalf("university %s memberships %d", u, n)
+		}
+	}
+}
+
+func TestSignInNeverDemotes(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	insertInvitation(t, db, fx.UniversityA, "admin@a.edu", "member", nil, time.Now().Add(time.Hour))
+	if _, err := SignIn(context.Background(), db, "admin@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1 and role = 'admin'`, fx.AdminA); n != 1 {
+		t.Fatalf("admin demoted")
+	}
+}
+
+func TestSignInPromotes(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	exp := time.Now().Add(time.Hour)
+	insertInvitation(t, db, fx.UniversityA, "p@a.edu", "member", nil, exp)
+	uid, _ := SignIn(context.Background(), db, "p@a.edu", "")
+	insertInvitation(t, db, fx.UniversityA, "p@a.edu", "admin", nil, exp)
+	if _, err := SignIn(context.Background(), db, "p@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1 and role = 'admin'`, uid); n != 1 {
+		t.Fatal("not promoted")
+	}
+}
+
+func TestSignInExpiredInvitation(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	// a.edu is allowed by domain: signs in, but the expired invitation is not accepted.
+	insertInvitation(t, db, fx.UniversityA, "old@a.edu", "member", nil, time.Now().Add(-time.Second))
+	uid, err := SignIn(ctx, db, "old@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1`, uid); n != 0 {
+		t.Fatalf("memberships %d", n)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from invitations where email = 'old@a.edu' and accepted_at is null`); n != 1 {
+		t.Fatal("expired invitation was accepted")
+	}
+	// Expired and no domain: not allowed.
+	insertInvitation(t, db, fx.UniversityA, "late@other.org", "member", nil, time.Now().Add(-time.Second))
+	if _, err := SignIn(ctx, db, "late@other.org", ""); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("want ErrNotAllowed, got %v", err)
+	}
+}
+
+func TestSignInAllowRule(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	if _, err := SignIn(ctx, db, "nobody@other.org", ""); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("want ErrNotAllowed, got %v", err)
+	}
+	if n := sqlCount(t, db, `select count(*) from users where email = 'nobody@other.org'`); n != 0 {
+		t.Fatal("user created for disallowed email")
+	}
+	uid, err := SignIn(ctx, db, "carol@a.edu", "Carol")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from memberships where user_id = $1`, uid); n != 0 {
+		t.Fatal("domain alone must not create a membership")
+	}
+	if _, err := SignIn(ctx, db, "not an email", ""); err == nil {
+		t.Fatal("invalid email accepted")
+	}
+}
+
+func TestSignInPendingStaffAndEnrollments(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	s1, s2 := insertSection(t, db, fx, "CS1"), insertSection(t, db, fx, "CS2")
+	inv := insertInvitation(t, db, fx.UniversityA, "dave@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ($1, $2, $3, 'ta')`, fx.UniversityA, inv, s1)
+	texec(t, db, fx.UniversityA, `insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, fx.UniversityA, inv, s2)
+	uid, err := SignIn(context.Background(), db, "dave@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from section_staff where user_id = $1 and section_id = $2 and role = 'ta'`, uid, s1); n != 1 {
+		t.Fatalf("section_staff %d", n)
+	}
+	if n := tcount(t, db, fx.UniversityA, `select count(*) from enrollments where user_id = $1 and section_id = $2`, uid, s2); n != 1 {
+		t.Fatalf("enrollments %d", n)
+	}
+}
+
+func TestSignInConcurrent(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	s := insertSection(t, db, fx, "CS1")
+	inv := insertInvitation(t, db, fx.UniversityA, "race@a.edu", "dept_admin", []string{fx.DeptA}, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, fx.UniversityA, inv, s)
+	const n = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := SignIn(context.Background(), db, "race@a.edu", "Race")
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := sqlCount(t, db, `select count(*) from users where email = 'race@a.edu'`); c != 1 {
+		t.Fatalf("users %d", c)
+	}
+	for q, want := range map[string]int{
+		`select count(*) from memberships m join users u on u.id = m.user_id where u.email = 'race@a.edu'`:       1,
+		`select count(*) from department_admins d join users u on u.id = d.user_id where u.email = 'race@a.edu'`: 1,
+		`select count(*) from enrollments e join users u on u.id = e.user_id where u.email = 'race@a.edu'`:       1,
+		`select count(*) from invitations where email = 'race@a.edu' and accepted_at is not null`:                1,
+	} {
+		if c := tcount(t, db, fx.UniversityA, q); c != want {
+			t.Fatalf("%s = %d, want %d", q, c, want)
+		}
+	}
+}
+
+func TestInvitationURL(t *testing.T) {
+	if got := InvitationURL("http://x", "tok", "a+b@a.edu"); got != "http://x/invite/tok?email=a%2Bb%40a.edu" {
+		t.Fatal(got)
+	}
+}
