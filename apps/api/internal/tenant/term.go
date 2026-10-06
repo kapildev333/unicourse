@@ -124,11 +124,11 @@ func updateTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("term")
 	}
-	var in struct{ Name, StartsOn, EndsOn optStr }
+	var in struct{ Name, StartsOn, EndsOn OptStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if err := patchNulls(nf("name", in.Name), nf("startsOn", in.StartsOn), nf("endsOn", in.EndsOn)); err != nil {
+	if err := PatchNulls(Named("name", in.Name), Named("startsOn", in.StartsOn), Named("endsOn", in.EndsOn)); err != nil {
 		return 0, nil, err
 	}
 	if !in.Name.Set && !in.StartsOn.Set && !in.EndsOn.Set {

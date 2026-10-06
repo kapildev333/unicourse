@@ -14,3 +14,9 @@ Finished; awaiting orchestrator verification.
 None.
 ## Blockers
 None.
+
+## Fix round (review fixes)
+- `tenant.TrimLen` rejects NUL (`must not contain NUL`); covers all callers. Tests: helpers, departments, courses, sections.
+- `tenant.OptStr`/`NamedOpt`/`Named`/`PatchNulls` exported; `updateCourse`/`updateSection` reject explicit `null` (400 "must be a string"), tenant callers renamed.
+- Sections paging test now collects a slice and requires 7 distinct ids (kills keyset `>` -> `>=`).
+- `getSection`: any admin/dept_admin may read (design §14 ruling 6); truth-table row daout get = 200. `authz` untouched. `listSectionStaff` (P2-L2c) should do the same.

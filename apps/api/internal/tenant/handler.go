@@ -47,6 +47,9 @@ func TrimLen(field, v string, max int) (string, *httpx.FieldError) {
 	if v == "" {
 		return v, &httpx.FieldError{Field: field, Message: "is required"}
 	}
+	if strings.ContainsRune(v, 0) { // postgres rejects NUL in text (22021)
+		return v, &httpx.FieldError{Field: field, Message: "must not contain NUL"}
+	}
 	if utf8.RuneCountInString(v) > max {
 		return v, &httpx.FieldError{Field: field, Message: "must be at most " + strconv.Itoa(max) + " characters"}
 	}

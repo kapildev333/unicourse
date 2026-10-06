@@ -154,6 +154,9 @@ func TestHelpers(t *testing.T) {
 	if _, fe := TrimLen("name", "  ", 5); fe == nil || fe.Message != "is required" || fe.Field != "name" {
 		t.Fatal("TrimLen empty")
 	}
+	if _, fe := TrimLen("name", "a\u0000b", 5); fe == nil || fe.Field != "name" || fe.Message != "must not contain NUL" {
+		t.Fatalf("TrimLen NUL: %v", fe)
+	}
 	if _, fe := TrimLen("name", strings.Repeat("é", 6), 5); fe == nil || fe.Message != "must be at most 5 characters" {
 		t.Fatalf("TrimLen long: %v", fe)
 	}

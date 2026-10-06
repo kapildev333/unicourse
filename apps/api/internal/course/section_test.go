@@ -20,7 +20,7 @@ func TestSectionTruthTable(t *testing.T) {
 	}{
 		{"admin", e.Admin, 200, 200, 201, 200},
 		{"dain", e.DaIn, 200, 200, 201, 200},
-		{"daout", e.DaOut, 200, 403, 403, 403},
+		{"daout", e.DaOut, 200, 200, 403, 403}, // reads the whole university (design §14), writes only own departments
 		{"inst", e.Inst, 403, 200, 403, 403},
 		{"ta", e.TA, 403, 200, 403, 403},
 		{"stud", e.Stud, 403, 200, 403, 403},
@@ -194,7 +194,8 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 			select $1, $2, $3, 'P' || g, '2026-01-01T00:00:00Z' from generate_series(1,5) g`, e.Fx.UniversityA, e.CourseA, e.TermA2)
 		return err
 	})
-	seen, cursor := map[string]bool{}, ""
+	var ids []string
+	cursor := ""
 	for i := 0; i < 10; i++ {
 		var p struct {
 			Items      []Section
@@ -205,15 +206,22 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 			t.Fatalf("page: %d %s", st, raw)
 		}
 		for _, s := range p.Items {
-			seen[s.ID] = true
+			ids = append(ids, s.ID)
 		}
 		if p.NextCursor == "" {
 			break
 		}
 		cursor = "&cursor=" + url.QueryEscape(p.NextCursor)
 	}
-	if len(seen) != 7 {
-		t.Fatalf("paging saw %d distinct sections, want 7", len(seen))
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if seen[id] {
+			t.Errorf("section %s returned twice", id)
+		}
+		seen[id] = true
+	}
+	if len(ids) != 7 {
+		t.Fatalf("paging returned %d sections, want 7", len(ids))
 	}
 }
 
@@ -260,5 +268,19 @@ func TestSectionUpdateDelete(t *testing.T) {
 	}
 	if st, _ := e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil); st != 404 {
 		t.Errorf("get deleted: %d", st)
+	}
+}
+
+func TestSectionNULAndPatchNull(t *testing.T) {
+	e := newEnv(t)
+	for name, body := range map[string]map[string]any{"NUL": {"number": "\u0000"}, "null": {"number": nil}} {
+		st, raw := e.call(e.Admin, "PATCH", "/sections/"+e.SectionA, body)
+		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"number"}) {
+			t.Errorf("%s: %d %s", name, st, raw)
+		}
+	}
+	st, raw := e.call(e.Admin, "POST", "/sections", map[string]any{"courseId": e.CourseA, "termId": e.TermA2, "number": "1\u0000"})
+	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"number"}) {
+		t.Errorf("create NUL: %d %s", st, raw)
 	}
 }

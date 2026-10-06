@@ -184,3 +184,30 @@ func TestCourseUpdateDelete(t *testing.T) {
 		t.Fatalf("second delete: %d", st)
 	}
 }
+
+func TestCourseNULAndPatchNull(t *testing.T) {
+	e := newEnv(t)
+	want := func(what string, st int, raw []byte, field string) {
+		t.Helper()
+		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{field}) {
+			t.Errorf("%s: %d %s", what, st, raw)
+		}
+	}
+	st, raw := e.call(e.Admin, "POST", "/courses", map[string]any{"departmentId": e.Fx.DeptA, "code": "A\u0000B", "title": "T"})
+	want("NUL code", st, raw, "code")
+	st, raw = e.call(e.Admin, "PATCH", "/courses/"+e.CourseA, map[string]any{"title": "x\u0000"})
+	want("NUL title", st, raw, "title")
+	for _, f := range []string{"code", "title", "departmentId"} {
+		st, raw = e.call(e.Admin, "PATCH", "/courses/"+e.CourseA, map[string]any{f: nil})
+		want(f+" null", st, raw, f)
+	}
+	st, raw = e.call(e.Admin, "PATCH", "/courses/"+e.CourseA, map[string]any{"title": "Changed", "code": nil})
+	want("title + null code", st, raw, "code")
+	var title string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select title from courses where id=$1`, e.CourseA).Scan(&title)
+	})
+	if title == "Changed" {
+		t.Error("rejected patch updated the title")
+	}
+}

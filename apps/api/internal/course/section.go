@@ -173,6 +173,10 @@ func getSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	// design §14: any admin or dept_admin of the university may read one section (as the list shows it)
+	if s.Role != authz.Member {
+		return http.StatusOK, sec, nil
+	}
 	if ok, err := authz.CanReadSection(r.Context(), tx, s, sec.ID); err != nil {
 		return 0, nil, err
 	} else if !ok {
@@ -223,15 +227,18 @@ func updateSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if !authz.CanManageDepartment(s, dept) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ Number *string }
+	var in struct{ Number tenant.OptStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if in.Number == nil {
+	if err := tenant.PatchNulls(tenant.Named("number", in.Number)); err != nil {
+		return 0, nil, err
+	}
+	if !in.Number.Set {
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
-	if after.Number, err = sectionFields("", "", *in.Number, false); err != nil {
+	if after.Number, err = sectionFields("", "", in.Number.V, false); err != nil {
 		return 0, nil, err
 	}
 	if _, err := tx.ExecContext(r.Context(), `update sections set number = $2 where id = $1`, after.ID, after.Number); err != nil {

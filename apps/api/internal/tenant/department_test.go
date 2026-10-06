@@ -107,11 +107,18 @@ func TestDepartments(t *testing.T) {
 		"long name":      {"name": repeat("n", 101), "code": "XX"},
 		"empty name":     {"name": "  ", "code": "XX"},
 		"missing code":   {"name": "X"},
+		"NUL in name":    {"name": "A\u0000B", "code": "XX"},
+		"NUL in code":    {"name": "X", "code": "A\u0000"},
 	} {
 		st, raw := e.do(admin, "POST", deptPath, b)
 		c, d := errBody(raw)
 		if st != 400 || c != "validation_failed" || len(d) != 1 {
 			t.Fatalf("%s: %d %s", name, st, raw)
+		}
+	}
+	if _, raw = e.do(admin, "POST", deptPath, map[string]any{"name": "A\u0000B", "code": "XX"}); true {
+		if _, d := errBody(raw); len(d) != 1 || d[0].Field != "name" || d[0].Message != "must not contain NUL" {
+			t.Fatalf("NUL name detail %s", raw)
 		}
 	}
 	_, raw = e.do(admin, "POST", deptPath, map[string]any{"name": "X", "code": "cs"})

@@ -143,23 +143,26 @@ func updateCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		DepartmentID, Code, Title *string
+		DepartmentID, Code, Title tenant.OptStr
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if in.DepartmentID == nil && in.Code == nil && in.Title == nil {
+	if err := tenant.PatchNulls(tenant.Named("departmentId", in.DepartmentID), tenant.Named("code", in.Code), tenant.Named("title", in.Title)); err != nil {
+		return 0, nil, err
+	}
+	if !in.DepartmentID.Set && !in.Code.Set && !in.Title.Set {
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
-	if in.DepartmentID != nil {
-		after.DepartmentID = *in.DepartmentID
+	if in.DepartmentID.Set {
+		after.DepartmentID = in.DepartmentID.V
 	}
-	if in.Code != nil {
-		after.Code = *in.Code
+	if in.Code.Set {
+		after.Code = in.Code.V
 	}
-	if in.Title != nil {
-		after.Title = *in.Title
+	if in.Title.Set {
+		after.Title = in.Title.V
 	}
 	if after, err = courseFields(after); err != nil {
 		return 0, nil, err
