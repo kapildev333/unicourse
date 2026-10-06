@@ -6,17 +6,8 @@ GET /api/v1/universities/{slug}/memberships
 PATCH /api/v1/universities/{slug}/memberships/{id}
 DELETE /api/v1/universities/{slug}/memberships/{id}
 GET /api/v1/universities/{slug}/audit-log
-GET /api/v1/universities/{slug}/courses
-POST /api/v1/universities/{slug}/courses
-PATCH /api/v1/universities/{slug}/courses/{id}
-DELETE /api/v1/universities/{slug}/courses/{id}
 POST /api/v1/universities/{slug}/courses/import/preview
 POST /api/v1/universities/{slug}/courses/import
-GET /api/v1/universities/{slug}/sections
-POST /api/v1/universities/{slug}/sections
-PATCH /api/v1/universities/{slug}/sections/{id}
-DELETE /api/v1/universities/{slug}/sections/{id}
-GET /api/v1/universities/{slug}/sections/{id}
 POST /api/v1/universities/{slug}/sections/import/preview
 POST /api/v1/universities/{slug}/sections/import
 GET /api/v1/universities/{slug}/sections/{id}/staff

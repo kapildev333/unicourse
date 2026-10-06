@@ -68,7 +68,7 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 			if err != nil {
 				return err
 			}
-			deptIDs, err := scanIDs(ids)
+			deptIDs, err := ScanIDs(ids)
 			if err != nil {
 				return err
 			}

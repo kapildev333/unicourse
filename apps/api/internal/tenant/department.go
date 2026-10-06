@@ -63,7 +63,7 @@ var deptCodeRe = regexp.MustCompile(`^[A-Z0-9]{2,10}$`)
 // deptFields validates name and code (all errors at once, body field order).
 func deptFields(name, code string) (string, error) {
 	var details []httpx.FieldError
-	name, fe := trimLen("name", name, 100)
+	name, fe := TrimLen("name", name, 100)
 	if fe != nil {
 		details = append(details, *fe)
 	}
@@ -86,7 +86,7 @@ func deptWriteErr(err error) error {
 }
 
 func listDepartments(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	p, after, afterID, err := page(r)
+	p, after, afterID, err := Page(r)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -145,7 +145,7 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
 	var in struct{ Name, Code optStr }
@@ -156,7 +156,7 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, err
 	}
 	if !in.Name.Set && !in.Code.Set {
-		return 0, nil, noFields()
+		return 0, nil, NoFields()
 	}
 	var before Department
 	err := tx.QueryRowContext(r.Context(), `select id, name, code, created_at from departments where id = $1 for update`, id).
@@ -192,7 +192,7 @@ func deleteDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
 	var before Department

@@ -3,6 +3,7 @@ package app
 
 import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/course"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -20,6 +21,8 @@ type Deps struct {
 func NewRouter(deps Deps) *httpx.Router {
 	r := httpx.NewRouter()
 	auth.Register(r, deps.Auth)
-	tenant.Register(r, tenant.Deps{DB: deps.Auth.DB, Sessions: deps.Auth.Sessions, Mailer: deps.Mailer, BaseURL: deps.BaseURL})
+	td := tenant.Deps{DB: deps.Auth.DB, Sessions: deps.Auth.Sessions, Mailer: deps.Mailer, BaseURL: deps.BaseURL}
+	tenant.Register(r, td)
+	course.Register(r, td)
 	return r
 }
