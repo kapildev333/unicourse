@@ -4,7 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this directory is
 
-UniCourse: a multi-tenant platform for universities to host courses, manage classes and sections, and link professors and TAs. Product/startup, not a toy. No product code yet, so no build, lint, or test commands; add them here as soon as the stack exists. Layout: `specs/` (design specs, approved before planning), `fe/` (frontend), `be/` (backend). Specs go in `specs/`, not `docs/superpowers/specs/`.
+UniCourse: a multi-tenant platform for universities to host courses, manage classes and sections, and link professors and TAs. Product/startup, not a toy. No product code yet, so no build, lint, or test commands; add them here as soon as the stack exists. ## Layout and naming
+
+```
+apps/api/     Go API — net/http standard library only (no framework, router, ORM or DI); allowed modules: pgx, x/oauth2, go-oidc, x/crypto
+apps/web/     React + Vite + TypeScript web app
+docs/specs/   design specs, YYYY-MM-DD-<topic>.md, approved before any plan or code (not docs/superpowers/specs/)
+.claude/      agents, lane logs, /orchestrate
+```
+
+One convention per layer, no exceptions:
+
+| Layer | Convention | Example |
+|---|---|---|
+| Directories, non-Go files | lowercase kebab-case | `apps/web/src/features/my-sections/` |
+| Go packages | one lowercase word, no underscores, named for what they hold | `internal/course`, `internal/httpx` |
+| Go identifiers | Go standard (MixedCaps); exported only when another package needs it | `course.Section`, `pg.WithTx` |
+| TS files | kebab-case; React components PascalCase export in kebab-case file | `section-table.tsx` exports `SectionTable` |
+| Database | snake_case, plural tables, `<table>_id` foreign keys, `created_at`/`updated_at` on every table | `section_staff.section_id` |
+| HTTP routes | `/api/v1/<plural-kebab-noun>`, ids as path params, no verbs in paths | `GET /api/v1/sections/{id}/staff` |
+| JSON fields | camelCase, matching the Go struct tag and the TS type exactly | `universityId` |
+| Env vars | `UNICOURSE_` prefix, UPPER_SNAKE | `UNICOURSE_DATABASE_URL` |
+| Domain terms | one word per concept everywhere: university (tenant), department, term, course (catalog), section (course in a term), staff (instructor or TA on a section), enrollment (student in a section) | never "class", "tenant", "org", "teacher" in code |
 
 ## Orchestration workflow
 
