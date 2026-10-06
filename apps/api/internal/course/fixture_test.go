@@ -6,9 +6,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
@@ -22,11 +22,12 @@ const root = "/api/v1/universities/a"
 
 // env is the real router + tenant.Wrap over httptest, seeded with the fixture of design §11.
 type env struct {
-	T   *testing.T
-	DB  *sql.DB
-	Fx  testdb.Fixture
-	Srv *httptest.Server
-	D   tenant.Deps
+	T     *testing.T
+	DB    *sql.DB
+	Fx    testdb.Fixture
+	Srv   *httptest.Server
+	D     tenant.Deps
+	Mails *recMailer
 
 	DeptA2, TermA2, CourseA, SectionA string // S1 = CS101 / TermA / 001
 	DeptB, TermB, CourseB             string // university B
@@ -39,12 +40,13 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	db := testdb.Open(t)
 	fx := testdb.Seed(t, db)
-	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, Mailer: auth.LogMailer{L: slog.New(slog.NewJSONHandler(io.Discard, nil))}, BaseURL: "http://localhost"}
+	mails := &recMailer{}
+	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, Mailer: mails, BaseURL: "http://localhost"}
 	r := httpx.NewRouter()
 	Register(r, d)
 	srv := httptest.NewServer(httpx.RequestIDMiddleware(httpx.Recover(r)))
 	t.Cleanup(srv.Close)
-	e := &env{T: t, DB: db, Fx: fx, Srv: srv, D: d, UserID: map[string]string{}}
+	e := &env{T: t, DB: db, Fx: fx, Srv: srv, D: d, Mails: mails, UserID: map[string]string{}}
 	e.tx(fx.UniversityA, func(tx *sql.Tx) error {
 		if err := tx.QueryRow(`insert into departments (university_id, name, code) values ($1,'Math','MATH') returning id`, fx.UniversityA).Scan(&e.DeptA2); err != nil {
 			return err
@@ -179,4 +181,23 @@ func errDetails(raw []byte) (code string, fields []string) {
 		fields = append(fields, d.Field)
 	}
 	return b.Error.Code, fields
+}
+
+// recMailer records the recipient of every mail sent.
+type recMailer struct {
+	mu sync.Mutex
+	To []string
+}
+
+func (m *recMailer) Send(_ context.Context, to, _, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.To = append(m.To, to)
+	return nil
+}
+
+func (m *recMailer) count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.To)
 }

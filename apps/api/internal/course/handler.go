@@ -22,6 +22,12 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("GET", base+"/sections/{id}", tenant.Wrap(d, getSection))
 	r.Handle("PATCH", base+"/sections/{id}", tenant.Wrap(d, updateSection))
 	r.Handle("DELETE", base+"/sections/{id}", tenant.Wrap(d, deleteSection))
+	r.Handle("GET", base+"/sections/{id}/staff", tenant.Wrap(d, listStaff))
+	r.Handle("POST", base+"/sections/{id}/staff", tenant.Wrap(d, createStaff(d)))
+	r.Handle("DELETE", base+"/sections/{id}/staff/{userId}", tenant.Wrap(d, deleteStaff))
+	r.Handle("GET", base+"/sections/{id}/enrollments", tenant.Wrap(d, listEnrollments))
+	r.Handle("DELETE", base+"/sections/{id}/enrollments/{userId}", tenant.Wrap(d, deleteEnrollment))
+	r.Handle("GET", base+"/me/sections", tenant.Wrap(d, getMySections))
 }
 
 // plainMember is true for callers who may not use the university-wide list and write routes.
