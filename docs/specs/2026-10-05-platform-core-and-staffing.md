@@ -34,7 +34,7 @@ All tables except `users` and `universities` carry `university_id` and are tenan
 
 | Entity | Fields (beyond `id uuid`, `created_at`, `updated_at`) | Rules |
 |---|---|---|
-| `universities` | `name`, `slug` (unique, used in URLs), `allowed_email_domains text[]` | Created by a platform operator via CLI command, not through the API, in this spec. |
+| `universities` | `name`, `slug` (unique, used in URLs), `allowed_email_domains text[]`, `timezone` (IANA, e.g. `America/New_York`), `locale` (BCP 47, default `en-US`) | Created by a platform operator via CLI command, not through the API, in this spec. Timezone and locale are stored now because every later spec (scheduling, deadlines) needs them and backfilling is a migration against live customers. |
 | `users` | `email` (unique, lowercased), `display_name` | Global identity. A user may belong to several universities (adjunct at two campuses). |
 | `memberships` | `university_id`, `user_id`, `role` (`admin`, `dept_admin`, `member`), `status` (`invited`, `active`) | Unique on (`university_id`, `user_id`). `dept_admin` scope is the set of `department_admins` rows. |
 | `department_admins` | `university_id`, `department_id`, `user_id` | Which departments a `dept_admin` manages. |
@@ -95,6 +95,8 @@ Base path `/api/v1`. JSON in and out, camelCase fields. Session cookie authentic
 | `GET,POST .../sections/{id}/staff`, `DELETE .../sections/{id}/staff/{userId}` | admin, dept_admin; instructor for `ta` rows | staff member must be an active `member` or an invited email (creates invitation) |
 | `GET .../sections/{id}/enrollments`, `DELETE .../sections/{id}/enrollments/{userId}` | admin, dept_admin; read for staff | |
 | `POST .../sections/{id}/enrollments/import/preview`, `POST .../sections/{id}/enrollments/import` | admin, dept_admin | see CSV import |
+| `POST .../courses/import/preview`, `POST .../courses/import` | admin, dept_admin (own departments) | columns `departmentCode`, `code`, `title`; same preview-then-commit |
+| `POST .../sections/import/preview`, `POST .../sections/import` | admin, dept_admin (own departments) | columns `courseCode`, `termName`, `number`, optional `instructorEmails`, `taEmails` (semicolon-separated); same preview-then-commit |
 | `GET .../audit-log` | admin | filter by `entityType`, `entityId`, `actorUserId`, `from`, `to`; paginated |
 
 Lists are paginated with `?limit=` (default 50, max 200) and `?cursor=`; responses are `{ items, nextCursor }`.
@@ -109,12 +111,12 @@ One envelope for every non-2xx response:
 
 Codes: `unauthenticated` (401), `forbidden` (403), `not_found` (404), `conflict` (409, unique violations mapped from Postgres error 23505), `validation_failed` (400, lists every bad field), `rate_limited` (429, magic-link and sign-in endpoints), `internal` (500, message is generic, details empty, the real error is logged with a request id that is also returned in the `X-Request-Id` header).
 
-### CSV roster import
+### CSV import (rosters, courses, sections)
 
-Two steps so an admin never partially applies a bad file.
+Onboarding a university means loading thousands of courses and sections, not typing them. One import mechanism in `internal/csvimport`, parameterised by a row handler, serves all three endpoints. Two steps so an admin never partially applies a bad file.
 
-1. `preview`: multipart upload, max 2 MB, columns `email` (required), `displayName` (optional). Returns per-row results: `add` (new enrollment), `exists` (already enrolled), `invite` (email not yet a member; an invitation will be created), or `error` with a reason (bad email, domain not allowed, duplicate row). Nothing is written.
-2. `import`: same file plus the preview's `checksum`. If the checksum differs or any row is `error`, the request fails with `validation_failed` and the row list. Otherwise all adds and invitations happen in one transaction, with one `audit_log` row per enrollment.
+1. `preview`: multipart upload, max 5 MB, header row required, columns per endpoint as listed in the API table. Returns per-row results: `add`, `exists` (already present, skipped), `invite` (email not yet a member; an invitation will be created), or `error` with a reason (bad email, domain not allowed, unknown course/term/department code, duplicate row). Nothing is written.
+2. `import`: same file plus the preview's `checksum`. If the checksum differs or any row is `error`, the request fails with `validation_failed` and the row list. Otherwise every add and invitation happens in one transaction, with one `audit_log` row per created entity.
 
 ## 7. Web app
 
@@ -143,7 +145,8 @@ apps/api/
 │   ├── auth/                OIDC, magic links, sessions, invitations, Mailer
 │   ├── authz/               role predicates
 │   ├── tenant/              universities (read), departments, terms, memberships + handlers
-│   ├── course/              courses, sections, staff, enrollments, CSV import + handlers
+│   ├── course/              courses, sections, staff, enrollments + handlers, including the three import endpoints
+│   ├── csvimport/           generic preview/commit engine: parse, per-row classify, checksum, all-or-nothing apply
 │   ├── audit/               Write(tx, entry), List
 │   └── testdb/              test-only: fresh schema per test package, two-university fixtures
 ├── migrations/              0001_init.sql, …
@@ -168,11 +171,29 @@ Handlers live inside their domain package (`course/handler.go`) so a feature is 
 
 Environment only, `UNICOURSE_` prefix: `DATABASE_URL`, `ADDR` (default `:8080`), `BASE_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_CLIENT_ID/SECRET`, `SMTP_URL` (empty → stdout mailer), `WEB_ORIGIN` (CORS, development only; production serves the built web app from the API binary under `/`). Missing required variables fail at startup with a list of what is missing.
 
-## 10. Observability
+## 10. Scale and multi-university fit
+
+Sizing assumption: a large university has ~50k students, ~5k sections per term, ~200k enrollments per term; one hundred such universities over five years is ~100M enrollment rows and ~1B audit rows. One PostgreSQL instance with the indexes implied by the unique constraints handles the enrollment volume; audit is the only table that needs partitioning, deferred with a trigger above.
+
+What makes the design scale horizontally without redesign:
+
+- The API is stateless: sessions, magic links and OIDC state live in Postgres, so any number of API processes run behind a load balancer.
+- Every tenant row carries `university_id`, so moving a university to its own database or region is a copy filtered by one column, never a schema change.
+- `WithTx` sets `app.university_id` per transaction, so connection pooling (pgx pool, later PgBouncer in transaction mode) is safe.
+- Imports are bounded per request (5 MB) and run in one transaction; a 50k-row roster is ~3 MB and imports in seconds on commodity Postgres. Larger loads go through the SIS sync deferred to a later spec.
+
+What makes it fit any university, not one:
+
+- Terms are rows, not an enum: semesters, quarters, trimesters, summer sessions and non-standard terms all work.
+- Course and department codes are free-form strings unique per university; numbering schemes are the university's.
+- Multiple email domains per university, plus invitations for people outside those domains (adjuncts, visiting TAs).
+- Timezone and locale per university from day one.
+- Any number of instructors and TAs per section; staff can hold roles in several universities under one identity.
+- Nothing in the data model or UI copy assumes a country, a grading scale, a calendar or a language beyond the default locale.
 
 Structured logs with `log/slog`, JSON in production, one line per request (method, path, status, duration, request id, user id, university id). Audit log is the business-level trail. No metrics or tracing in this spec; `httpx` exposes `/healthz` (process up) and `/readyz` (database reachable).
 
-## 11. Testing
+## 12. Testing
 
 | Layer | What | How |
 |---|---|---|
@@ -186,7 +207,7 @@ Structured logs with `log/slog`, JSON in production, one line per request (metho
 
 Gates for every lane: `go vet ./...`, `go test ./...`, `npm run lint`, `npm run typecheck`, `npm test`. Playwright runs in CI and before each phase is marked done.
 
-## 12. Deferred, with triggers
+## 13. Deferred, with triggers
 
 | Deferred | Add when |
 |---|---|
@@ -196,7 +217,13 @@ Gates for every lane: `go vet ./...`, `go test ./...`, `npm run lint`, `npm run 
 | Platform admin UI | more than ~10 universities, or a non-engineer onboards them |
 | Metrics/tracing | first production incident the request log cannot explain |
 | Events table for AI agents | Spec for AI agents begins; `audit_log` is already the seed |
+| Cross-listed courses (one course owned by several departments) | first university that cross-lists; change `courses.department_id` to a `course_departments` join with a primary flag — additive migration |
+| Section hierarchy (lecture with lab/discussion sections) | Spec 3 (scheduling); add nullable `sections.parent_section_id` — additive migration |
+| Custom roles per university (registrar, coordinator, chair) | second university whose org chart does not fit `admin`/`dept_admin`/`member`; `authz` is the single place to extend |
+| Per-university branding (logo, colours, display name) | first customer asks; `universities` gets a `branding jsonb` column |
+| Regional deployments (EU data residency) | first EU university; the stack is stateless and single-database, so a region is a second deployment of the same binaries and a second database, nothing shared |
+| Audit log partitioning by month | `audit_log` passes ~100M rows or admin queries slow past 1 s |
 
-## 13. Decisions needing the owner's call
+## 14. Decisions needing the owner's call
 
 None open. Decisions made in this spec and the hint behind each: Go stdlib (owner's constraint), separate `apps/api` and `apps/web` (owner's layout), handlers inside domain packages (proposed, no objection), hard delete with audit (proposed, no objection).
