@@ -70,15 +70,23 @@ func payload(v any) (*string, error) {
 	return &s, err
 }
 
-// Filter narrows List; zero values are ignored. From and To are inclusive.
+// Filter narrows List; zero values are ignored. From is inclusive, To exclusive.
 type Filter struct {
 	EntityType, EntityID, ActorUserID string
 	From, To                          time.Time
 }
 
+// Actor is the user behind a row, when known and visible.
+type Actor struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+}
+
 type Row struct {
 	ID          string          `json:"id"`
 	ActorUserID string          `json:"actorUserId,omitempty"`
+	Actor       *Actor          `json:"actor,omitempty"`
 	Action      string          `json:"action"`
 	EntityType  string          `json:"entityType"`
 	EntityID    string          `json:"entityId"`
@@ -93,33 +101,34 @@ func List(ctx context.Context, tx *sql.Tx, f Filter, p httpx.Page) (httpx.List[R
 	if limit <= 0 {
 		limit = 50
 	}
-	q := `select id, actor_user_id, action, entity_type, entity_id, before, after, at from audit_log where true`
+	q := `select a.id, a.actor_user_id, u.email, u.display_name, a.action, a.entity_type, a.entity_id, a.before, a.after, a.at
+		from audit_log a left join users u on u.id = a.actor_user_id where true`
 	var args []any
 	add := func(cond string, v any) {
 		args = append(args, v)
 		q += fmt.Sprintf(" and "+cond, len(args))
 	}
 	if f.EntityType != "" {
-		add("entity_type = $%d", f.EntityType)
+		add("a.entity_type = $%d", f.EntityType)
 	}
 	if f.EntityID != "" {
-		add("entity_id = $%d", f.EntityID)
+		add("a.entity_id = $%d", f.EntityID)
 	}
 	if f.ActorUserID != "" {
-		add("actor_user_id = $%d", f.ActorUserID)
+		add("a.actor_user_id = $%d", f.ActorUserID)
 	}
 	if !f.From.IsZero() {
-		add("at >= $%d", f.From)
+		add("a.at >= $%d", f.From)
 	}
 	if !f.To.IsZero() {
-		add("at <= $%d", f.To)
+		add("a.at < $%d", f.To)
 	}
 	if at, id, ok := p.After(); ok {
 		args = append(args, at, id)
-		q += fmt.Sprintf(" and (at, id) < ($%d, $%d)", len(args)-1, len(args))
+		q += fmt.Sprintf(" and (a.at, a.id) < ($%d, $%d)", len(args)-1, len(args))
 	}
 	args = append(args, limit+1)
-	q += fmt.Sprintf(" order by at desc, id desc limit $%d", len(args))
+	q += fmt.Sprintf(" order by a.at desc, a.id desc limit $%d", len(args))
 
 	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -129,12 +138,15 @@ func List(ctx context.Context, tx *sql.Tx, f Filter, p httpx.Page) (httpx.List[R
 	out := httpx.List[Row]{Items: []Row{}}
 	for rows.Next() {
 		var r Row
-		var actor sql.NullString
+		var actor, email, name sql.NullString
 		var before, after []byte
-		if err := rows.Scan(&r.ID, &actor, &r.Action, &r.EntityType, &r.EntityID, &before, &after, &r.At); err != nil {
+		if err := rows.Scan(&r.ID, &actor, &email, &name, &r.Action, &r.EntityType, &r.EntityID, &before, &after, &r.At); err != nil {
 			return httpx.List[Row]{}, fmt.Errorf("audit list: %w", err)
 		}
 		r.ActorUserID, r.Before, r.After = actor.String, before, after
+		if email.Valid {
+			r.Actor = &Actor{ID: actor.String, Email: email.String, DisplayName: name.String}
+		}
 		out.Items = append(out.Items, r)
 	}
 	if err := rows.Err(); err != nil {

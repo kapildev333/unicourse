@@ -1,13 +1,17 @@
 package tenant
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"github.com/kapildev333/unicourse/apps/api/internal/audit"
+	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 )
 
@@ -58,4 +62,58 @@ func TrimLen(field, v string, max int) (string, *httpx.FieldError) {
 
 func NoFields() error {
 	return httpx.Validation(httpx.FieldError{Field: "", Message: "no fields to update"})
+}
+
+const entityTypes = "department, term, membership, invitation, course, section, staff, enrollment"
+
+// listAuditLog serves GET /audit-log (admin only); every filter error is reported at once.
+func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+	if !authz.IsAdmin(s) {
+		return 0, nil, httpx.Forbidden()
+	}
+	p, err := httpx.ParsePage(r)
+	if err != nil {
+		return 0, nil, err
+	}
+	q := r.URL.Query()
+	var f audit.Filter
+	var d []httpx.FieldError
+	bad := func(field, msg string) { d = append(d, httpx.FieldError{Field: field, Message: msg}) }
+	if v := q.Get("entityType"); v != "" {
+		if !strings.Contains(", "+entityTypes+",", ", "+v+",") {
+			bad("entityType", "must be one of "+entityTypes)
+		}
+		f.EntityType = v
+	}
+	for _, c := range []struct {
+		name string
+		dst  *string
+	}{{"entityId", &f.EntityID}, {"actorUserId", &f.ActorUserID}} {
+		if v := q.Get(c.name); v != "" {
+			if !IsUUID(v) {
+				bad(c.name, "must be a uuid")
+			}
+			*c.dst = v
+		}
+	}
+	for _, c := range []struct {
+		name string
+		dst  *time.Time
+	}{{"from", &f.From}, {"to", &f.To}} {
+		if v := q.Get(c.name); v != "" {
+			t, err := time.Parse(time.RFC3339, v)
+			if err != nil {
+				bad(c.name, "must be an RFC 3339 date-time")
+			}
+			*c.dst = t
+		}
+	}
+	if len(d) > 0 {
+		return 0, nil, httpx.Validation(d...)
+	}
+	out, err := audit.List(r.Context(), tx, f, p)
+	if err != nil {
+		return 0, nil, err
+	}
+	return http.StatusOK, out, nil
 }

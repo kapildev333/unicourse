@@ -1,11 +1,4 @@
 GET /api/v1/universities/{slug}/me/sections
-GET /api/v1/universities/{slug}/invitations
-POST /api/v1/universities/{slug}/invitations
-DELETE /api/v1/universities/{slug}/invitations/{id}
-GET /api/v1/universities/{slug}/memberships
-PATCH /api/v1/universities/{slug}/memberships/{id}
-DELETE /api/v1/universities/{slug}/memberships/{id}
-GET /api/v1/universities/{slug}/audit-log
 POST /api/v1/universities/{slug}/courses/import/preview
 POST /api/v1/universities/{slug}/courses/import
 POST /api/v1/universities/{slug}/sections/import/preview
