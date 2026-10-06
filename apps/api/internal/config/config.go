@@ -9,7 +9,7 @@ import (
 type Config struct {
 	Addr, BaseURL, DatabaseURL, SessionSecret                                    string
 	GoogleClientID, GoogleClientSecret, MicrosoftClientID, MicrosoftClientSecret string
-	SMTPURL, WebOrigin                                                           string
+	SMTPURL, WebOrigin, WebDir                                                   string
 }
 
 // Load reads configuration through getenv; the error lists every missing required variable.
@@ -34,6 +34,7 @@ func Load(getenv func(string) string) (Config, error) {
 		MicrosoftClientSecret: opt("MICROSOFT_CLIENT_SECRET"),
 		SMTPURL:               opt("SMTP_URL"),
 		WebOrigin:             opt("WEB_ORIGIN"),
+		WebDir:                opt("WEB_DIR"),
 	}
 	if c.Addr == "" {
 		c.Addr = ":8080"

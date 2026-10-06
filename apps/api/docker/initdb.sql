@@ -1,3 +1,4 @@
 CREATE ROLE unicourse LOGIN PASSWORD 'unicourse' NOSUPERUSER NOBYPASSRLS NOCREATEDB;
 CREATE DATABASE unicourse OWNER unicourse;
 CREATE DATABASE unicourse_test OWNER unicourse;
+CREATE DATABASE unicourse_e2e OWNER unicourse;

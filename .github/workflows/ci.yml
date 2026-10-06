@@ -53,3 +53,41 @@ jobs:
           npm test -- --run
           npm run build
           git diff --exit-code src/routeTree.gen.ts
+  e2e:
+    needs: [api, web]
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - id: present
+        run: test -f apps/api/go.mod && test -f apps/web/playwright.config.ts && echo present=true >> "$GITHUB_OUTPUT" || echo "apps not scaffolded for e2e yet"
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-go@v7
+        with: { go-version-file: apps/api/go.mod, cache-dependency-path: apps/api/go.sum }
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - if: steps.present.outputs.present == 'true'
+        name: create app role and databases
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f apps/api/docker/initdb.sql
+      - if: steps.present.outputs.present == 'true'
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - if: failure() && steps.present.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/web/e2e/.tmp/api.log
+          if-no-files-found: ignore

@@ -18,8 +18,8 @@ import (
 )
 
 // newHandler builds the routed, middleware-wrapped handler; ready backs /readyz and api (may be nil)
-// serves everything under /api/v1/.
-func newHandler(logger *slog.Logger, ready func(context.Context) error, api http.Handler) http.Handler {
+// serves everything under /api/v1/. web (may be nil) serves the built web app at /; nil answers the 404 envelope.
+func newHandler(logger *slog.Logger, ready func(context.Context) error, api, web http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	health := httpx.Health(ready)
 	mux.Handle("GET /healthz", health)
@@ -27,7 +27,10 @@ func newHandler(logger *slog.Logger, ready func(context.Context) error, api http
 	if api != nil {
 		mux.Handle("/api/v1/", api)
 	}
-	mux.Handle("/", httpx.H(func(w http.ResponseWriter, r *http.Request) error { return httpx.NotFound("route") }))
+	if web == nil {
+		web = httpx.H(func(w http.ResponseWriter, r *http.Request) error { return httpx.NotFound("route") })
+	}
+	mux.Handle("/", web)
 	return httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, httpx.Recover(mux)))
 }
 
@@ -87,7 +90,15 @@ func main() {
 	}
 	api := app.NewRouter(app.Deps{Auth: deps, Mailer: deps.Magic.Mailer, BaseURL: cfg.BaseURL})
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, db.PingContext, api), ReadHeaderTimeout: 5 * time.Second}
+	var web http.Handler
+	if cfg.WebDir != "" {
+		if web, err = httpx.Static(cfg.WebDir); err != nil {
+			logger.Error("web", "err", err)
+			os.Exit(1)
+		}
+	}
+
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, db.PingContext, api, web), ReadHeaderTimeout: 5 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)
