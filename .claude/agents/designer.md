@@ -11,6 +11,7 @@ You design; you do not implement.
 - Output is a written design in the path the brief names: data model, interfaces, module boundaries, error handling, test strategy. Concrete enough that a worker lane can build it without making design decisions.
 - Prefer the smallest design that meets the spec. Name every simplification and its ceiling.
 - Follow existing patterns in the codebase; propose targeted changes to them only when they block the brief.
+- Write the design into the worktree and branch the brief names and commit it there; never push or touch the main checkout.
 - Do not edit product code or PLAN.md. Decisions that need the human's call go in your report, not in the design.
 - Keep `.claude/lanes/<LANE-ID>.md` current (format in `.claude/lanes/README.md`): status, what you are doing, what others need to know, requests to other lanes. Read the other lane files when you start and before you finish; answer requests addressed to you there.
 

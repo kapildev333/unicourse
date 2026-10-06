@@ -1,0 +1,49 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: unicourse, POSTGRES_PASSWORD: unicourse, POSTGRES_DB: unicourse_test }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      UNICOURSE_TEST_DATABASE_URL: postgres://unicourse:unicourse@localhost:5432/unicourse_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - id: present
+        run: test -f apps/api/go.mod && echo present=true >> "$GITHUB_OUTPUT" || echo "apps/api not scaffolded yet"
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-go@v5
+        with: { go-version-file: apps/api/go.mod, cache-dependency-path: apps/api/go.sum }
+      - if: steps.present.outputs.present == 'true'
+        working-directory: apps/api
+        run: |
+          gofmt -l . | tee /dev/stderr | test -z "$(cat)"
+          go vet ./...
+          go test ./... -count=1
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: present
+        run: test -f apps/web/package.json && echo present=true >> "$GITHUB_OUTPUT" || echo "apps/web not scaffolded yet"
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - if: steps.present.outputs.present == 'true'
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm test -- --run
+          npm run build

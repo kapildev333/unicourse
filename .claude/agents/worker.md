@@ -13,6 +13,7 @@ You implement the brief you are given and nothing else.
 - A new failure path must say what happened (log, audit or UI).
 - If the brief's root-cause guess is wrong, report the real cause instead of implementing the guess.
 - Do not edit PLAN.md.
+- Work in the worktree and branch the brief names; never touch the main checkout. Commit as you go with short imperative messages; never push, never merge, never open a PR — the orchestrator does that after verifying.
 - Keep `.claude/lanes/<LANE-ID>.md` current (format in `.claude/lanes/README.md`): status, what you are doing, what others need to know, requests to other lanes. Read the other lane files when you start and before you finish; answer requests addressed to you there.
 
 Report: what you built, gates run with results, what you deferred and why, choices you had to escalate.

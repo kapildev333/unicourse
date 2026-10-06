@@ -47,4 +47,12 @@ Rules that span these files:
 - One directory has one owner at a time, and only one integration suite runs at a time (orchestrator included).
 - The orchestrator verifies every landing itself (re-run suites, then exercise the real database/HTTP/browser) and records the evidence in the lane's status cell. A lane's own report is never verification.
 - The orchestrator does not write features itself while a lane could.
-- Commit locally after each verified landing; never push.
+- Nothing lands on `main` except through a pull request with green `ci`; `main` is protected (PR required, status checks, linear history, admins included).
+
+## Git and GitHub
+
+- One branch per lane, `lane/<LANE-ID>-<slug>`, in its own worktree under `.worktrees/<LANE-ID>` (gitignored) so parallel lanes never share a checkout. Non-lane changes use `chore/<slug>`.
+- Lanes commit on their branch and never push. The orchestrator pushes, opens the PR from `.github/pull_request_template.md`, waits for `ci`, squash-merges with branch deletion, removes the worktree.
+- `ci` (`.github/workflows/ci.yml`): `api` job runs gofmt, `go vet`, `go test` against a Postgres service; `web` job runs lint, typecheck, tests, build. Both no-op until the app is scaffolded, so the required checks stay green on an empty tree.
+- Dependabot updates Go modules, npm and Actions weekly; its PRs go through the same `ci`.
+- Not used on purpose: GitHub Projects and Issues for planning (`PLAN.md` is the single plan; mirroring it is double bookkeeping), Releases (nothing deploys yet), Wiki and Discussions.
