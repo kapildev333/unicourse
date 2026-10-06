@@ -76,7 +76,7 @@ create table department_admins (
   user_id uuid not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (department_id, user_id),
+  unique (university_id, department_id, user_id),
   foreign key (university_id, department_id) references departments (university_id, id) on delete restrict
 );
 create index on department_admins (university_id);
@@ -119,7 +119,7 @@ create table sections (
   number text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (course_id, term_id, number),
+  unique (university_id, course_id, term_id, number),
   foreign key (university_id, course_id) references courses (university_id, id) on delete restrict,
   foreign key (university_id, term_id) references terms (university_id, id) on delete restrict,
   unique (university_id, id)
@@ -135,7 +135,7 @@ create table section_staff (
   role text not null check (role in ('instructor', 'ta')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (section_id, user_id),
+  unique (university_id, section_id, user_id),
   foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
 create index on section_staff (user_id);
@@ -148,7 +148,7 @@ create table enrollments (
   user_id uuid not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (section_id, user_id),
+  unique (university_id, section_id, user_id),
   foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
 create index on enrollments (user_id);
@@ -179,7 +179,7 @@ create table pending_section_staff (
   role text not null check (role in ('instructor', 'ta')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (invitation_id, section_id),
+  unique (university_id, invitation_id, section_id),
   foreign key (university_id, invitation_id) references invitations (university_id, id) on delete cascade,
   foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
@@ -271,8 +271,30 @@ create policy tenant_isolation on pending_section_staff
   with check (university_id = nullif(current_setting('app.university_id', true), '')::uuid);
 
 create policy memberships_self on memberships for select
-  using (user_id = nullif(current_setting('app.user_id', true), '')::uuid);
+  using (user_id = nullif(current_setting('app.user_id', true), '')::uuid and nullif(current_setting('app.university_id', true), '') is null);
 create policy department_admins_self on department_admins for select
-  using (user_id = nullif(current_setting('app.user_id', true), '')::uuid);
+  using (user_id = nullif(current_setting('app.user_id', true), '')::uuid and nullif(current_setting('app.university_id', true), '') is null);
 create policy invitations_by_email on invitations for select
-  using (email = nullif(current_setting('app.email', true), ''));
+  using (email = nullif(current_setting('app.email', true), '') and nullif(current_setting('app.university_id', true), '') is null);
+
+-- updated_at is maintained here so handlers never set it by hand.
+create function set_updated_at() returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end $$;
+create trigger universities_set_updated_at before update on universities for each row execute function set_updated_at();
+create trigger users_set_updated_at before update on users for each row execute function set_updated_at();
+create trigger sessions_set_updated_at before update on sessions for each row execute function set_updated_at();
+create trigger magic_links_set_updated_at before update on magic_links for each row execute function set_updated_at();
+create trigger memberships_set_updated_at before update on memberships for each row execute function set_updated_at();
+create trigger departments_set_updated_at before update on departments for each row execute function set_updated_at();
+create trigger department_admins_set_updated_at before update on department_admins for each row execute function set_updated_at();
+create trigger terms_set_updated_at before update on terms for each row execute function set_updated_at();
+create trigger courses_set_updated_at before update on courses for each row execute function set_updated_at();
+create trigger sections_set_updated_at before update on sections for each row execute function set_updated_at();
+create trigger section_staff_set_updated_at before update on section_staff for each row execute function set_updated_at();
+create trigger enrollments_set_updated_at before update on enrollments for each row execute function set_updated_at();
+create trigger invitations_set_updated_at before update on invitations for each row execute function set_updated_at();
+create trigger pending_section_staff_set_updated_at before update on pending_section_staff for each row execute function set_updated_at();
+create trigger audit_log_set_updated_at before update on audit_log for each row execute function set_updated_at();

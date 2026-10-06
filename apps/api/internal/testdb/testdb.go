@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
@@ -34,6 +35,23 @@ func Open(t *testing.T) *sql.DB {
 	if _, err := lock.ExecContext(ctx, `select pg_advisory_lock($1)`, lockKey); err != nil {
 		t.Fatal(err)
 	}
+	// registered right after the lock so a later failure cannot leave it held; truncate is added below
+	cleaned := false
+	t.Cleanup(func() {
+		if cleaned {
+			truncate(t, db)
+		}
+		lock.ExecContext(ctx, `select pg_advisory_unlock($1)`, lockKey)
+		lock.Close()
+		db.Close()
+	})
+	var name string
+	if err := db.QueryRowContext(ctx, `select current_database()`).Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(name, "_test") {
+		t.Fatalf("refusing to run: database %q does not end in _test and testdb truncates every table", name)
+	}
 	var unsafe bool
 	if err := db.QueryRowContext(ctx, `select rolsuper or rolbypassrls from pg_roles where rolname = current_user`).Scan(&unsafe); err != nil {
 		t.Fatal(err)
@@ -45,12 +63,7 @@ func Open(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	truncate(t, db)
-	t.Cleanup(func() {
-		truncate(t, db)
-		lock.ExecContext(ctx, `select pg_advisory_unlock($1)`, lockKey)
-		lock.Close()
-		db.Close()
-	})
+	cleaned = true
 	return db
 }
 

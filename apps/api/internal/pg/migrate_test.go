@@ -33,13 +33,32 @@ func TestMigrate(t *testing.T) {
 	if tables != 15 {
 		t.Fatalf("%d tables, want 15", tables)
 	}
-	for _, name := range tenantTables {
+	rows, err := db.Query(`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'university_id' and table_name <> 'universities'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tenant []string
+	for rows.Next() {
+		var n string
+		rows.Scan(&n)
+		tenant = append(tenant, n)
+	}
+	rows.Close()
+	if len(tenant) != 11 {
+		t.Fatalf("%d tenant tables %v, want 11", len(tenant), tenant)
+	}
+	for _, name := range tenant {
 		var on, force bool
 		if err := db.QueryRow(`select relrowsecurity, relforcerowsecurity from pg_class where oid = $1::regclass`, name).Scan(&on, &force); err != nil {
 			t.Fatal(name, err)
 		}
 		if !on || !force {
 			t.Errorf("%s: rls %v force %v", name, on, force)
+		}
+		var n int
+		db.QueryRow(`select count(*) from pg_policies where schemaname = 'public' and tablename = $1 and policyname = 'tenant_isolation' and qual is not null and with_check is not null`, name).Scan(&n)
+		if n != 1 {
+			t.Errorf("%s: tenant_isolation policy with qual and with_check missing", name)
 		}
 	}
 	for _, name := range []string{"universities", "users", "sessions", "magic_links"} {

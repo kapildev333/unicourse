@@ -268,6 +268,7 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"section_staff->sections":            rest["section_staff"],
 		"enrollments->sections":              rest["enrollments"],
 		"pending_section_staff->sections":    `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', (select id from invitations limit 1), '{S}', 'ta')`,
+		"pending_section_staff->both":        `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', '{S}', 'ta')`,
 		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
 	}
 	// A-side parents so the "limit 1" subselects resolve
@@ -283,7 +284,7 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		}
 		return nil
 	})
-	b.user = newUser(t, db, "fresh@a.edu") // not yet in B's unique keys, so only the FK can fail
+	// b.user already holds the same (parent, user) pairs in B: the error must still be the FK's, not a unique's
 	for name, stmt := range cases {
 		err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
 			_, err := tx.Exec(sub(stmt, f.UniversityA, b))
@@ -292,5 +293,82 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		if !errors.Is(err, pg.ErrNotFound) {
 			t.Errorf("%s: %v, want ErrNotFound", name, err)
 		}
+	}
+}
+
+func TestSelfPoliciesDoNotWidenTenantReads(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	u := newUser(t, db, "u@b.edu")
+	for _, uni := range []string{f.UniversityA, f.UniversityB} {
+		pg.WithTx(ctx, db, uni, func(tx *sql.Tx) error { populate(t, tx, uni, u); return nil })
+	}
+	err := pg.WithUserTx(ctx, db, u, "x@b.edu", func(tx *sql.Tx) error {
+		if n := count(t, tx, "memberships"); n != 2 {
+			t.Fatalf("user tx memberships = %d, want 2", n)
+		}
+		if err := pg.SetUniversity(ctx, tx, f.UniversityA); err != nil {
+			t.Fatal(err)
+		}
+		for _, tb := range []string{"memberships", "department_admins", "invitations"} {
+			var n int
+			tx.QueryRow(`select count(*) from `+tb+` where university_id <> $1`, f.UniversityA).Scan(&n)
+			if n != 0 {
+				t.Errorf("%s with user and university A shows %d rows of other universities", tb, n)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdatedAtTrigger(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	for _, c := range []struct{ table, id, set string }{
+		{"departments", f.DeptA, "name = 'Renamed'"},
+		{"users", f.AdminA, "display_name = 'Renamed'"},
+	} {
+		run := func() error {
+			if c.table == "users" {
+				return pg.WithPlatformTx(ctx, db, func(tx *sql.Tx) error {
+					_, err := tx.Exec(`update users set `+c.set+` where id = $1`, c.id)
+					return err
+				})
+			}
+			return pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+				_, err := tx.Exec(`update `+c.table+` set `+c.set+` where id = $1`, c.id)
+				return err
+			})
+		}
+		if err := run(); err != nil { // a later transaction than the seed's
+			t.Fatal(err)
+		}
+		var ok bool
+		pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+			return tx.QueryRow(`select updated_at > created_at from `+c.table+` where id = $1`, c.id).Scan(&ok)
+		})
+		if !ok {
+			t.Errorf("%s: updated_at not advanced by update", c.table)
+		}
+	}
+}
+
+func TestEveryUpdatedAtTableHasTrigger(t *testing.T) {
+	db := testdb.Open(t)
+	rows, err := db.Query(`select c.table_name from information_schema.columns c
+		where c.table_schema = 'public' and c.column_name = 'updated_at'
+		and not exists (select 1 from pg_trigger g where g.tgrelid = format('public.%I', c.table_name)::regclass
+			and not g.tgisinternal and g.tgfoid = 'set_updated_at'::regproc)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		t.Errorf("%s has updated_at but no set_updated_at trigger", name)
 	}
 }

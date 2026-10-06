@@ -130,3 +130,34 @@ func TestWriteStructPayloads(t *testing.T) {
 		t.Error("nil Before must be SQL NULL, not JSON null")
 	}
 }
+
+// Rows sharing one `at` across a page boundary must be neither skipped nor repeated.
+func TestPaginationTiedAt(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into audit_log (university_id, action, entity_type, entity_id, at)
+			select $1, 'a' || n, 'section', $2, '2026-01-01T00:00:00Z' from generate_series(1, 5) n`, f.UniversityA, entity)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	cursor := ""
+	for range 5 {
+		p := list(t, db, f.UniversityA, audit.Filter{}, httpx.Page{Limit: 2, Cursor: cursor})
+		for _, r := range p.Items {
+			if seen[r.ID] {
+				t.Fatalf("row %s repeated", r.ID)
+			}
+			seen[r.ID] = true
+		}
+		if cursor = p.NextCursor; cursor == "" {
+			break
+		}
+	}
+	if len(seen) != 5 {
+		t.Fatalf("saw %d rows, want 5", len(seen))
+	}
+}
