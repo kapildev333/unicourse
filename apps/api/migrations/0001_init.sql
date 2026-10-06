@@ -186,6 +186,19 @@ create table pending_section_staff (
 create index on pending_section_staff (section_id);
 create index on pending_section_staff (university_id, created_at, id);
 
+create table pending_enrollments (
+  id uuid primary key default gen_random_uuid(),
+  university_id uuid not null references universities(id) on delete cascade,
+  invitation_id uuid not null,
+  section_id uuid not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (university_id, invitation_id, section_id),
+  foreign key (university_id, invitation_id) references invitations (university_id, id) on delete cascade,
+  foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
+);
+create index on pending_enrollments (section_id);
+
 -- entity_id is not a foreign key: audit rows outlive the entity. actor_user_id is null for CLI writes.
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
@@ -270,6 +283,12 @@ create policy tenant_isolation on pending_section_staff
   using (university_id = nullif(current_setting('app.university_id', true), '')::uuid)
   with check (university_id = nullif(current_setting('app.university_id', true), '')::uuid);
 
+alter table pending_enrollments enable row level security;
+alter table pending_enrollments force row level security;
+create policy tenant_isolation on pending_enrollments
+  using (university_id = nullif(current_setting('app.university_id', true), '')::uuid)
+  with check (university_id = nullif(current_setting('app.university_id', true), '')::uuid);
+
 create policy memberships_self on memberships for select
   using (user_id = nullif(current_setting('app.user_id', true), '')::uuid and nullif(current_setting('app.university_id', true), '') is null);
 create policy department_admins_self on department_admins for select
@@ -296,5 +315,6 @@ create trigger sections_set_updated_at before update on sections for each row ex
 create trigger section_staff_set_updated_at before update on section_staff for each row execute function set_updated_at();
 create trigger enrollments_set_updated_at before update on enrollments for each row execute function set_updated_at();
 create trigger invitations_set_updated_at before update on invitations for each row execute function set_updated_at();
+create trigger pending_enrollments_set_updated_at before update on pending_enrollments for each row execute function set_updated_at();
 create trigger pending_section_staff_set_updated_at before update on pending_section_staff for each row execute function set_updated_at();
 create trigger audit_log_set_updated_at before update on audit_log for each row execute function set_updated_at();

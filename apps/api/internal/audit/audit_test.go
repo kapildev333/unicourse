@@ -161,3 +161,54 @@ func TestPaginationTiedAt(t *testing.T) {
 		t.Fatalf("saw %d rows, want 5", len(seen))
 	}
 }
+
+func TestWriteMany(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	in := []audit.Entry{
+		{ActorUserID: f.AdminA, Action: "a.create", EntityType: "a", EntityID: entity, After: map[string]int{"n": 1}},
+		{Action: "b.update", EntityType: "b", EntityID: entity, Before: map[string]int{"n": 1}, After: map[string]int{"n": 2}},
+		{Action: "c.delete", EntityType: "c", EntityID: entity},
+	}
+	err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		if err := audit.WriteMany(ctx, tx, f.UniversityA, nil); err != nil {
+			return err
+		}
+		return audit.WriteMany(ctx, tx, f.UniversityA, in)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := list(t, db, f.UniversityA, audit.Filter{}, httpx.Page{Limit: 50})
+	if len(got.Items) != 3 {
+		t.Fatalf("got %d rows", len(got.Items))
+	}
+	by := map[string]audit.Row{}
+	for _, r := range got.Items {
+		by[r.Action] = r
+	}
+	a, b, c := by["a.create"], by["b.update"], by["c.delete"]
+	if a.ActorUserID != f.AdminA || a.Before != nil || string(a.After) != `{"n": 1}` ||
+		b.ActorUserID != "" || string(b.Before) != `{"n": 1}` || string(b.After) != `{"n": 2}` ||
+		c.Before != nil || c.After != nil || c.EntityType != "c" {
+		t.Fatalf("payloads wrong: %+v %+v %+v", a, b, c)
+	}
+	if n := len(list(t, db, f.UniversityB, audit.Filter{}, httpx.Page{Limit: 50}).Items); n != 0 {
+		t.Fatalf("B sees %d rows", n)
+	}
+	// more than one chunk
+	big := make([]audit.Entry, 12000)
+	for i := range big {
+		big[i] = audit.Entry{Action: "x.create", EntityType: "x", EntityID: entity, After: i}
+	}
+	if err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error { return audit.WriteMany(ctx, tx, f.UniversityA, big) }); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select count(*) from audit_log where action = 'x.create'`).Scan(&n)
+	})
+	if n != 12000 {
+		t.Fatalf("%d rows, want 12000", n)
+	}
+}

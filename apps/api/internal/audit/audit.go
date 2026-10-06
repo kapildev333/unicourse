@@ -19,29 +19,55 @@ type Entry struct {
 
 // Write inserts the entry in the caller's transaction, so it commits or rolls back with the change.
 func Write(ctx context.Context, tx *sql.Tx, universityID string, e Entry) error {
-	before, err := payload(e.Before)
-	if err != nil {
-		return fmt.Errorf("audit before: %w", err)
+	return WriteMany(ctx, tx, universityID, []Entry{e})
+}
+
+// writeChunk bounds one statement; each chunk is one round trip.
+const writeChunk = 5000
+
+// WriteMany inserts the entries in the caller's transaction, one statement per 5,000 entries.
+func WriteMany(ctx context.Context, tx *sql.Tx, universityID string, es []Entry) error {
+	for len(es) > 0 {
+		n := min(len(es), writeChunk)
+		if err := writeBatch(ctx, tx, universityID, es[:n]); err != nil {
+			return err
+		}
+		es = es[n:]
 	}
-	after, err := payload(e.After)
-	if err != nil {
-		return fmt.Errorf("audit after: %w", err)
+	return nil
+}
+
+func writeBatch(ctx context.Context, tx *sql.Tx, universityID string, es []Entry) error {
+	actors, actions, types, ids := make([]string, len(es)), make([]string, len(es)), make([]string, len(es)), make([]string, len(es))
+	befores, afters := make([]*string, len(es)), make([]*string, len(es))
+	for i, e := range es {
+		actors[i], actions[i], types[i], ids[i] = e.ActorUserID, e.Action, e.EntityType, e.EntityID
+		var err error
+		if befores[i], err = payload(e.Before); err != nil {
+			return fmt.Errorf("audit before: %w", err)
+		}
+		if afters[i], err = payload(e.After); err != nil {
+			return fmt.Errorf("audit after: %w", err)
+		}
 	}
-	_, err = tx.ExecContext(ctx, `insert into audit_log (university_id, actor_user_id, action, entity_type, entity_id, before, after)
-		values ($1, nullif($2, '')::uuid, $3, $4, $5, $6::jsonb, $7::jsonb)`,
-		universityID, e.ActorUserID, e.Action, e.EntityType, e.EntityID, before, after)
+	_, err := tx.ExecContext(ctx, `insert into audit_log (university_id, actor_user_id, action, entity_type, entity_id, before, after)
+		select $1, nullif(a, '')::uuid, ac, et, eid::uuid, b::jsonb, af::jsonb
+		from unnest($2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[]) with ordinality as x(a, ac, et, eid, b, af, n)
+		order by n`,
+		universityID, actors, actions, types, ids, befores, afters)
 	if err != nil {
 		return fmt.Errorf("audit write: %w", err)
 	}
 	return nil
 }
 
-func payload(v any) (any, error) {
+func payload(v any) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
 	b, err := json.Marshal(v)
-	return string(b), err
+	s := string(b)
+	return &s, err
 }
 
 // Filter narrows List; zero values are ignored. From and To are inclusive.

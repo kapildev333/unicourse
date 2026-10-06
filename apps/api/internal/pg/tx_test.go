@@ -24,6 +24,7 @@ var rest = map[string]string{
 	"enrollments":           `insert into enrollments (university_id, section_id, user_id) values ('{U}', '{S}', '{USR}')`,
 	"invitations":           `insert into invitations (university_id, email, role, token_hash, expires_at) values ('{U}', 'x@b.edu', 'member', sha256(gen_random_uuid()::text::bytea), now() + interval '1 day')`,
 	"pending_section_staff": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', '{S}', 'ta')`,
+	"pending_enrollments":   `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', '{INV}', '{S}')`,
 	"audit_log":             `insert into audit_log (university_id, action, entity_type, entity_id) values ('{U}', 'create', 'section', '{S}')`,
 }
 
@@ -269,6 +270,9 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"enrollments->sections":              rest["enrollments"],
 		"pending_section_staff->sections":    `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', (select id from invitations limit 1), '{S}', 'ta')`,
 		"pending_section_staff->both":        `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', '{S}', 'ta')`,
+		"pending_enrollments->sections":      `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', (select id from invitations limit 1), '{S}')`,
+		"pending_enrollments->both":          rest["pending_enrollments"],
+		"pending_enrollments->invitations":   `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', '{INV}', (select id from sections limit 1))`,
 		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
 	}
 	// A-side parents so the "limit 1" subselects resolve
