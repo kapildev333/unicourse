@@ -14,4 +14,11 @@ func Register(r *httpx.Router, d Deps) {
 	r.Handle("POST", base+"/terms", Wrap(d, createTerm))
 	r.Handle("PATCH", base+"/terms/{id}", Wrap(d, updateTerm))
 	r.Handle("DELETE", base+"/terms/{id}", Wrap(d, deleteTerm))
+	r.Handle("GET", base+"/memberships", Wrap(d, listMemberships))
+	r.Handle("PATCH", base+"/memberships/{id}", Wrap(d, updateMembership))
+	r.Handle("DELETE", base+"/memberships/{id}", Wrap(d, deleteMembership))
+	r.Handle("GET", base+"/invitations", Wrap(d, listInvitations))
+	r.Handle("POST", base+"/invitations", Wrap(d, createInvitation(d)))
+	r.Handle("DELETE", base+"/invitations/{id}", Wrap(d, deleteInvitation))
+	r.Handle("GET", base+"/audit-log", Wrap(d, listAuditLog))
 }

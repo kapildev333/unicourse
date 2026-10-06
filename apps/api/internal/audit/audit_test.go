@@ -66,8 +66,12 @@ func TestWriteAndList(t *testing.T) {
 	if b, _ := json.Marshal(none); string(b) != `{"items":[]}` {
 		t.Fatalf("B: %s", b)
 	}
-	if got := list(t, db, f.UniversityA, audit.Filter{EntityID: entity, ActorUserID: f.AdminA}, httpx.Page{Limit: 50}); len(got.Items) != 1 {
+	got = list(t, db, f.UniversityA, audit.Filter{EntityID: entity, ActorUserID: f.AdminA}, httpx.Page{Limit: 50})
+	if len(got.Items) != 1 {
 		t.Fatalf("entity+actor filter: %+v", got)
+	}
+	if a := got.Items[0].Actor; a == nil || a.ID != f.AdminA || a.Email == "" {
+		t.Fatalf("actor not joined: %+v", a)
 	}
 }
 
@@ -91,11 +95,11 @@ func TestPaginationNewestFirstAndRange(t *testing.T) {
 	if got := list(t, db, f.UniversityA, audit.Filter{From: mid}, httpx.Page{Limit: 50}); len(got.Items) != 2 {
 		t.Errorf("from: %d items, want 2", len(got.Items))
 	}
-	if got := list(t, db, f.UniversityA, audit.Filter{To: mid}, httpx.Page{Limit: 50}); len(got.Items) != 2 {
-		t.Errorf("to: %d items, want 2", len(got.Items))
+	if got := list(t, db, f.UniversityA, audit.Filter{To: mid}, httpx.Page{Limit: 50}); len(got.Items) != 1 {
+		t.Errorf("to is exclusive: %d items, want 1", len(got.Items))
 	}
-	if got := list(t, db, f.UniversityA, audit.Filter{From: mid, To: mid}, httpx.Page{Limit: 50}); len(got.Items) != 1 {
-		t.Errorf("from=to: %d items, want 1", len(got.Items))
+	if got := list(t, db, f.UniversityA, audit.Filter{From: mid, To: mid}, httpx.Page{Limit: 50}); len(got.Items) != 0 {
+		t.Errorf("from=to: %d items, want 0", len(got.Items))
 	}
 }
 
