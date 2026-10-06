@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
@@ -135,6 +136,62 @@ func TestStaffInviteFlow(t *testing.T) {
 	_, raw = e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
 	if p := jmap(t, raw)["pendingStaff"].([]any); len(p) != 0 {
 		t.Errorf("pendingStaff after accept: %s", raw)
+	}
+}
+
+func TestStaffIgnoresExpiredInvitation(t *testing.T) {
+	e := newEnv(t)
+	var oldID string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into invitations (university_id, email, role, token_hash, expires_at)
+			values ($1, 'late@outside.org', 'member', '\x01', now() - interval '1 hour') returning id`, e.Fx.UniversityA).Scan(&oldID)
+	})
+	st, raw := e.call(e.Inst, "POST", e.staffPath(e.SectionA), map[string]any{"email": "late@outside.org", "role": "ta"})
+	var got struct{ Invitation struct{ ID string } }
+	if st != 202 || json.Unmarshal(raw, &got) != nil || got.Invitation.ID == "" || got.Invitation.ID == oldID {
+		t.Fatalf("expired invitation reused: %d %s (old %s)", st, raw, oldID)
+	}
+	if e.Mails.count() != 1 {
+		t.Errorf("mails %d", e.Mails.count())
+	}
+	if n := e.count(`select count(*) from pending_section_staff where invitation_id = $1`, got.Invitation.ID); n != 1 {
+		t.Errorf("pending rows on new invitation %d", n)
+	}
+	if n := e.count(`select count(*) from pending_section_staff where invitation_id = $1`, oldID); n != 0 {
+		t.Errorf("pending rows on expired invitation %d", n)
+	}
+}
+
+func TestStaffConcurrentAddsSameEmail(t *testing.T) {
+	e := newEnv(t)
+	const n = 8
+	codes := make([]int, n)
+	var wg sync.WaitGroup
+	for i := range codes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			codes[i], _ = e.call(e.Inst, "POST", e.staffPath(e.SectionA), map[string]any{"email": "race@outside.org", "role": "ta"})
+		}()
+	}
+	wg.Wait()
+	ok, conflict := 0, 0
+	for _, c := range codes {
+		switch c {
+		case 202:
+			ok++
+		case 409:
+			conflict++
+		}
+	}
+	if ok != 1 || conflict != n-1 {
+		t.Errorf("codes %v", codes)
+	}
+	if c := e.count(`select count(*) from invitations where email = 'race@outside.org'`); c != 1 {
+		t.Errorf("invitations %d", c)
+	}
+	if c := e.count(`select count(*) from pending_section_staff`); c != 1 {
+		t.Errorf("pending rows %d", c)
 	}
 }
 

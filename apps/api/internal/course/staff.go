@@ -156,6 +156,11 @@ func createStaff(d tenant.Deps) tenant.Handler {
 				return 0, nil, err
 			}
 		}
+		// serialise concurrent adds of one email so they cannot each create an invitation;
+		// released at commit/rollback (a hash collision only serialises two unrelated adds)
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtext($1))`, email); err != nil {
+			return 0, nil, err
+		}
 		states, err := resolveEmails(ctx, tx, []string{email})
 		if err != nil {
 			return 0, nil, err
