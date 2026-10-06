@@ -2,9 +2,6 @@ import { Link, Outlet } from '@tanstack/react-router'
 import { ErrorBanner } from '../../components/error-banner'
 import { useUniversity } from '../auth/use-me'
 
-// ponytail: members/invitations/audit land in P1-L4c; until their files exist the typed router
-// does not know these paths, so `to` is cast. Drop `adminTo` once they are generated.
-const adminTo = (page: string) => `/$slug/admin/${page}` as '/$slug/admin'
 const tabBase =
   '-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-focus'
 const tabActive = { className: 'border-accent text-accent', 'aria-current': 'page' as const }
@@ -27,16 +24,16 @@ export function AdminLayout() {
             <Link to="/$slug/admin/terms" params={{ slug }} className={tabBase} activeProps={tabActive}>
               Terms
             </Link>
-            <Link to={adminTo('members')} params={{ slug }} className={tabBase} activeProps={tabActive}>
+            <Link to="/$slug/admin/members" params={{ slug }} className={tabBase} activeProps={tabActive}>
               Members
             </Link>
           </>
         )}
-        <Link to={adminTo('invitations')} params={{ slug }} className={tabBase} activeProps={tabActive}>
+        <Link to="/$slug/admin/invitations" params={{ slug }} className={tabBase} activeProps={tabActive}>
           Invitations
         </Link>
         {membership.role === 'admin' && (
-          <Link to={adminTo('audit')} params={{ slug }} className={tabBase} activeProps={tabActive}>
+          <Link to="/$slug/admin/audit" params={{ slug }} className={tabBase} activeProps={tabActive}>
             Audit log
           </Link>
         )}
