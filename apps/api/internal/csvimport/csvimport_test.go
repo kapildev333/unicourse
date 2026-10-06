@@ -87,8 +87,8 @@ func TestParseHeaderOnly(t *testing.T) {
 }
 
 func TestParseSkipsBlankAndEmptyLines(t *testing.T) {
-	recs, _, err := Parse(strings.NewReader("email,displayname\na@a.edu,A\n,\n\n"), emailSpec)
-	if err != nil || len(recs) != 1 {
+	recs, _, err := Parse(strings.NewReader("email,displayname\na@a.edu,A\n,\n\n   \n,\nb@a.edu,B\n,"), emailSpec)
+	if err != nil || len(recs) != 2 || recs[1].Line != 7 {
 		t.Fatalf("recs=%v err=%v", recs, err)
 	}
 }
@@ -128,9 +128,12 @@ func TestParseErrors(t *testing.T) {
 
 func TestParseDefaultKey(t *testing.T) {
 	s := Spec{Required: []string{"a", "b"}}
-	recs, _, _ := Parse(strings.NewReader("a,b\n1,2\n1,2\n"), s)
+	recs, _, err := Parse(strings.NewReader("a,b\n1,2\n1,2\n"), s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	p, err := PreviewRows(context.Background(), nil, recs, "x", s, allAdd)
-	if err != nil || p.Rows[1].Action != Error {
+	if err != nil || p.Rows[1].Action != Error || p.Rows[1].Message != "duplicate of line 2" {
 		t.Fatalf("p=%v err=%v", p, err)
 	}
 }
@@ -161,6 +164,11 @@ func TestPreviewDuplicates(t *testing.T) {
 	}
 	if !reflect.DeepEqual(seen, []int{2, 3}) {
 		t.Fatalf("classifier saw %v", seen)
+	}
+	for i := 1; i < len(p.Rows); i++ { // Apply relies on this order
+		if p.Rows[i].Line <= p.Rows[i-1].Line {
+			t.Fatalf("rows not in line order: %+v", p.Rows)
+		}
 	}
 	if len(p.Rows) != 4 || p.Checksum != sum {
 		t.Fatalf("p = %+v", p)
@@ -205,7 +213,7 @@ func TestApply(t *testing.T) {
 		err := Apply(ctx, nil, preview(Row{Line: 2, Action: Add}), sum, a)
 		wantValidation(t, err, httpx.FieldError{Field: "checksum", Message: "file changed since preview"})
 	}
-	err := Apply(ctx, nil, preview(Row{Line: 5, Action: Error, Message: "m5"}, Row{Line: 2, Action: Add}, Row{Line: 3, Action: Error, Message: "m3"}), "abc", a)
+	err := Apply(ctx, nil, preview(Row{Line: 2, Action: Add}, Row{Line: 3, Action: Error, Message: "m3"}, Row{Line: 5, Action: Error, Message: "m5"}), "abc", a)
 	wantValidation(t, err, httpx.FieldError{Field: "line:3", Message: "m3"}, httpx.FieldError{Field: "line:5", Message: "m5"})
 	if called != 0 {
 		t.Fatal("applier called on failed validation")
@@ -241,9 +249,11 @@ func TestApplyRollsBack(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	var n int
-	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+	if err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
 		return tx.QueryRow(`select count(*) from departments where code = 'X'`).Scan(&n)
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if n != 0 {
 		t.Fatalf("%d rows persisted", n)
 	}
@@ -309,4 +319,26 @@ func TestReadUpload(t *testing.T) {
 	r.Header.Set("Content-Type", mw.FormDataContentType())
 	_, _, _, err = ReadUpload(r, s)
 	wantValidation(t, err, httpx.FieldError{Field: "file", Message: "file too large"})
+}
+
+func TestParseRejectsNonUTF8AndNUL(t *testing.T) {
+	for _, in := range []string{"email\nJos\xe9@a.edu\n", "email\na\x00b@a.edu\n"} {
+		_, _, err := Parse(strings.NewReader(in), emailSpec)
+		wantValidation(t, err, httpx.FieldError{Field: "file", Message: "must be UTF-8 encoded text"})
+	}
+}
+
+func TestParseWrongFieldCount(t *testing.T) {
+	for in, line := range map[string]string{"email,displayname\na@a.edu\n": "line 2", "email\na@a.edu\nb@a.edu,x,y\n": "line 3"} {
+		_, _, err := Parse(strings.NewReader(in), emailSpec)
+		wantValidation(t, err, httpx.FieldError{Field: "file", Message: line + ": wrong number of fields"})
+	}
+}
+
+func TestPreviewEmptyKeyNotDuplicate(t *testing.T) {
+	recs := []Record{{2, map[string]string{"email": ""}}, {3, map[string]string{"email": ""}}}
+	p, err := PreviewRows(context.Background(), nil, recs, "x", emailSpec, allAdd)
+	if err != nil || p.Counts[Add] != 2 {
+		t.Fatalf("p=%+v err=%v", p, err)
+	}
 }

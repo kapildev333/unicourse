@@ -14,8 +14,8 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 )
@@ -93,10 +93,14 @@ func Parse(r io.Reader, s Spec) ([]Record, string, error) {
 	if int64(len(raw)) > s.max() {
 		return nil, "", fileErr("file too large")
 	}
+	if !utf8.Valid(raw) || bytes.IndexByte(raw, 0) >= 0 {
+		return nil, "", fileErr("must be UTF-8 encoded text")
+	}
 	sum := sha256.Sum256(raw)
 	checksum := hex.EncodeToString(sum[:])
 
 	cr := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(raw, []byte("\xef\xbb\xbf"))))
+	cr.FieldsPerRecord = -1 // checked below, after empty lines are skipped
 	header, err := cr.Read()
 	if err == io.EOF {
 		return nil, "", fileErr("header row required")
@@ -142,6 +146,9 @@ func Parse(r io.Reader, s Spec) ([]Record, string, error) {
 			continue
 		}
 		line, _ := cr.FieldPos(0)
+		if len(cells) != len(header) {
+			return nil, "", fileErr(fmt.Sprintf("line %d: wrong number of fields", line))
+		}
 		data := make(map[string]string, len(names))
 		for _, n := range names {
 			data[n] = ""
@@ -233,6 +240,10 @@ func PreviewRows(ctx context.Context, tx *sql.Tx, recs []Record, checksum string
 	var fresh []Record
 	for i, rec := range recs {
 		k := key(rec.Data)
+		if k == "" { // the classifier reports the real problem (e.g. a missing email)
+			fresh = append(fresh, rec)
+			continue
+		}
 		if l, ok := first[k]; ok {
 			dupOf[i] = l
 			continue
@@ -278,9 +289,7 @@ func Apply(ctx context.Context, tx *sql.Tx, p Preview, formChecksum string, a Ap
 	}
 	var bad []httpx.FieldError
 	var todo []Row
-	rows := append([]Row{}, p.Rows...)
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Line < rows[j].Line })
-	for _, r := range rows {
+	for _, r := range p.Rows { // PreviewRows emits rows in line order (pinned by a test)
 		switch r.Action {
 		case Error:
 			bad = append(bad, httpx.FieldError{Field: fmt.Sprintf("line:%d", r.Line), Message: r.Message})
