@@ -1,3 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { SectionDetailPage } from '../../features/courses/section-detail'
 
-export const Route = createFileRoute('/$slug/sections/$id')({ component: () => <h1>section</h1> })
+function Page() {
+  const { slug, id } = Route.useParams()
+  return <SectionDetailPage slug={slug} sectionId={id} />
+}
+
+export const Route = createFileRoute('/$slug/sections/$id')({ component: Page })
