@@ -46,7 +46,10 @@ jobs:
         working-directory: apps/web
         run: |
           npm ci
+          npm run generate
+          git diff --exit-code src/api/types.ts
           npm run lint
           npm run typecheck
           npm test -- --run
           npm run build
+          git diff --exit-code src/routeTree.gen.ts
