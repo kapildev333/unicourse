@@ -1,114 +1,88 @@
-import { useRef, useState } from "react";
-import { api, unwrap } from "../../api/client";
-import { ApiError } from "../../api/errors";
-import { Button } from "../../components/button";
-import { ErrorBanner } from "../../components/error-banner";
-import {
-  FormErrors,
-  errorMessage,
-  useFieldErrors,
-  useFocusFirstError,
-} from "../../components/form-errors";
-import { FormField, inputClass } from "../../components/form-field";
-import { MagicLinkSent } from "./magic-link-sent";
-import { safeNext } from "./safe-next";
+import { useRef, useState } from 'react'
+import { api, unwrap } from '../../api/client'
+import { ApiError } from '../../api/errors'
+import { Button } from '../../components/button'
+import { ErrorBanner } from '../../components/error-banner'
+import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
+import { FormField, inputClass } from '../../components/form-field'
+import { MagicLinkSent } from './magic-link-sent'
+import { safeNext } from './safe-next'
 
 const callbackCopy: Record<string, string> = {
   unauthenticated: "Sign-in didn't complete. Please try again.",
-  forbidden:
-    "This email can't sign in to UniCourse. Ask your university administrator to invite you.",
-  validation_failed:
-    "That sign-in link has expired or was already used. Request a new one below.",
-  rate_limited: "Too many sign-in attempts. Wait a minute, then try again.",
+  forbidden: "This email can't sign in to UniCourse. Ask your university administrator to invite you.",
+  validation_failed: 'That sign-in link has expired or was already used. Request a new one below.',
+  rate_limited: 'Too many sign-in attempts. Wait a minute, then try again.',
   no_membership:
     "You're signed in, but your account isn't a member of any university yet. Ask your administrator for an invitation.",
-};
-const fallbackCopy = "Something went wrong while signing in. Please try again.";
+}
+const fallbackCopy = 'Something went wrong while signing in. Please try again.'
 
-const identifierCopy = "Enter your university email or university ID.";
-const providerCopy = {
-  "validation_failed:slug": identifierCopy,
-  "validation_failed:email": "Enter a valid email address.",
-};
-const magicCopy = { "validation_failed:email": "Enter a valid email address." };
+const identifierCopy = 'Enter your university email or university ID.'
+const providerCopy = { 'validation_failed:slug': identifierCopy, 'validation_failed:email': 'Enter a valid email address.' }
+const magicCopy = { 'validation_failed:email': 'Enter a valid email address.' }
 
-type Provider = "google" | "microsoft";
+type Provider = 'google' | 'microsoft'
 
-export function SignInPage(props: {
-  next?: string;
-  error?: string;
-  email?: string;
-}) {
-  const next = safeNext(props.next);
-  const [identifier, setIdentifier] = useState(props.email ?? "");
-  const [email, setEmail] = useState(props.email ?? "");
-  const [pending, setPending] = useState<Provider | "magic" | null>(null);
-  const [provError, setProvError] = useState<unknown>(null);
-  const [provValue, setProvValue] = useState("");
-  const [clientError, setClientError] = useState<{ identifier: string } | null>(
-    null,
-  );
-  const [magicError, setMagicError] = useState<unknown>(null);
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const formA = useRef<HTMLFormElement>(null);
-  const formB = useRef<HTMLFormElement>(null);
-  const provBannerRef = useRef<HTMLDivElement>(null);
-  const magicBannerRef = useRef<HTMLDivElement>(null);
+export function SignInPage(props: { next?: string; error?: string; email?: string }) {
+  const next = safeNext(props.next)
+  const [identifier, setIdentifier] = useState(props.email ?? '')
+  const [email, setEmail] = useState(props.email ?? '')
+  const [pending, setPending] = useState<Provider | 'magic' | null>(null)
+  const [provError, setProvError] = useState<unknown>(null)
+  const [provValue, setProvValue] = useState('')
+  const [clientError, setClientError] = useState<{ identifier: string } | null>(null)
+  const [magicError, setMagicError] = useState<unknown>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
+  const formA = useRef<HTMLFormElement>(null)
+  const formB = useRef<HTMLFormElement>(null)
+  const provBannerRef = useRef<HTMLDivElement>(null)
+  const magicBannerRef = useRef<HTMLDivElement>(null)
 
-  const provFields = useFieldErrors(provError, providerCopy);
-  const magicFields = useFieldErrors(magicError, magicCopy);
-  const identifierError =
-    clientError?.identifier ?? provFields.slug ?? provFields.email;
-  const emailError = magicFields.email;
-  useFocusFirstError(formA, clientError ?? provError, provBannerRef);
-  useFocusFirstError(formB, magicError, magicBannerRef);
+  const provFields = useFieldErrors(provError, providerCopy)
+  const magicFields = useFieldErrors(magicError, magicCopy)
+  const identifierError = clientError?.identifier ?? provFields.slug ?? provFields.email
+  const emailError = magicFields.email
+  useFocusFirstError(formA, clientError ?? provError, provBannerRef)
+  useFocusFirstError(formB, magicError, magicBannerRef)
 
   async function start(provider: Provider) {
-    const v = identifier.trim();
-    setProvError(null);
+    const v = identifier.trim()
+    setProvError(null)
     if (!v) {
-      setClientError({ identifier: identifierCopy });
-      return;
+      setClientError({ identifier: identifierCopy })
+      return
     }
-    setClientError(null);
-    setProvValue(v);
-    setPending(provider);
+    setClientError(null)
+    setProvValue(v)
+    setPending(provider)
     try {
-      const body = v.includes("@")
-        ? { email: v, next }
-        : { slug: v.toLowerCase(), next };
-      const { url } = await unwrap(
-        api.POST("/auth/oidc/{provider}/start", {
-          params: { path: { provider } },
-          body,
-        }),
-      );
-      window.location.assign(url);
+      const body = v.includes('@') ? { email: v, next } : { slug: v.toLowerCase(), next }
+      const { url } = await unwrap(api.POST('/auth/oidc/{provider}/start', { params: { path: { provider } }, body }))
+      window.location.assign(url)
     } catch (e) {
-      setProvError(e);
-      setPending(null);
+      setProvError(e)
+      setPending(null)
     }
   }
 
   async function sendLink(e: React.FormEvent) {
-    e.preventDefault();
-    const v = email.trim();
-    setMagicError(null);
-    setPending("magic");
+    e.preventDefault()
+    const v = email.trim()
+    setMagicError(null)
+    setPending('magic')
     try {
-      await unwrap(api.POST("/auth/magic-link", { body: { email: v, next } }));
-      setSentTo(v);
+      await unwrap(api.POST('/auth/magic-link', { body: { email: v, next } }))
+      setSentTo(v)
     } catch (err) {
-      setMagicError(err);
+      setMagicError(err)
     } finally {
-      setPending(null);
+      setPending(null)
     }
   }
 
-  const callback = props.error
-    ? (callbackCopy[props.error] ?? fallbackCopy)
-    : null;
-  const busy = pending !== null;
+  const callback = props.error ? (callbackCopy[props.error] ?? fallbackCopy) : null
+  const busy = pending !== null
   const provBanner =
     provError && !identifierError ? (
       <div className="mb-4">
@@ -118,26 +92,18 @@ export function SignInPage(props: {
             : errorMessage(provError, providerCopy)}
         </ErrorBanner>
       </div>
-    ) : null;
+    ) : null
 
   return (
-    <main
-      id="main"
-      tabIndex={-1}
-      className="flex min-h-screen items-start justify-center bg-canvas px-4 pt-24"
-    >
+    <main id="main" tabIndex={-1} className="flex min-h-screen items-start justify-center bg-canvas px-4 pt-24">
       <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-8 shadow-sm">
         {sentTo !== null ? (
           <MagicLinkSent email={sentTo} onBack={() => setSentTo(null)} />
         ) : (
           <>
             <p className="text-sm font-semibold text-accent">UniCourse</p>
-            <h1 className="mt-6 text-xl font-semibold tracking-tight">
-              Sign in
-            </h1>
-            <p className="mt-1 text-sm text-ink-muted">
-              Use your university account.
-            </p>
+            <h1 className="mt-6 text-xl font-semibold tracking-tight">Sign in</h1>
+            <p className="mt-1 text-sm text-ink-muted">Use your university account.</p>
             {callback && (
               <div className="mt-4">
                 <ErrorBanner title="">{callback}</ErrorBanner>
@@ -173,19 +139,9 @@ export function SignInPage(props: {
                   onChange={(e) => setIdentifier(e.target.value)}
                 />
               </FormField>
-              {(["google", "microsoft"] as const).map((p) => (
-                <Button
-                  key={p}
-                  variant="secondary"
-                  className="w-full"
-                  disabled={busy}
-                  onClick={() => void start(p)}
-                >
-                  {pending === p
-                    ? "Redirecting…"
-                    : p === "google"
-                      ? "Continue with Google"
-                      : "Continue with Microsoft"}
+              {(['google', 'microsoft'] as const).map((p) => (
+                <Button key={p} variant="secondary" className="w-full" disabled={busy} onClick={() => void start(p)}>
+                  {pending === p ? 'Redirecting…' : p === 'google' ? 'Continue with Google' : 'Continue with Microsoft'}
                 </Button>
               ))}
             </form>
@@ -201,13 +157,7 @@ export function SignInPage(props: {
               className="flex flex-col gap-4"
               onSubmit={(e) => void sendLink(e)}
             >
-              {magicError && !emailError ? (
-                <FormErrors
-                  ref={magicBannerRef}
-                  error={magicError}
-                  copy={magicCopy}
-                />
-              ) : null}
+              {magicError && !emailError ? <FormErrors ref={magicBannerRef} error={magicError} copy={magicCopy} /> : null}
               <FormField label="Email" name="email" error={emailError}>
                 <input
                   type="email"
@@ -218,12 +168,12 @@ export function SignInPage(props: {
                 />
               </FormField>
               <Button type="submit" className="w-full" disabled={busy}>
-                {pending === "magic" ? "Sending…" : "Email me a sign-in link"}
+                {pending === 'magic' ? 'Sending…' : 'Email me a sign-in link'}
               </Button>
             </form>
           </>
         )}
       </div>
     </main>
-  );
+  )
 }
