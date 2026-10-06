@@ -1,0 +1,3328 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UniCourse API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/auth/oidc/{provider}/start": {
+      "post": {
+        "operationId": "startOidc",
+        "summary": "Start OIDC sign-in",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/provider"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provider authorize URL; sets the signed state cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcStartResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/oidc/{provider}/callback": {
+      "get": {
+        "operationId": "oidcCallback",
+        "summary": "OIDC callback",
+        "description": "Browser navigation. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/provider"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect; sets the session cookie on success.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/magic-link": {
+      "post": {
+        "operationId": "createMagicLink",
+        "summary": "Request a magic link",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MagicLinkCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted, no body; also returned for unknown or not-allowed emails."
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/magic-link/{token}": {
+      "get": {
+        "operationId": "confirmMagicLink",
+        "summary": "Magic-link confirm page",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tiny HTML page with one button that POSTs to the same URL; does not consume the token (guards against link scanners).",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      },
+      "post": {
+        "operationId": "consumeMagicLink",
+        "summary": "Consume a magic link",
+        "description": "Browser form post. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/token"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect; sets the session cookie on success.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/sign-out": {
+      "post": {
+        "operationId": "signOut",
+        "summary": "Sign out",
+        "responses": {
+          "204": {
+            "description": "Signed out; idempotent, clears the cookie."
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Current user and active memberships",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/me/sections": {
+      "get": {
+        "operationId": "listMySections",
+        "summary": "My sections",
+        "description": "Who: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MySections"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/departments": {
+      "get": {
+        "operationId": "listDepartments",
+        "summary": "List Departments",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDepartment",
+        "summary": "Create Department",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Department"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/departments/{id}": {
+      "patch": {
+        "operationId": "updateDepartment",
+        "summary": "Update Department",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Department"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDepartment",
+        "summary": "Delete Department",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/terms": {
+      "get": {
+        "operationId": "listTerms",
+        "summary": "List Terms",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TermList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTerm",
+        "summary": "Create Term",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Term"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/terms/{id}": {
+      "patch": {
+        "operationId": "updateTerm",
+        "summary": "Update Term",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Term"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteTerm",
+        "summary": "Delete Term",
+        "description": "Who: university admin. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/invitations": {
+      "get": {
+        "operationId": "listInvitations",
+        "summary": "List invitations",
+        "description": "Who: admin, dept_admin.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInvitation",
+        "summary": "Create invitation",
+        "description": "Who: admin; dept_admin may only invite role member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/invitations/{id}": {
+      "delete": {
+        "operationId": "deleteInvitation",
+        "summary": "Delete invitation",
+        "description": "Who: admin, dept_admin. 409 if already accepted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/memberships": {
+      "get": {
+        "operationId": "listMemberships",
+        "summary": "List memberships",
+        "description": "Who: university admin.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/memberships/{id}": {
+      "patch": {
+        "operationId": "updateMembership",
+        "summary": "Update membership",
+        "description": "Who: university admin. 409 when demoting the last admin.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Membership"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMembership",
+        "summary": "Delete membership",
+        "description": "Who: university admin. 409 for the last admin.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/audit-log": {
+      "get": {
+        "operationId": "listAuditLog",
+        "summary": "List audit log, newest first",
+        "description": "Who: university admin.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/entityType"
+          },
+          {
+            "$ref": "#/components/parameters/entityId"
+          },
+          {
+            "$ref": "#/components/parameters/actorUserId"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEntryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/courses": {
+      "get": {
+        "operationId": "listCourses",
+        "summary": "List Courses",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/departmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCourse",
+        "summary": "Create Course",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/courses/{id}": {
+      "patch": {
+        "operationId": "updateCourse",
+        "summary": "Update Course",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCourse",
+        "summary": "Delete Course",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/courses/import/preview": {
+      "post": {
+        "operationId": "previewCourseImport",
+        "summary": "Preview courses import",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/courses/import": {
+      "post": {
+        "operationId": "importCourses",
+        "summary": "Import courses",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections": {
+      "get": {
+        "operationId": "listSections",
+        "summary": "List Sections",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "$ref": "#/components/parameters/termId"
+          },
+          {
+            "$ref": "#/components/parameters/courseId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSection",
+        "summary": "Create Section",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Section"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}": {
+      "patch": {
+        "operationId": "updateSection",
+        "summary": "Update Section",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Section"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSection",
+        "summary": "Delete Section",
+        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getSection",
+        "summary": "Get section",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Section"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/import/preview": {
+      "post": {
+        "operationId": "previewSectionImport",
+        "summary": "Preview sections import",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/import": {
+      "post": {
+        "operationId": "importSections",
+        "summary": "Import sections",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/staff": {
+      "get": {
+        "operationId": "listSectionStaff",
+        "summary": "List section staff",
+        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionStaffList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSectionStaff",
+        "summary": "Add section staff",
+        "description": "Who: admin; dept_admin for their departments; instructor for their sections. Instructors may only add role ta.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionStaff"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Email has no active membership; invitation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffInvited"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/staff/{userId}": {
+      "delete": {
+        "operationId": "deleteSectionStaff",
+        "summary": "Remove section staff",
+        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/userId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/enrollments": {
+      "get": {
+        "operationId": "listEnrollments",
+        "summary": "List enrollments",
+        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/enrollments/{userId}": {
+      "delete": {
+        "operationId": "deleteEnrollment",
+        "summary": "Remove enrollment",
+        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/userId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/enrollments/import/preview": {
+      "post": {
+        "operationId": "previewEnrollmentImport",
+        "summary": "Preview enrollments import",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/enrollments/import": {
+      "post": {
+        "operationId": "importEnrollments",
+        "summary": "Import enrollments",
+        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FieldError": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "example": "endsOn"
+          },
+          "message": {
+            "type": "string",
+            "example": "must be after startsOn"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unauthenticated",
+                  "forbidden",
+                  "not_found",
+                  "conflict",
+                  "validation_failed",
+                  "rate_limited",
+                  "internal"
+                ],
+                "example": "unauthenticated"
+              },
+              "message": {
+                "type": "string",
+                "example": "1 field is invalid"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FieldError"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@a.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Alice Doe"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName"
+        ]
+      },
+      "University": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "slug": {
+            "type": "string",
+            "example": "example"
+          },
+          "name": {
+            "type": "string",
+            "example": "Example University"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ]
+      },
+      "MyMembership": {
+        "type": "object",
+        "properties": {
+          "university": {
+            "$ref": "#/components/schemas/University"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "dept_admin",
+              "member"
+            ],
+            "example": "admin"
+          },
+          "departmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+            }
+          }
+        },
+        "required": [
+          "university",
+          "role",
+          "departmentIds"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyMembership"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "memberships"
+        ]
+      },
+      "Department": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Computer Science"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "example": "CS"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code"
+        ]
+      },
+      "DepartmentCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Computer Science",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "example": "CS"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "DepartmentUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Computer Science",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "example": "CS"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Term": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Fall 2026"
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-18"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "startsOn",
+          "endsOn"
+        ]
+      },
+      "TermCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Fall 2026",
+            "minLength": 1
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-18"
+          }
+        },
+        "required": [
+          "name",
+          "startsOn",
+          "endsOn"
+        ],
+        "additionalProperties": false
+      },
+      "TermUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Fall 2026",
+            "minLength": 1
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-12-18"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Membership": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "bob@a.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Bob Roe"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "dept_admin",
+              "admin",
+              "member"
+            ],
+            "example": "dept_admin"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "invited"
+            ],
+            "example": "active"
+          },
+          "departmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "email",
+          "displayName",
+          "role",
+          "status",
+          "departmentIds"
+        ]
+      },
+      "MembershipUpdate": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "dept_admin",
+              "member"
+            ],
+            "example": "admin"
+          },
+          "departmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+            },
+            "default": [],
+            "description": "Must be non-empty iff role is dept_admin (else 400 field departmentIds); unknown id is 404."
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "Invitation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "carol@a.edu"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "member",
+              "admin",
+              "dept_admin"
+            ],
+            "example": "member"
+          },
+          "departmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-19T14:03:22Z"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "departmentIds",
+          "expiresAt"
+        ]
+      },
+      "InvitationCreate": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "carol@a.edu"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "member",
+              "admin",
+              "dept_admin"
+            ],
+            "example": "member"
+          },
+          "departmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+            }
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "actorUserId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "action": {
+            "type": "string",
+            "example": "term.update",
+            "pattern": "^[a-z_]+\\.(create|update|delete)$"
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "department",
+              "term",
+              "membership",
+              "invitation",
+              "course",
+              "section",
+              "staff",
+              "enrollment"
+            ],
+            "example": "term"
+          },
+          "entityId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "before": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "name": "Fall 26"
+            }
+          },
+          "after": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "name": "Fall 2026"
+            }
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "entityType",
+          "entityId",
+          "at"
+        ]
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "departmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "code": {
+            "type": "string",
+            "example": "CS101"
+          },
+          "title": {
+            "type": "string",
+            "example": "Intro to Programming"
+          }
+        },
+        "required": [
+          "id",
+          "departmentId",
+          "code",
+          "title"
+        ]
+      },
+      "CourseCreate": {
+        "type": "object",
+        "properties": {
+          "departmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "code": {
+            "type": "string",
+            "example": "CS101",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "example": "Intro to Programming",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "departmentId",
+          "code",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "CourseUpdate": {
+        "type": "object",
+        "properties": {
+          "departmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "code": {
+            "type": "string",
+            "example": "CS101",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "example": "Intro to Programming",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "SectionStaff": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dana@a.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Dana Poe"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "instructor",
+              "ta"
+            ],
+            "example": "instructor"
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "role"
+        ]
+      },
+      "Section": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "courseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "termId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "number": {
+            "type": "string",
+            "example": "001"
+          },
+          "course": {
+            "$ref": "#/components/schemas/Course"
+          },
+          "term": {
+            "$ref": "#/components/schemas/Term"
+          },
+          "staff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionStaff"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "termId",
+          "number",
+          "course",
+          "term",
+          "staff"
+        ]
+      },
+      "SectionCreate": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "termId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "number": {
+            "type": "string",
+            "example": "001",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "courseId",
+          "termId",
+          "number"
+        ],
+        "additionalProperties": false
+      },
+      "SectionUpdate": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "example": "001",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffCreate": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dana@a.edu"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "instructor",
+              "ta"
+            ],
+            "example": "instructor"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "StaffInvited": {
+        "type": "object",
+        "properties": {
+          "invited": {
+            "type": "boolean",
+            "const": true,
+            "example": true
+          },
+          "invitation": {
+            "$ref": "#/components/schemas/Invitation"
+          }
+        },
+        "required": [
+          "invited",
+          "invitation"
+        ]
+      },
+      "Enrollment": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "erin@a.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Erin Moe"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "createdAt"
+        ]
+      },
+      "MySection": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Section"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "myRole": {
+                "type": "string",
+                "enum": [
+                  "instructor",
+                  "ta",
+                  "student"
+                ],
+                "example": "instructor"
+              }
+            },
+            "required": [
+              "myRole"
+            ]
+          }
+        ]
+      },
+      "MySections": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": {
+                  "$ref": "#/components/schemas/Term"
+                },
+                "sections": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MySection"
+                  }
+                }
+              },
+              "required": [
+                "term",
+                "sections"
+              ]
+            }
+          }
+        },
+        "required": [
+          "terms"
+        ]
+      },
+      "ImportRow": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "integer",
+            "minimum": 2,
+            "example": 3
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "exists",
+              "invite",
+              "error"
+            ],
+            "example": "add"
+          },
+          "message": {
+            "type": "string",
+            "example": "unknown department code MATH"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "email": "erin@a.edu",
+              "displayname": "Erin Moe"
+            }
+          }
+        },
+        "required": [
+          "line",
+          "action",
+          "data"
+        ]
+      },
+      "ImportCounts": {
+        "type": "object",
+        "properties": {
+          "add": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "exists": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "invite": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "error": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          }
+        },
+        "required": [
+          "add",
+          "exists",
+          "invite",
+          "error"
+        ]
+      },
+      "ImportPreview": {
+        "type": "object",
+        "properties": {
+          "checksum": {
+            "type": "string",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRow"
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ImportCounts"
+          }
+        },
+        "required": [
+          "checksum",
+          "rows",
+          "counts"
+        ]
+      },
+      "ImportUpload": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "CSV, max 5 MiB."
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "ImportCommit": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "Same bytes as previewed."
+          },
+          "checksum": {
+            "type": "string",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+          }
+        },
+        "required": [
+          "file",
+          "checksum"
+        ],
+        "additionalProperties": false
+      },
+      "OidcStart": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "example": "example"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@a.edu"
+          },
+          "next": {
+            "type": "string",
+            "example": "/sign-in",
+            "pattern": "^/",
+            "description": "Relative path to return to after sign-in; anything else is ignored."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Send exactly one of slug or email (else 400 field slug)."
+      },
+      "OidcStartResult": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://accounts.google.com/o/oauth2/v2/auth?client_id=x"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "MagicLinkCreate": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@a.edu"
+          },
+          "next": {
+            "type": "string",
+            "example": "/sign-in",
+            "pattern": "^/",
+            "description": "Relative path to return to after sign-in; anything else is ignored."
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "DepartmentList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Department"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "TermList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "MembershipList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Membership"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "InvitationList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CourseList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Course"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SectionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Section"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SectionStaffList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SectionStaff"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "EnrollmentList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Enrollment"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AuditEntryList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      }
+    },
+    "parameters": {
+      "slug": {
+        "name": "slug",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "example"
+        },
+        "description": "University slug."
+      },
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "userId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "provider": {
+        "name": "provider",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "google",
+            "microsoft"
+          ]
+        }
+      },
+      "token": {
+        "name": "token",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Magic-link token (base64url)."
+      },
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "default": 50,
+          "maximum": 200
+        },
+        "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+      },
+      "cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Opaque; corrupt is 400 field cursor."
+      },
+      "termId": {
+        "name": "termId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "courseId": {
+        "name": "courseId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "departmentId": {
+        "name": "departmentId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "entityType": {
+        "name": "entityType",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "department",
+            "term",
+            "membership",
+            "invitation",
+            "course",
+            "section",
+            "staff",
+            "enrollment"
+          ]
+        }
+      },
+      "entityId": {
+        "name": "entityId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "actorUserId": {
+        "name": "actorUserId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "from": {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Inclusive."
+      },
+      "to": {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Exclusive."
+      }
+    },
+    "responses": {
+      "ValidationFailed": {
+        "description": "validation_failed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "unauthenticated",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "not_found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "rate_limited",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Internal": {
+        "description": "internal",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Request-Id": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "unicourse_session"
+      }
+    }
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ]
+}
