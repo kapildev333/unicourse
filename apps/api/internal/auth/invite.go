@@ -92,12 +92,28 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 			acc := []audit.Entry{{ActorUserID: userID, Action: "invitation.accept", EntityType: "invitation", EntityID: i.id,
 				After: map[string]any{"email": email, "role": role, "departmentIds": deptIDs}}}
 
-			// Membership: a no-op conflict (equal or higher role, already active) updates nothing and returns no row.
+			// Membership before the change. A concurrent first sign-in can leave this empty (statement snapshot),
+			// so the before of a membership.update may then be missing.
+			var oldID, oldRole, oldStatus string
+			var oldDepts []string
+			oldFound := true
+			err = tx.QueryRowContext(ctx, `select id, role, status from memberships where university_id = $1 and user_id = $2`, i.uni, userID).
+				Scan(&oldID, &oldRole, &oldStatus)
+			if err == sql.ErrNoRows {
+				oldFound = false
+			} else if err != nil {
+				return pg.MapError(err)
+			}
+			if oldFound {
+				if oldDepts, err = userDepts(ctx, tx, userID); err != nil {
+					return err
+				}
+			}
+
+			// A no-op conflict (equal or higher role, already active) updates nothing and returns no row.
 			var mID, mRole, mStatus string
 			var inserted bool
-			var oldRole, oldStatus sql.NullString
-			err = tx.QueryRowContext(ctx, `with old as (select role, status from memberships where university_id = $1 and user_id = $2),
-				up as (insert into memberships (university_id, user_id, role, status) values ($1, $2, $3, 'active')
+			err = tx.QueryRowContext(ctx, `insert into memberships (university_id, user_id, role, status) values ($1, $2, $3, 'active')
 				  on conflict (university_id, user_id) do update set status = 'active',
 				    role = case when array_position(array['member','dept_admin','admin'], excluded.role)
 				                   > array_position(array['member','dept_admin','admin'], memberships.role)
@@ -105,63 +121,57 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 				  where memberships.status <> 'active'
 				     or array_position(array['member','dept_admin','admin'], excluded.role)
 				      > array_position(array['member','dept_admin','admin'], memberships.role)
-				  returning id, role, status, xmax = 0 as inserted)
-				select up.id, up.role, up.status, up.inserted, old.role, old.status from up left join old on true`,
-				i.uni, userID, role).Scan(&mID, &mRole, &mStatus, &inserted, &oldRole, &oldStatus)
+				  returning id, role, status, xmax = 0`, i.uni, userID, role).Scan(&mID, &mRole, &mStatus, &inserted)
 			hasM := err == nil
 			if err != nil && err != sql.ErrNoRows {
 				return pg.MapError(err)
 			}
+			if !hasM {
+				mID, mRole, mStatus = oldID, oldRole, oldStatus
+			}
 
-			applied := []string{}
+			deptsAdded := false
 			if role == "dept_admin" {
 				// Only ids that exist in this university (RLS scopes departments): a stale or foreign id is
 				// skipped instead of failing the whole sign-in with a foreign-key error.
-				rs, err := tx.QueryContext(ctx, `insert into department_admins (university_id, department_id, user_id)
+				res, err := tx.ExecContext(ctx, `insert into department_admins (university_id, department_id, user_id)
 				 select $1, d.id, $2 from departments d where d.id = any(string_to_array($3::text, ',')::uuid[])
-				 on conflict do nothing returning department_id`, i.uni, userID, depts)
+				 on conflict do nothing`, i.uni, userID, depts)
 				if err != nil {
 					return pg.MapError(err)
 				}
-				for rs.Next() {
-					var d string
-					if err := rs.Scan(&d); err != nil {
-						rs.Close()
-						return err
-					}
-					applied = append(applied, d)
-				}
-				if err := rs.Close(); err != nil {
+				n, _ := res.RowsAffected()
+				deptsAdded = n > 0
+			}
+			// An untouched membership whose department set grew is still a change.
+			if hasM || (oldFound && deptsAdded) {
+				after, err := userDepts(ctx, tx, userID)
+				if err != nil {
 					return err
 				}
-				if err := rs.Err(); err != nil {
-					return pg.MapError(err)
-				}
-			}
-			if hasM {
 				e := audit.Entry{ActorUserID: userID, Action: "membership.create", EntityType: "membership", EntityID: mID,
-					After: map[string]any{"role": mRole, "status": mStatus, "departmentIds": applied}}
-				if !inserted {
+					After: map[string]any{"role": mRole, "status": mStatus, "departmentIds": after}}
+				if oldFound {
 					e.Action = "membership.update"
-					e.Before = map[string]any{"role": oldRole.String, "status": oldStatus.String}
+					e.Before = map[string]any{"role": oldRole, "status": oldStatus, "departmentIds": oldDepts}
 				}
 				acc = append(acc, e)
 			}
 
 			rs, err := tx.QueryContext(ctx, `insert into section_staff (university_id, section_id, user_id, role)
 				 select university_id, section_id, $1, role from pending_section_staff where invitation_id = $2
-				 on conflict do nothing returning section_id, role`, userID, i.id)
+				 on conflict do nothing returning id, section_id, role`, userID, i.id)
 			if err != nil {
 				return pg.MapError(err)
 			}
 			for rs.Next() {
-				var sec, r string
-				if err := rs.Scan(&sec, &r); err != nil {
+				var id, sec, r string
+				if err := rs.Scan(&id, &sec, &r); err != nil {
 					rs.Close()
 					return err
 				}
-				acc = append(acc, audit.Entry{ActorUserID: userID, Action: "staff.create", EntityType: "staff", EntityID: sec,
-					After: map[string]any{"userId": userID, "role": r}})
+				acc = append(acc, audit.Entry{ActorUserID: userID, Action: "staff.create", EntityType: "staff", EntityID: id,
+					After: staffAudit{SectionID: sec, UserID: userID, Email: email, Role: r}})
 			}
 			if err := rs.Close(); err != nil {
 				return err
@@ -172,18 +182,18 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 
 			rs, err = tx.QueryContext(ctx, `insert into enrollments (university_id, section_id, user_id)
 				 select university_id, section_id, $1 from pending_enrollments where invitation_id = $2
-				 on conflict do nothing returning section_id`, userID, i.id)
+				 on conflict do nothing returning id, section_id`, userID, i.id)
 			if err != nil {
 				return pg.MapError(err)
 			}
 			for rs.Next() {
-				var sec string
-				if err := rs.Scan(&sec); err != nil {
+				var id, sec string
+				if err := rs.Scan(&id, &sec); err != nil {
 					rs.Close()
 					return err
 				}
-				acc = append(acc, audit.Entry{ActorUserID: userID, Action: "enrollment.create", EntityType: "enrollment", EntityID: sec,
-					After: map[string]any{"userId": userID}})
+				acc = append(acc, audit.Entry{ActorUserID: userID, Action: "enrollment.create", EntityType: "enrollment", EntityID: id,
+					After: enrollmentAudit{SectionID: sec, UserID: userID, Email: email}})
 			}
 			if err := rs.Close(); err != nil {
 				return err
@@ -201,4 +211,36 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 		return "", err
 	}
 	return userID, nil
+}
+
+// Same JSON shapes as internal/course's staffAudit and enrollmentAudit (auth cannot import course).
+type staffAudit struct {
+	SectionID string `json:"sectionId"`
+	UserID    string `json:"userId"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+}
+
+type enrollmentAudit struct {
+	SectionID string `json:"sectionId"`
+	UserID    string `json:"userId"`
+	Email     string `json:"email"`
+}
+
+// userDepts is the user's full department set in the current university (RLS-scoped), sorted; never nil.
+func userDepts(ctx context.Context, tx *sql.Tx, userID string) ([]string, error) {
+	rs, err := tx.QueryContext(ctx, `select department_id from department_admins where user_id = $1 order by department_id`, userID)
+	if err != nil {
+		return nil, pg.MapError(err)
+	}
+	defer rs.Close()
+	out := []string{}
+	for rs.Next() {
+		var d string
+		if err := rs.Scan(&d); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rs.Err()
 }

@@ -473,11 +473,22 @@ func TestSignInAuditStaffAndEnrollments(t *testing.T) {
 	}
 	rows := auditRows(t, db, fx.UniversityA)
 	st := findAudit(t, rows, "staff.create")
-	if st.EntityType != "staff" || st.EntityID != s1 || st.Actor != uid || st.After["userId"] != uid || st.After["role"] != "ta" {
+	var staffID, enrID string
+	if err := pg.WithTx(context.Background(), db, fx.UniversityA, func(tx *sql.Tx) error {
+		if err := tx.QueryRow(`select id from section_staff where user_id = $1`, uid).Scan(&staffID); err != nil {
+			return err
+		}
+		return tx.QueryRow(`select id from enrollments where user_id = $1`, uid).Scan(&enrID)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if st.EntityType != "staff" || st.EntityID != staffID || st.Actor != uid || len(st.After) != 4 || st.After["sectionId"] != s1 ||
+		st.After["userId"] != uid || st.After["email"] != "dave@a.edu" || st.After["role"] != "ta" {
 		t.Fatalf("staff row %+v", st)
 	}
 	en := findAudit(t, rows, "enrollment.create")
-	if en.EntityType != "enrollment" || en.EntityID != s2 || en.Actor != uid || en.After["userId"] != uid {
+	if en.EntityType != "enrollment" || en.EntityID != enrID || en.Actor != uid || len(en.After) != 3 || en.After["sectionId"] != s2 ||
+		en.After["userId"] != uid || en.After["email"] != "dave@a.edu" {
 		t.Fatalf("enrollment row %+v", en)
 	}
 	// Already staffed and enrolled: the next invitation's pending rows hit on-conflict and write nothing.
@@ -502,5 +513,102 @@ func TestSignInAuditNotAllowedWritesNothing(t *testing.T) {
 		if n := len(auditRows(t, db, u)); n != 0 {
 			t.Fatalf("university %s rows %d", u, n)
 		}
+	}
+}
+
+func strs(v any) (out []string) {
+	for _, x := range v.([]any) {
+		out = append(out, x.(string))
+	}
+	return out
+}
+
+func insertDept(t *testing.T, db *sql.DB, uni, code string) (id string) {
+	t.Helper()
+	if err := pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into departments (university_id, name, code) values ($1, $2, $2) returning id`, uni, code).Scan(&id)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func sameSet(got []string, want ...string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	m := map[string]bool{}
+	for _, g := range got {
+		m[g] = true
+	}
+	for _, w := range want {
+		if !m[w] {
+			return false
+		}
+	}
+	return true
+}
+
+// A dept_admin invitation for a new department changes the full department set even when the
+// membership row itself is untouched; admins accepting one get the same row.
+func TestSignInAuditDepartmentAdded(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	exp := time.Now().Add(time.Hour)
+	deptX := insertDept(t, db, fx.UniversityA, "X")
+	insertInvitation(t, db, fx.UniversityA, "da@a.edu", "dept_admin", []string{fx.DeptA}, exp)
+	uid, err := SignIn(ctx, db, "da@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	insertInvitation(t, db, fx.UniversityA, "da@a.edu", "dept_admin", []string{deptX}, exp)
+	n := len(auditRows(t, db, fx.UniversityA))
+	if _, err := SignIn(ctx, db, "da@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	rows := auditRows(t, db, fx.UniversityA)
+	if len(rows) != n+2 {
+		t.Fatalf("rows %d, want %d: %+v", len(rows), n+2, rows)
+	}
+	u := findAudit(t, rows, "membership.update")
+	if u.Actor != uid || u.Before["role"] != "dept_admin" || u.Before["status"] != "active" || !sameSet(strs(u.Before["departmentIds"]), fx.DeptA) ||
+		u.After["role"] != "dept_admin" || !sameSet(strs(u.After["departmentIds"]), fx.DeptA, deptX) {
+		t.Fatalf("update row %+v", u)
+	}
+
+	// Active admin accepting a dept_admin invitation: membership untouched, department added.
+	insertInvitation(t, db, fx.UniversityA, "admin@a.edu", "dept_admin", []string{deptX}, exp)
+	if _, err := SignIn(ctx, db, "admin@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, r := range auditRows(t, db, fx.UniversityA) {
+		if r.Action == "membership.update" && r.Actor == fx.AdminA {
+			found = true
+			if r.Before["role"] != "admin" || len(strs(r.Before["departmentIds"])) != 0 || r.After["role"] != "admin" ||
+				!sameSet(strs(r.After["departmentIds"]), deptX) {
+				t.Fatalf("admin row %+v", r)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no membership.update for the admin")
+	}
+}
+
+// departmentIds is the full set of departments the user really has: a stale id on the invitation is
+// skipped and must not appear.
+func TestSignInAuditSkipsStaleDepartment(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	stale := "00000000-0000-0000-0000-00000000dead"
+	insertInvitation(t, db, fx.UniversityA, "st@a.edu", "dept_admin", []string{fx.DeptA, stale}, time.Now().Add(time.Hour))
+	if _, err := SignIn(context.Background(), db, "st@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	m := findAudit(t, auditRows(t, db, fx.UniversityA), "membership.create")
+	if !sameSet(strs(m.After["departmentIds"]), fx.DeptA) {
+		t.Fatalf("membership row %+v", m)
 	}
 }
