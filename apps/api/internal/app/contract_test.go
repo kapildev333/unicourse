@@ -68,28 +68,71 @@ func TestContractMatchesRouter(t *testing.T) {
 			ids[id] = key
 		}
 	}
-	code := map[string]bool{}
+	code := []string{}
 	for _, r := range NewRouter(Deps{}).Routes() {
-		code[norm(r.Method+" /api/v1"+strings.TrimPrefix(r.Pattern, "/api/v1"))] = true
+		code = append(code, r.Method+" "+r.Pattern)
 	}
-	pending := pendingRoutes(t)
+	for _, p := range diff(spec, code, pendingRoutes(t)) {
+		t.Error(p)
+	}
+}
 
+// diff returns every mismatch between the contract set, the routes as
+// registered ("METHOD /pattern") and the pending list.
+func diff(spec map[string]bool, routes []string, pending map[string]bool) []string {
+	var out []string
+	code := map[string]bool{}
+	for _, r := range routes {
+		code[norm(r)] = true
+	}
 	for _, k := range sorted(code) {
 		if !spec[k] {
-			t.Errorf("route in Go but not in openapi.json: %s", k)
+			out = append(out, "route in Go but not in openapi.json: "+k)
 		}
 		if pending[k] {
-			t.Errorf("route is registered but still in pending_routes.txt: %s", k)
+			out = append(out, "route is registered but still in pending_routes.txt: "+k)
 		}
 	}
 	for _, k := range sorted(spec) {
 		if !code[k] && !pending[k] {
-			t.Errorf("route in openapi.json but not registered in Go (and not pending): %s", k)
+			out = append(out, "route in openapi.json but not registered in Go (and not pending): "+k)
 		}
 	}
 	for _, k := range sorted(pending) {
 		if !spec[k] {
-			t.Errorf("pending_routes.txt line not in openapi.json: %s", k)
+			out = append(out, "pending_routes.txt line not in openapi.json: "+k)
+		}
+	}
+	return out
+}
+
+func TestDiff(t *testing.T) {
+	spec := map[string]bool{"GET /api/v1/a": true, "GET /api/v1/b/{}": true}
+	set := func(v ...string) map[string]bool {
+		m := map[string]bool{}
+		for _, x := range v {
+			m[x] = true
+		}
+		return m
+	}
+	cases := []struct {
+		name    string
+		routes  []string
+		pending map[string]bool
+		want    string // substring of the single expected problem, "" for none
+	}{
+		{"ok", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set(), ""},
+		{"ok pending", []string{"GET /api/v1/a"}, set("GET /api/v1/b/{}"), ""},
+		{"go only", []string{"GET /api/v1/a", "GET /api/v1/b/{id}", "GET /api/v1/c"}, set(), "in Go but not in openapi.json: GET /api/v1/c"},
+		{"contract only", []string{"GET /api/v1/a"}, set(), "not registered in Go (and not pending): GET /api/v1/b/{}"},
+		{"pending but registered", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set("GET /api/v1/a"), "still in pending_routes.txt: GET /api/v1/a"},
+		{"pending not in contract", []string{"GET /api/v1/a", "GET /api/v1/b/{id}"}, set("GET /api/v1/zzz"), "not in openapi.json: GET /api/v1/zzz"},
+		{"missing prefix", []string{"GET /api/v1/a", "GET /b/{id}"}, set("GET /api/v1/b/{}"), "in Go but not in openapi.json: GET /b/{}"},
+	}
+	for _, c := range cases {
+		got := diff(spec, c.routes, c.pending)
+		if c.want == "" && len(got) != 0 || c.want != "" && (len(got) != 1 || !strings.Contains(got[0], c.want)) {
+			t.Errorf("%s: got %v, want %q", c.name, got, c.want)
 		}
 	}
 }

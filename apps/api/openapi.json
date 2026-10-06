@@ -53,14 +53,15 @@
             "$ref": "#/components/responses/Internal"
           }
         },
-        "security": []
+        "security": [],
+        "description": "Who: anyone."
       }
     },
     "/auth/oidc/{provider}/callback": {
       "get": {
         "operationId": "oidcCallback",
         "summary": "OIDC callback",
-        "description": "Browser navigation. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.",
+        "description": "Who: anyone. Browser navigation. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.",
         "parameters": [
           {
             "$ref": "#/components/parameters/provider"
@@ -136,7 +137,8 @@
             "$ref": "#/components/responses/Internal"
           }
         },
-        "security": []
+        "security": [],
+        "description": "Who: anyone."
       }
     },
     "/auth/magic-link/{token}": {
@@ -163,12 +165,13 @@
             "$ref": "#/components/responses/Internal"
           }
         },
-        "security": []
+        "security": [],
+        "description": "Who: anyone."
       },
       "post": {
         "operationId": "consumeMagicLink",
         "summary": "Consume a magic link",
-        "description": "Browser form post. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.",
+        "description": "Who: anyone. Browser form post. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.",
         "parameters": [
           {
             "$ref": "#/components/parameters/token"
@@ -204,7 +207,8 @@
             "$ref": "#/components/responses/Internal"
           }
         },
-        "security": []
+        "security": [],
+        "description": "Who: signed in."
       }
     },
     "/me": {
@@ -228,14 +232,15 @@
           "500": {
             "$ref": "#/components/responses/Internal"
           }
-        }
+        },
+        "description": "Who: signed in."
       }
     },
     "/universities/{slug}/me/sections": {
       "get": {
         "operationId": "listMySections",
         "summary": "My sections",
-        "description": "Who: any active member.",
+        "description": "Who: member.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -271,7 +276,7 @@
       "get": {
         "operationId": "listDepartments",
         "summary": "List Departments",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: any active member.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -314,7 +319,7 @@
       "post": {
         "operationId": "createDepartment",
         "summary": "Create Department",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -366,7 +371,7 @@
       "patch": {
         "operationId": "updateDepartment",
         "summary": "Update Department",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -419,7 +424,7 @@
       "delete": {
         "operationId": "deleteDepartment",
         "summary": "Delete Department",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin. 409 when the department still has courses or department admins.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -454,7 +459,7 @@
       "get": {
         "operationId": "listTerms",
         "summary": "List Terms",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: any active member.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -497,7 +502,7 @@
       "post": {
         "operationId": "createTerm",
         "summary": "Create Term",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin. 409 when the term name already exists.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -537,7 +542,14 @@
             "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "description": "conflict: term name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/Internal"
@@ -549,7 +561,7 @@
       "patch": {
         "operationId": "updateTerm",
         "summary": "Update Term",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin. 409 when the term name already exists.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -592,7 +604,14 @@
             "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "$ref": "#/components/responses/Conflict"
+            "description": "conflict: term name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/Internal"
@@ -602,7 +621,7 @@
       "delete": {
         "operationId": "deleteTerm",
         "summary": "Delete Term",
-        "description": "Who: university admin. Reading: any active member.",
+        "description": "Who: admin. 409 when the term still has sections.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -637,7 +656,7 @@
       "get": {
         "operationId": "listInvitations",
         "summary": "List invitations",
-        "description": "Who: admin, dept_admin.",
+        "description": "Who: admin; dept_admin for member invitations only.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -680,7 +699,7 @@
       "post": {
         "operationId": "createInvitation",
         "summary": "Create invitation",
-        "description": "Who: admin; dept_admin may only invite role member.",
+        "description": "Who: admin; dept_admin for member invitations only.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -732,7 +751,7 @@
       "delete": {
         "operationId": "deleteInvitation",
         "summary": "Delete invitation",
-        "description": "Who: admin, dept_admin. 409 if already accepted.",
+        "description": "Who: admin; dept_admin for member invitations only. 409 if already accepted.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -767,7 +786,7 @@
       "get": {
         "operationId": "listMemberships",
         "summary": "List memberships",
-        "description": "Who: university admin.",
+        "description": "Who: admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -812,7 +831,7 @@
       "patch": {
         "operationId": "updateMembership",
         "summary": "Update membership",
-        "description": "Who: university admin. 409 when demoting the last admin.",
+        "description": "Who: admin. 409 when demoting the last admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -865,7 +884,7 @@
       "delete": {
         "operationId": "deleteMembership",
         "summary": "Delete membership",
-        "description": "Who: university admin. 409 for the last admin.",
+        "description": "Who: admin. 409 for the last admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -900,7 +919,7 @@
       "get": {
         "operationId": "listAuditLog",
         "summary": "List audit log, newest first",
-        "description": "Who: university admin.",
+        "description": "Who: admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -960,7 +979,7 @@
       "get": {
         "operationId": "listCourses",
         "summary": "List Courses",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1006,7 +1025,7 @@
       "post": {
         "operationId": "createCourse",
         "summary": "Create Course",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1058,7 +1077,7 @@
       "patch": {
         "operationId": "updateCourse",
         "summary": "Update Course",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1111,7 +1130,7 @@
       "delete": {
         "operationId": "deleteCourse",
         "summary": "Delete Course",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments). 409 when the course still has sections.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1146,7 +1165,7 @@
       "post": {
         "operationId": "previewCourseImport",
         "summary": "Preview courses import",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1195,7 +1214,7 @@
       "post": {
         "operationId": "importCourses",
         "summary": "Import courses",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1244,7 +1263,7 @@
       "get": {
         "operationId": "listSections",
         "summary": "List Sections",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin; read for the section's staff and enrolled members.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1293,7 +1312,7 @@
       "post": {
         "operationId": "createSection",
         "summary": "Create Section",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1345,7 +1364,7 @@
       "patch": {
         "operationId": "updateSection",
         "summary": "Update Section",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1398,7 +1417,7 @@
       "delete": {
         "operationId": "deleteSection",
         "summary": "Delete Section",
-        "description": "Who: admin; dept_admin for their departments. Reading: any active member.",
+        "description": "Who: admin, dept_admin (own departments).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1419,9 +1438,6 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
           },
           "500": {
             "$ref": "#/components/responses/Internal"
@@ -1462,14 +1478,15 @@
           "500": {
             "$ref": "#/components/responses/Internal"
           }
-        }
+        },
+        "description": "Who: admin, dept_admin; read for the section's staff and enrolled members."
       }
     },
     "/universities/{slug}/sections/import/preview": {
       "post": {
         "operationId": "previewSectionImport",
         "summary": "Preview sections import",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1518,7 +1535,7 @@
       "post": {
         "operationId": "importSections",
         "summary": "Import sections",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1567,7 +1584,7 @@
       "get": {
         "operationId": "listSectionStaff",
         "summary": "List section staff",
-        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "description": "Who: admin, dept_admin; staff and enrolled members of the section.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1613,7 +1630,7 @@
       "post": {
         "operationId": "createSectionStaff",
         "summary": "Add section staff",
-        "description": "Who: admin; dept_admin for their departments; instructor for their sections. Instructors may only add role ta.",
+        "description": "Who: admin, dept_admin; instructor of the section for ta rows. Instructors may only send role ta.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1678,7 +1695,7 @@
       "delete": {
         "operationId": "deleteSectionStaff",
         "summary": "Remove section staff",
-        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "description": "Who: admin, dept_admin; instructor of the section for ta rows.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1713,7 +1730,7 @@
       "get": {
         "operationId": "listEnrollments",
         "summary": "List enrollments",
-        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "description": "Who: admin, dept_admin; staff of the section (instructors and TAs).",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1761,7 +1778,7 @@
       "delete": {
         "operationId": "deleteEnrollment",
         "summary": "Remove enrollment",
-        "description": "Who: admin; dept_admin for their departments; instructor for their sections.",
+        "description": "Who: admin, dept_admin.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1796,7 +1813,7 @@
       "post": {
         "operationId": "previewEnrollmentImport",
         "summary": "Preview enrollments import",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1848,7 +1865,7 @@
       "post": {
         "operationId": "importEnrollments",
         "summary": "Import enrollments",
-        "description": "Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
+        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -2062,7 +2079,8 @@
           },
           "name": {
             "type": "string",
-            "example": "Computer Science"
+            "example": "Computer Science",
+            "maxLength": 100
           },
           "code": {
             "type": "string",
@@ -2082,7 +2100,8 @@
           "name": {
             "type": "string",
             "example": "Computer Science",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 100
           },
           "code": {
             "type": "string",
@@ -2102,7 +2121,8 @@
           "name": {
             "type": "string",
             "example": "Computer Science",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 100
           },
           "code": {
             "type": "string",
@@ -2122,7 +2142,8 @@
           },
           "name": {
             "type": "string",
-            "example": "Fall 2026"
+            "example": "Fall 2026",
+            "maxLength": 100
           },
           "startsOn": {
             "type": "string",
@@ -2148,7 +2169,8 @@
           "name": {
             "type": "string",
             "example": "Fall 2026",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 100
           },
           "startsOn": {
             "type": "string",
@@ -2174,7 +2196,8 @@
           "name": {
             "type": "string",
             "example": "Fall 2026",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 100
           },
           "startsOn": {
             "type": "string",
@@ -2214,8 +2237,8 @@
           "role": {
             "type": "string",
             "enum": [
-              "dept_admin",
               "admin",
+              "dept_admin",
               "member"
             ],
             "example": "dept_admin"
@@ -2223,10 +2246,10 @@
           "status": {
             "type": "string",
             "enum": [
-              "active",
-              "invited"
+              "invited",
+              "active"
             ],
-            "example": "active"
+            "example": "invited"
           },
           "departmentIds": {
             "type": "array",
@@ -2291,9 +2314,9 @@
           "role": {
             "type": "string",
             "enum": [
-              "member",
               "admin",
-              "dept_admin"
+              "dept_admin",
+              "member"
             ],
             "example": "member"
           },
@@ -2335,9 +2358,9 @@
           "role": {
             "type": "string",
             "enum": [
-              "member",
               "admin",
-              "dept_admin"
+              "dept_admin",
+              "member"
             ],
             "example": "member"
           },
@@ -2392,6 +2415,10 @@
             "type": "string",
             "format": "uuid",
             "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/User",
+            "description": "Omitted when the row has no actor (platform CLI)."
           },
           "before": {
             "type": "object",
@@ -2530,6 +2557,29 @@
           "role"
         ]
       },
+      "PendingStaff": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "frank@a.edu"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "instructor",
+              "ta"
+            ],
+            "example": "instructor"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "description": "Staff invited by email who have not signed in yet."
+      },
       "Section": {
         "type": "object",
         "properties": {
@@ -2563,6 +2613,12 @@
             "items": {
               "$ref": "#/components/schemas/SectionStaff"
             }
+          },
+          "pendingStaff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingStaff"
+            }
           }
         },
         "required": [
@@ -2572,7 +2628,8 @@
           "number",
           "course",
           "term",
-          "staff"
+          "staff",
+          "pendingStaff"
         ]
       },
       "SectionCreate": {

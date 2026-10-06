@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start OIDC sign-in */
+        /**
+         * Start OIDC sign-in
+         * @description Who: anyone.
+         */
         post: operations["startOidc"];
         delete?: never;
         options?: never;
@@ -30,7 +33,7 @@ export interface paths {
         };
         /**
          * OIDC callback
-         * @description Browser navigation. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.
+         * @description Who: anyone. Browser navigation. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.
          */
         get: operations["oidcCallback"];
         put?: never;
@@ -50,7 +53,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request a magic link */
+        /**
+         * Request a magic link
+         * @description Who: anyone.
+         */
         post: operations["createMagicLink"];
         delete?: never;
         options?: never;
@@ -65,12 +71,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Magic-link confirm page */
+        /**
+         * Magic-link confirm page
+         * @description Who: anyone.
+         */
         get: operations["confirmMagicLink"];
         put?: never;
         /**
          * Consume a magic link
-         * @description Browser form post. Failures redirect to /sign-in?error=<code> where code is an Error.code value (forbidden, validation_failed, rate_limited) or no_membership.
+         * @description Who: anyone. Browser form post. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.
          */
         post: operations["consumeMagicLink"];
         delete?: never;
@@ -88,7 +97,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign out */
+        /**
+         * Sign out
+         * @description Who: signed in.
+         */
         post: operations["signOut"];
         delete?: never;
         options?: never;
@@ -103,7 +115,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Current user and active memberships */
+        /**
+         * Current user and active memberships
+         * @description Who: signed in.
+         */
         get: operations["getMe"];
         put?: never;
         post?: never;
@@ -122,7 +137,7 @@ export interface paths {
         };
         /**
          * My sections
-         * @description Who: any active member.
+         * @description Who: member.
          */
         get: operations["listMySections"];
         put?: never;
@@ -142,13 +157,13 @@ export interface paths {
         };
         /**
          * List Departments
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: any active member.
          */
         get: operations["listDepartments"];
         put?: never;
         /**
          * Create Department
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin.
          */
         post: operations["createDepartment"];
         delete?: never;
@@ -169,14 +184,14 @@ export interface paths {
         post?: never;
         /**
          * Delete Department
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin. 409 when the department still has courses or department admins.
          */
         delete: operations["deleteDepartment"];
         options?: never;
         head?: never;
         /**
          * Update Department
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin.
          */
         patch: operations["updateDepartment"];
         trace?: never;
@@ -190,13 +205,13 @@ export interface paths {
         };
         /**
          * List Terms
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: any active member.
          */
         get: operations["listTerms"];
         put?: never;
         /**
          * Create Term
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin. 409 when the term name already exists.
          */
         post: operations["createTerm"];
         delete?: never;
@@ -217,14 +232,14 @@ export interface paths {
         post?: never;
         /**
          * Delete Term
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin. 409 when the term still has sections.
          */
         delete: operations["deleteTerm"];
         options?: never;
         head?: never;
         /**
          * Update Term
-         * @description Who: university admin. Reading: any active member.
+         * @description Who: admin. 409 when the term name already exists.
          */
         patch: operations["updateTerm"];
         trace?: never;
@@ -238,13 +253,13 @@ export interface paths {
         };
         /**
          * List invitations
-         * @description Who: admin, dept_admin.
+         * @description Who: admin; dept_admin for member invitations only.
          */
         get: operations["listInvitations"];
         put?: never;
         /**
          * Create invitation
-         * @description Who: admin; dept_admin may only invite role member.
+         * @description Who: admin; dept_admin for member invitations only.
          */
         post: operations["createInvitation"];
         delete?: never;
@@ -265,7 +280,7 @@ export interface paths {
         post?: never;
         /**
          * Delete invitation
-         * @description Who: admin, dept_admin. 409 if already accepted.
+         * @description Who: admin; dept_admin for member invitations only. 409 if already accepted.
          */
         delete: operations["deleteInvitation"];
         options?: never;
@@ -282,7 +297,7 @@ export interface paths {
         };
         /**
          * List memberships
-         * @description Who: university admin.
+         * @description Who: admin.
          */
         get: operations["listMemberships"];
         put?: never;
@@ -305,14 +320,14 @@ export interface paths {
         post?: never;
         /**
          * Delete membership
-         * @description Who: university admin. 409 for the last admin.
+         * @description Who: admin. 409 for the last admin.
          */
         delete: operations["deleteMembership"];
         options?: never;
         head?: never;
         /**
          * Update membership
-         * @description Who: university admin. 409 when demoting the last admin.
+         * @description Who: admin. 409 when demoting the last admin.
          */
         patch: operations["updateMembership"];
         trace?: never;
@@ -326,7 +341,7 @@ export interface paths {
         };
         /**
          * List audit log, newest first
-         * @description Who: university admin.
+         * @description Who: admin.
          */
         get: operations["listAuditLog"];
         put?: never;
@@ -346,13 +361,13 @@ export interface paths {
         };
         /**
          * List Courses
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin.
          */
         get: operations["listCourses"];
         put?: never;
         /**
          * Create Course
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments).
          */
         post: operations["createCourse"];
         delete?: never;
@@ -373,14 +388,14 @@ export interface paths {
         post?: never;
         /**
          * Delete Course
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments). 409 when the course still has sections.
          */
         delete: operations["deleteCourse"];
         options?: never;
         head?: never;
         /**
          * Update Course
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments).
          */
         patch: operations["updateCourse"];
         trace?: never;
@@ -396,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Preview courses import
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["previewCourseImport"];
         delete?: never;
@@ -416,7 +431,7 @@ export interface paths {
         put?: never;
         /**
          * Import courses
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["importCourses"];
         delete?: never;
@@ -434,13 +449,13 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin; read for the section's staff and enrolled members.
          */
         get: operations["listSections"];
         put?: never;
         /**
          * Create Section
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments).
          */
         post: operations["createSection"];
         delete?: never;
@@ -456,20 +471,23 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get section */
+        /**
+         * Get section
+         * @description Who: admin, dept_admin; read for the section's staff and enrolled members.
+         */
         get: operations["getSection"];
         put?: never;
         post?: never;
         /**
          * Delete Section
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments).
          */
         delete: operations["deleteSection"];
         options?: never;
         head?: never;
         /**
          * Update Section
-         * @description Who: admin; dept_admin for their departments. Reading: any active member.
+         * @description Who: admin, dept_admin (own departments).
          */
         patch: operations["updateSection"];
         trace?: never;
@@ -485,7 +503,7 @@ export interface paths {
         put?: never;
         /**
          * Preview sections import
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["previewSectionImport"];
         delete?: never;
@@ -505,7 +523,7 @@ export interface paths {
         put?: never;
         /**
          * Import sections
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["importSections"];
         delete?: never;
@@ -523,13 +541,13 @@ export interface paths {
         };
         /**
          * List section staff
-         * @description Who: admin; dept_admin for their departments; instructor for their sections.
+         * @description Who: admin, dept_admin; staff and enrolled members of the section.
          */
         get: operations["listSectionStaff"];
         put?: never;
         /**
          * Add section staff
-         * @description Who: admin; dept_admin for their departments; instructor for their sections. Instructors may only add role ta.
+         * @description Who: admin, dept_admin; instructor of the section for ta rows. Instructors may only send role ta.
          */
         post: operations["createSectionStaff"];
         delete?: never;
@@ -550,7 +568,7 @@ export interface paths {
         post?: never;
         /**
          * Remove section staff
-         * @description Who: admin; dept_admin for their departments; instructor for their sections.
+         * @description Who: admin, dept_admin; instructor of the section for ta rows.
          */
         delete: operations["deleteSectionStaff"];
         options?: never;
@@ -567,7 +585,7 @@ export interface paths {
         };
         /**
          * List enrollments
-         * @description Who: admin; dept_admin for their departments; instructor for their sections.
+         * @description Who: admin, dept_admin; staff of the section (instructors and TAs).
          */
         get: operations["listEnrollments"];
         put?: never;
@@ -590,7 +608,7 @@ export interface paths {
         post?: never;
         /**
          * Remove enrollment
-         * @description Who: admin; dept_admin for their departments; instructor for their sections.
+         * @description Who: admin, dept_admin.
          */
         delete: operations["deleteEnrollment"];
         options?: never;
@@ -609,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Preview enrollments import
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["previewEnrollmentImport"];
         delete?: never;
@@ -629,7 +647,7 @@ export interface paths {
         put?: never;
         /**
          * Import enrollments
-         * @description Who: admin; dept_admin for their departments (instructor or admin for enrollments). CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
          */
         post: operations["importEnrollments"];
         delete?: never;
@@ -790,12 +808,12 @@ export interface components {
              * @example dept_admin
              * @enum {string}
              */
-            role: "dept_admin" | "admin" | "member";
+            role: "admin" | "dept_admin" | "member";
             /**
-             * @example active
+             * @example invited
              * @enum {string}
              */
-            status: "active" | "invited";
+            status: "invited" | "active";
             departmentIds: string[];
         };
         MembershipUpdate: {
@@ -825,7 +843,7 @@ export interface components {
              * @example member
              * @enum {string}
              */
-            role: "member" | "admin" | "dept_admin";
+            role: "admin" | "dept_admin" | "member";
             departmentIds: string[];
             /**
              * Format: date-time
@@ -848,7 +866,7 @@ export interface components {
              * @example member
              * @enum {string}
              */
-            role: "member" | "admin" | "dept_admin";
+            role: "admin" | "dept_admin" | "member";
             departmentIds?: string[];
         };
         AuditEntry: {
@@ -874,6 +892,8 @@ export interface components {
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
              */
             entityId: string;
+            /** @description Omitted when the row has no actor (platform CLI). */
+            actor?: components["schemas"]["User"];
             /**
              * @example {
              *       "name": "Fall 26"
@@ -953,6 +973,19 @@ export interface components {
              */
             role: "instructor" | "ta";
         };
+        /** @description Staff invited by email who have not signed in yet. */
+        PendingStaff: {
+            /**
+             * Format: email
+             * @example frank@a.edu
+             */
+            email: string;
+            /**
+             * @example instructor
+             * @enum {string}
+             */
+            role: "instructor" | "ta";
+        };
         Section: {
             /**
              * Format: uuid
@@ -974,6 +1007,7 @@ export interface components {
             course: components["schemas"]["Course"];
             term: components["schemas"]["Term"];
             staff: components["schemas"]["SectionStaff"][];
+            pendingStaff: components["schemas"]["PendingStaff"][];
         };
         SectionCreate: {
             /**
@@ -1657,7 +1691,15 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description conflict: term name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -1718,7 +1760,15 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description conflict: term name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -2260,7 +2310,6 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
             500: components["responses"]["Internal"];
         };
     };
