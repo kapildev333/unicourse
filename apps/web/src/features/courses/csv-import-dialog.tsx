@@ -51,9 +51,12 @@ export function CsvImportDialog(props: Props) {
 function Body({ onClose, target, columns, hint, onDone }: Props) {
   const [file, setFile] = useState<File>()
   const bannerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [chooseAgain, setChooseAgain] = useState(false)
   const previewMut = useMutation({ mutationFn: (f: File) => previewImport(target, f) })
   const commitMut = useMutation({
     mutationFn: (v: { f: File; checksum: string }) => commitImport(target, v.f, v.checksum),
+    onSuccess: (r) => onDone(r),
   })
 
   const preview = previewMut.data
@@ -74,7 +77,13 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
     if (failed.size > 0) bannerRef.current?.focus()
   }, [failed])
 
-  function runPreview(f: File) {
+  function previewAgain() {
+    // re-read the input: the file on disk may have changed, and a cleared input has no file to reuse
+    const f = inputRef.current?.files?.[0]
+    setChooseAgain(!f)
+    if (!f) return
+    setFile(f)
+    setChooseAgain(false)
     commitMut.reset()
     previewMut.mutate(f)
   }
@@ -89,7 +98,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
   const counts = preview?.counts
   const errorCount = (counts?.error ?? 0) + failed.size
   const todo = counts ? counts.add + counts.invite : 0
-  const canImport = !!preview && !!file && !stale && failed.size === 0 && errorCount === 0 && todo > 0 && !commitMut.isPending
+  const canImport = !!preview && !!file && !stale && failed.size === 0 && errorCount === 0 && todo > 0 && !commitMut.isPending && !commitMut.isSuccess
   let reason = ''
   if (!file) reason = 'Choose a file to preview.'
   else if (previewMut.isPending) reason = 'Checking the file…'
@@ -124,16 +133,21 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
       <ErrorBanner title="The file changed since the preview">
         Preview it again before importing.
         <div>
-          <Button variant="secondary" size="sm" className="mt-2" onClick={() => runPreview(file)}>
+          <Button variant="secondary" size="sm" className="mt-2" onClick={previewAgain}>
             Preview again
           </Button>
         </div>
+        {chooseAgain && <p className="mt-2">Choose the file again.</p>}
       </ErrorBanner>
     )
   } else if (error instanceof ApiError && error.details.some((d) => d.field === 'file')) {
     banner = (
       <ErrorBanner title="This file can't be imported">
-        {sentence(error.details.find((d) => d.field === 'file')!.message)}
+        {error.details
+          .filter((d) => d.field === 'file')
+          .map((d) => (
+            <p key={d.message}>{sentence(d.message)}</p>
+          ))}
       </ErrorBanner>
     )
   } else if (error) {
@@ -161,7 +175,18 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
         </p>
       </div>
       <FormField label="CSV file" name="file">
-        <input type="file" accept=".csv,text/csv" className="text-sm" onChange={onFile} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="text-sm"
+          disabled={commitMut.isPending}
+          onClick={(e) => {
+            // choosing the same (fixed) file again fires no change event unless the input is cleared
+            e.currentTarget.value = ''
+          }}
+          onChange={onFile}
+        />
       </FormField>
       <p role="status" aria-live="polite" className="text-sm">
         {status}
@@ -239,7 +264,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
           <Button
             disabled={!canImport}
             aria-describedby={canImport ? undefined : 'csv-import-reason'}
-            onClick={() => file && preview && commitMut.mutate({ f: file, checksum: preview.checksum }, { onSuccess: (r) => onDone(r) })}
+            onClick={() => file && preview && commitMut.mutate({ f: file, checksum: preview.checksum })}
           >
             {commitMut.isPending ? 'Importing…' : preview ? `Import ${todo} rows` : 'Import'}
           </Button>

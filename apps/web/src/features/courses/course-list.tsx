@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
@@ -41,7 +41,10 @@ export function CourseListPage(props: {
 
   // a dept_admin lands on their first department so the URL always shows the filter
   const firstManaged = membership.role === 'dept_admin' ? membership.departmentIds[0] : undefined
+  const defaulted = useRef(false)
   useEffect(() => {
+    if (defaulted.current) return
+    defaulted.current = true // once, so choosing "All departments" sticks
     if (!departmentId && firstManaged) onDepartmentChange(firstManaged)
   }, [departmentId, firstManaged, onDepartmentChange])
 

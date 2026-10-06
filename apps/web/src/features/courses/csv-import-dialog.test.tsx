@@ -138,3 +138,68 @@ it('summarises counts, omitting zero parts', () => {
   )
   expect(importSummary('courses', { add: 0, invite: 0, exists: 0, error: 0 })).toBe('Import finished: nothing changed.')
 })
+
+it('previews again when the same file is chosen twice (input is cleared on click)', async () => {
+  const { fn } = setup({
+    [PREVIEW]: () => ({ body: { checksum: 'k', rows: [row(2, 'add')], counts: counts(1, 0) } }),
+  })
+  const input = screen.getByLabelText('CSV file') as HTMLInputElement
+  pick()
+  await waitFor(() => expect(calls(fn, PREVIEW)).toHaveLength(1))
+  Object.defineProperty(input, 'value', { writable: true, value: 'C:\\fakepath\\c.csv' })
+  fireEvent.click(input)
+  expect(input.value).toBe('')
+  pick()
+  await waitFor(() => expect(calls(fn, PREVIEW)).toHaveLength(2))
+})
+
+it('asks to choose the file again when Preview again has no file', async () => {
+  setup({
+    [PREVIEW]: () => ({ body: { checksum: 'k', rows: [row(2, 'add')], counts: counts(1, 0) } }),
+    [COMMIT]: () => err([{ field: 'checksum', message: 'mismatch' }]),
+  })
+  pick()
+  await waitFor(() => expect(importBtn()).toBeEnabled())
+  fireEvent.click(importBtn())
+  await screen.findByText('The file changed since the preview')
+  const input = screen.getByLabelText('CSV file') as HTMLInputElement
+  Object.defineProperty(input, 'files', { value: [], configurable: true })
+  fireEvent.click(screen.getByRole('button', { name: 'Preview again' }))
+  expect(await screen.findByText('Choose the file again.')).toBeInTheDocument()
+})
+
+it('sends one commit, disables the file input while pending and reports once', async () => {
+  const result = { checksum: 'k', rows: [row(2, 'add')], counts: counts(1, 0) }
+  let release!: () => void
+  const gate = new Promise<void>((r) => (release = r))
+  const { fn, onDone } = setup({
+    [PREVIEW]: () => ({ body: result }),
+    [COMMIT]: async () => {
+      await gate
+      return { body: result }
+    },
+  })
+  pick()
+  await waitFor(() => expect(importBtn()).toBeEnabled())
+  fireEvent.click(importBtn())
+  await waitFor(() => expect(screen.getByLabelText('CSV file')).toBeDisabled())
+  fireEvent.click(importBtn())
+  release()
+  await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+  expect(importBtn()).toBeDisabled()
+  fireEvent.click(importBtn())
+  expect(calls(fn, COMMIT)).toHaveLength(1)
+})
+
+it('lists every file error', async () => {
+  setup({
+    [PREVIEW]: () =>
+      err([
+        { field: 'file', message: 'missing column code' },
+        { field: 'file', message: 'missing column title' },
+      ]),
+  })
+  pick()
+  expect(await screen.findByText('Missing column code.')).toBeInTheDocument()
+  expect(screen.getByText('Missing column title.')).toBeInTheDocument()
+})

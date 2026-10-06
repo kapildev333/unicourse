@@ -59,7 +59,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
   const section = q.data
   const access = sectionAccess(membership, me.user.id, section)
   const label = `${section.course.code} section ${section.number}`
-  const ownRole = access.staffRole ?? (access.manager ? undefined : 'student')
+  const ownRole = access.staffRole ?? (membership.role === 'member' ? 'student' : undefined)
   return (
     <>
       {back}

@@ -26,11 +26,11 @@ const err = (status: number, code: string) => ({ status, body: { error: { code, 
 const S = 'GET /universities/a/sections/s1'
 const E = 'GET /universities/a/sections/s1/enrollments'
 
-function renderPage(userId: string, role = 'member') {
+function renderPage(userId: string, role = 'member', departmentIds: string[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(['me'], {
     user: { id: userId, email: 'x@a.edu', displayName: 'X' },
-    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role, departmentIds: [] }],
+    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role, departmentIds }],
   })
   const root = createRootRoute()
   const slug = createRoute({
@@ -155,4 +155,41 @@ it('shows the 403 state', async () => {
   renderPage('u-x')
   expect(await screen.findByText('No access')).toBeInTheDocument()
   expect(screen.getByText("You aren't staff on or enrolled in this section.")).toBeInTheDocument()
+})
+
+it('shows a dept_admin of another department a read-only view with no role badge and no roster', async () => {
+  const fn = mockApi({ [S]: () => ({ body: mk([ins, ta]) }), [E]: () => ({ body: { items: [] } }) })
+  renderPage('u-da', 'dept_admin', ['d2'])
+  expect(await screen.findByText('Ida Ins')).toBeInTheDocument()
+  expect(screen.queryByText('Student')).toBeNull()
+  expect(screen.queryByText(/You are:/)).toBeNull()
+  expect(screen.queryByLabelText('Add by email')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'Roster' })).toBeNull()
+  expect(fn.mock.calls.some((c) => (c[0] as Request).url.includes('/enrollments'))).toBe(false)
+})
+
+it('ignores Enter in the email field when both add buttons are shown', async () => {
+  const fn = mockApi({ [S]: () => ({ body: mk([ins]) }), [E]: () => ({ body: { items: [] } }) })
+  renderPage('u-admin', 'admin')
+  const input = await screen.findByLabelText('Add by email')
+  fireEvent.change(input, { target: { value: 'tom@a.edu' } })
+  expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(false)
+  expect(fn.mock.calls.some((c) => (c[0] as Request).method === 'POST')).toBe(false)
+})
+
+it('submits with the only available role on Enter', async () => {
+  const fn = mockApi({
+    [S]: () => ({ body: mk([ins]) }),
+    [E]: () => ({ body: { items: [] } }),
+    'POST /universities/a/sections/s1/staff': () => ({ status: 201, body: tom }),
+  })
+  renderPage('u-ins')
+  const input = await screen.findByLabelText('Add by email')
+  fireEvent.change(input, { target: { value: 'tom@a.edu' } })
+  expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(true)
+  fireEvent.submit(input.closest('form')!)
+  await waitFor(() => expect(fn.mock.calls.some((c) => (c[0] as Request).method === 'POST')).toBe(true))
+  const post = fn.mock.calls.map((c) => c[0] as Request).find((r) => r.method === 'POST')!
+  expect(await post.json()).toEqual({ email: 'tom@a.edu', role: 'ta' })
 })

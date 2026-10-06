@@ -142,6 +142,10 @@ export function StaffEditor(props: {
               className={`${inputClass} w-72`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                // with two submit buttons the role is ambiguous: require a button click
+                if (e.key === 'Enter' && canManageInstructors && canManageTAs) e.preventDefault()
+              }}
             />
           </FormField>
           {canManageInstructors && (

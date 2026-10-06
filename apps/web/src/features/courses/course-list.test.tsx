@@ -147,3 +147,16 @@ it('opens the import dialog', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Import courses' }))
   expect(await screen.findByLabelText('CSV file', { selector: 'input' })).toBeInTheDocument()
 })
+
+it('lets a dept_admin choose All departments and keeps it', async () => {
+  const fn = mockApi({ [D]: () => ({ body: { items: [cs, math] } }), [L]: () => ({ body: { items: [c1, c2] } }) })
+  renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
+  const select = await screen.findByLabelText('Department')
+  await waitFor(() => expect(select).toHaveValue('d1'))
+  fireEvent.change(select, { target: { value: '' } })
+  await waitFor(() => {
+    const last = fn.mock.calls.map((c) => new URL((c[0] as Request).url)).filter((u) => u.pathname.endsWith('/courses')).at(-1)!
+    expect(last.searchParams.has('departmentId')).toBe(false)
+  })
+  expect(select).toHaveValue('')
+})
