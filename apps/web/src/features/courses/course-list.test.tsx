@@ -1,0 +1,149 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { useState } from 'react'
+import { afterEach, expect, it, vi } from 'vitest'
+import { mockApi } from '../../test-utils'
+import { CourseListPage } from './course-list'
+
+afterEach(() => vi.unstubAllGlobals())
+
+const cs = { id: 'd1', code: 'CS', name: 'Computer Science' }
+const math = { id: 'd2', code: 'MATH', name: 'Mathematics' }
+const c1 = { id: 'c1', departmentId: 'd1', code: 'CS101', title: 'Intro' }
+const c2 = { id: 'c2', departmentId: 'd2', code: 'MATH1', title: 'Calculus' }
+const D = 'GET /universities/a/departments'
+const L = 'GET /universities/a/courses'
+const err = (status: number, code: string) => ({ status, body: { error: { code, message: code, details: [] } } })
+
+function Page({ initial }: { initial?: string }) {
+  const [id, setId] = useState(initial)
+  return <CourseListPage slug="a" departmentId={id} onDepartmentChange={(v) => setId(v || undefined)} />
+}
+
+function renderPage(membership: { role: string; departmentIds: string[] }, initial?: string) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  client.setQueryData(['me'], {
+    user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
+    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, ...membership }],
+  })
+  const root = createRootRoute()
+  const slug = createRoute({ getParentRoute: () => root, path: '$slug', component: () => <Page initial={initial} /> })
+  const router = createRouter({
+    routeTree: root.addChildren([slug]),
+    history: createMemoryHistory({ initialEntries: ['/a'] }),
+  })
+  return render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+}
+const admin = { role: 'admin', departmentIds: [] }
+
+it('lists courses with department codes', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs, math] } }), [L]: () => ({ body: { items: [c1, c2] } }) })
+  renderPage(admin)
+  expect(await screen.findByText('CS101')).toBeInTheDocument()
+  expect(screen.getByRole('cell', { name: 'MATH' })).toBeInTheDocument()
+})
+
+it('shows the empty state and the error state with retry', async () => {
+  let fail = true
+  mockApi({
+    [D]: () => ({ body: { items: [] } }),
+    [L]: () => (fail ? err(500, 'internal') : { body: { items: [] } }),
+  })
+  renderPage(admin)
+  const retry = await screen.findByRole('button', { name: 'Try again' })
+  fail = false
+  fireEvent.click(retry)
+  expect(await screen.findByText('No courses yet')).toBeInTheDocument()
+})
+
+it('creates a course and shows a field error for a duplicate code', async () => {
+  let items = [c1]
+  let conflict = true
+  const fn = mockApi({
+    [D]: () => ({ body: { items: [cs, math] } }),
+    [L]: () => ({ body: { items } }),
+    'POST /universities/a/courses': () => {
+      if (conflict) return err(409, 'conflict')
+      items = [...items, c2]
+      return { status: 201, body: c2 }
+    },
+  })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'New course' }))
+  const dialog = await screen.findByRole('dialog', { name: 'New course', hidden: true })
+  await within(dialog).findByRole('option', { name: 'MATH — Mathematics' })
+  fireEvent.change(within(dialog).getByLabelText('Department'), { target: { value: 'd2' } })
+  fireEvent.change(within(dialog).getByLabelText('Code'), { target: { value: ' MATH1 ' } })
+  fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Calculus' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Create course' }))
+  expect(await screen.findByText(/code already exists in this department/)).toBeInTheDocument()
+  await waitFor(() => expect(within(dialog).getByLabelText('Code')).toHaveFocus())
+  conflict = false
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Create course' }))
+  expect(await screen.findByText(/Course “MATH1” created\./)).toBeInTheDocument()
+  expect(await screen.findByRole('cell', { name: 'Calculus' })).toBeInTheDocument()
+  const post = fn.mock.calls.map((c) => c[0] as Request).filter((r) => r.method === 'POST').pop()!
+  expect(await post.clone().json()).toEqual({ departmentId: 'd2', code: 'MATH1', title: 'Calculus' })
+})
+
+it('edits only changed fields', async () => {
+  const fn = mockApi({
+    [D]: () => ({ body: { items: [cs] } }),
+    [L]: () => ({ body: { items: [c1] } }),
+    'PATCH /universities/a/courses/c1': () => ({ body: { ...c1, title: 'Intro 2' } }),
+  })
+  renderPage(admin)
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit CS101' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Edit CS101', hidden: true })
+  fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Intro 2' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+  expect(await screen.findByText(/Course “CS101” updated\./)).toBeInTheDocument()
+  const patch = fn.mock.calls.map((c) => c[0] as Request).find((r) => r.method === 'PATCH')!
+  expect(await patch.clone().json()).toEqual({ title: 'Intro 2' })
+})
+
+it('deletes a course and explains a 409', async () => {
+  let items = [c1]
+  let conflict = true
+  mockApi({
+    [D]: () => ({ body: { items: [cs] } }),
+    [L]: () => ({ body: { items } }),
+    'DELETE /universities/a/courses/c1': () => {
+      if (conflict) return err(409, 'conflict')
+      items = []
+      return { status: 204 }
+    },
+  })
+  renderPage(admin)
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete CS101' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Delete CS101?', hidden: true })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+  expect(await screen.findByText(/still has sections/)).toBeInTheDocument()
+  conflict = false
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+  expect(await screen.findByText(/Course “CS101” deleted\./)).toBeInTheDocument()
+  expect(await screen.findByText('No courses yet')).toBeInTheDocument()
+})
+
+it('shows Edit/Delete only on own-department rows for a dept_admin', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs, math] } }), [L]: () => ({ body: { items: [c1, c2] } }) })
+  renderPage({ role: 'dept_admin', departmentIds: ['d1'] }, 'd1')
+  await screen.findByText('CS101')
+  expect(screen.getByRole('button', { name: 'Edit CS101' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Edit MATH1' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Delete MATH1' })).toBeNull()
+})
+
+it('opens the import dialog', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => ({ body: { items: [c1] } }) })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'Import courses' }))
+  expect(await screen.findByLabelText('CSV file', { selector: 'input' })).toBeInTheDocument()
+})
