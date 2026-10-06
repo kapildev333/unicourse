@@ -40,3 +40,19 @@ func TestLoadShortSecret(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestLoadWebDir(t *testing.T) {
+	m := map[string]string{
+		"UNICOURSE_DATABASE_URL":   "postgres://x",
+		"UNICOURSE_BASE_URL":       "http://localhost:8080",
+		"UNICOURSE_SESSION_SECRET": strings.Repeat("s", 32),
+	}
+	c, err := Load(env(m))
+	if err != nil || c.WebDir != "" {
+		t.Fatal(c.WebDir, err)
+	}
+	m["UNICOURSE_WEB_DIR"] = "../web/dist"
+	if c, err = Load(env(m)); err != nil || c.WebDir != "../web/dist" {
+		t.Fatal(c.WebDir, err)
+	}
+}

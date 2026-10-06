@@ -45,4 +45,14 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_MICROSOFT_CLIENT_ID`, `UNICOURSE_MICROSOFT_CLIENT_SECRET` | no | Microsoft sign-in |
 | `UNICOURSE_SMTP_URL` | no | mail server; empty means the stdout mailer |
 | `UNICOURSE_WEB_ORIGIN` | no | CORS origin, development only (production serves the web app from the API binary) |
+| `UNICOURSE_WEB_DIR` | no | built web app (`apps/web/dist`) to serve at `/`; empty means API only |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests |
+
+## Run the whole app from one binary
+
+```
+cd apps/web && npm run build
+cd ../api && UNICOURSE_WEB_DIR=../web/dist go run ./cmd/api
+```
+
+The API serves `apps/web/dist` under `/`: real files as they are (`/assets/*` cached immutably), any other path without a file extension as `index.html` (client-side routes), and `/api/*` or a missing file with an extension as the JSON 404 envelope. Startup fails if the directory has no `index.html`.
