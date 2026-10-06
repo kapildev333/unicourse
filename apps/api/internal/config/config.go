@@ -41,5 +41,8 @@ func Load(getenv func(string) string) (Config, error) {
 	if len(missing) > 0 {
 		return Config{}, fmt.Errorf("missing env: %s", strings.Join(missing, ", "))
 	}
+	if len(c.SessionSecret) < 32 {
+		return Config{}, fmt.Errorf("UNICOURSE_SESSION_SECRET must be at least 32 bytes, got %d", len(c.SessionSecret))
+	}
 	return c, nil
 }
