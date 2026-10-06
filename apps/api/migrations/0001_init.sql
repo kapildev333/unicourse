@@ -1,4 +1,6 @@
--- UniCourse initial schema. Every tenant table carries university_id and is protected by
+-- UniCourse initial schema. Tenant-to-tenant foreign keys are composite (university_id, id), so a row
+-- can never reference a parent of another university.
+-- Every tenant table carries university_id and is protected by
 -- forced row level security; the API role must be NOSUPERUSER NOBYPASSRLS.
 
 create table universities (
@@ -62,18 +64,20 @@ create table departments (
   code text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (university_id, code)
+  unique (university_id, code),
+  unique (university_id, id)
 );
 create index on departments (university_id, created_at, id);
 
 create table department_admins (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  department_id uuid not null references departments(id) on delete restrict,
+  department_id uuid not null,
   user_id uuid not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (department_id, user_id)
+  unique (department_id, user_id),
+  foreign key (university_id, department_id) references departments (university_id, id) on delete restrict
 );
 create index on department_admins (university_id);
 create index on department_admins (user_id);
@@ -87,19 +91,22 @@ create table terms (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (starts_on < ends_on),
-  unique (university_id, name)
+  unique (university_id, name),
+  unique (university_id, id)
 );
 create index on terms (university_id, created_at, id);
 
 create table courses (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  department_id uuid not null references departments(id) on delete restrict,
+  department_id uuid not null,
   code text not null,
   title text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (university_id, code)
+  unique (university_id, code),
+  foreign key (university_id, department_id) references departments (university_id, id) on delete restrict,
+  unique (university_id, id)
 );
 create index on courses (department_id);
 create index on courses (university_id, created_at, id);
@@ -107,12 +114,15 @@ create index on courses (university_id, created_at, id);
 create table sections (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  course_id uuid not null references courses(id) on delete restrict,
-  term_id uuid not null references terms(id) on delete restrict,
+  course_id uuid not null,
+  term_id uuid not null,
   number text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (course_id, term_id, number)
+  unique (course_id, term_id, number),
+  foreign key (university_id, course_id) references courses (university_id, id) on delete restrict,
+  foreign key (university_id, term_id) references terms (university_id, id) on delete restrict,
+  unique (university_id, id)
 );
 create index on sections (term_id);
 create index on sections (university_id, created_at, id);
@@ -120,12 +130,13 @@ create index on sections (university_id, created_at, id);
 create table section_staff (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  section_id uuid not null references sections(id) on delete cascade,
+  section_id uuid not null,
   user_id uuid not null references users(id) on delete cascade,
   role text not null check (role in ('instructor', 'ta')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (section_id, user_id)
+  unique (section_id, user_id),
+  foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
 create index on section_staff (user_id);
 create index on section_staff (university_id, created_at, id);
@@ -133,11 +144,12 @@ create index on section_staff (university_id, created_at, id);
 create table enrollments (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  section_id uuid not null references sections(id) on delete cascade,
+  section_id uuid not null,
   user_id uuid not null references users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (section_id, user_id)
+  unique (section_id, user_id),
+  foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
 create index on enrollments (user_id);
 create index on enrollments (university_id, created_at, id);
@@ -153,7 +165,8 @@ create table invitations (
   expires_at timestamptz not null,
   accepted_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (university_id, id)
 );
 create index on invitations (email) where accepted_at is null;
 create index on invitations (university_id, created_at, id);
@@ -161,12 +174,14 @@ create index on invitations (university_id, created_at, id);
 create table pending_section_staff (
   id uuid primary key default gen_random_uuid(),
   university_id uuid not null references universities(id) on delete cascade,
-  invitation_id uuid not null references invitations(id) on delete cascade,
-  section_id uuid not null references sections(id) on delete cascade,
+  invitation_id uuid not null,
+  section_id uuid not null,
   role text not null check (role in ('instructor', 'ta')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (invitation_id, section_id)
+  unique (invitation_id, section_id),
+  foreign key (university_id, invitation_id) references invitations (university_id, id) on delete cascade,
+  foreign key (university_id, section_id) references sections (university_id, id) on delete cascade
 );
 create index on pending_section_staff (section_id);
 create index on pending_section_staff (university_id, created_at, id);

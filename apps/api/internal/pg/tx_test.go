@@ -252,3 +252,45 @@ func TestRollbackAndPanic(t *testing.T) {
 	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error { insert(tx); return nil })
 	check(1)
 }
+
+// A row of A must not reference a parent row of B, even by a valid id: composite FKs give 23503.
+func TestCrossTenantReferencesRejected(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	user := newUser(t, db, "u@b.edu")
+	var b ids
+	pg.WithTx(ctx, db, f.UniversityB, func(tx *sql.Tx) error { b = populate(t, tx, f.UniversityB, user); return nil })
+	cases := map[string]string{
+		"courses->departments":               `insert into courses (university_id, department_id, code, title) values ('{U}', '{D}', 'X', 'X')`,
+		"sections->courses":                  `insert into sections (university_id, course_id, term_id, number) values ('{U}', '` + b.course + `', '` + f.TermA + `', '9')`,
+		"sections->terms":                    `insert into sections (university_id, course_id, term_id, number) values ('{U}', (select id from courses limit 1), '` + b.term + `', '9')`,
+		"department_admins->departments":     rest["department_admins"],
+		"section_staff->sections":            rest["section_staff"],
+		"enrollments->sections":              rest["enrollments"],
+		"pending_section_staff->sections":    `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', (select id from invitations limit 1), '{S}', 'ta')`,
+		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
+	}
+	// A-side parents so the "limit 1" subselects resolve
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		for _, q := range []string{
+			`insert into courses (university_id, department_id, code, title) values ('{U}', '` + f.DeptA + `', 'A1', 'A')`,
+			`insert into sections (university_id, course_id, term_id, number) select '{U}', id, '` + f.TermA + `', '1' from courses`,
+			`insert into invitations (university_id, email, role, token_hash, expires_at) values ('{U}', 'a@a.edu', 'member', sha256('a'::bytea), now())`,
+		} {
+			if _, err := tx.Exec(sub(q, f.UniversityA, b)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return nil
+	})
+	b.user = newUser(t, db, "fresh@a.edu") // not yet in B's unique keys, so only the FK can fail
+	for name, stmt := range cases {
+		err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+			_, err := tx.Exec(sub(stmt, f.UniversityA, b))
+			return pg.MapError(err)
+		})
+		if !errors.Is(err, pg.ErrNotFound) {
+			t.Errorf("%s: %v, want ErrNotFound", name, err)
+		}
+	}
+}
