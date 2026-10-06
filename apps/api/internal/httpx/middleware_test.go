@@ -120,3 +120,19 @@ func TestRecover(t *testing.T) {
 		t.Fatal(rec.Code, rec.Body)
 	}
 }
+
+func TestLogMiddlewareLogsRoutePatternNotParams(t *testing.T) {
+	var buf bytes.Buffer
+	rt := NewRouter()
+	rt.Handle("GET", "/x/{id}", func(w http.ResponseWriter, r *http.Request) error { return nil })
+	h := LogMiddleware(slog.New(slog.NewJSONHandler(&buf, nil)), rt)
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/x/secret-token", nil))
+	if strings.Contains(buf.String(), "secret-token") || !strings.Contains(buf.String(), `"path":"/x/{id}"`) {
+		t.Fatalf("log %s", buf.String())
+	}
+	buf.Reset()
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/nope", nil))
+	if !strings.Contains(buf.String(), `"path":"/nope"`) {
+		t.Fatalf("unmatched log %s", buf.String())
+	}
+}

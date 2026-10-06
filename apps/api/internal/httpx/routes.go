@@ -25,9 +25,11 @@ func (rt *Router) Routes() []Route { return append([]Route(nil), rt.routes...) }
 
 // ServeHTTP answers 404 not_found for both an unknown path and a wrong method.
 func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if _, pattern := rt.mux.Handler(r); pattern == "" {
+	_, pattern := rt.mux.Handler(r)
+	if pattern == "" {
 		WriteError(w, r, NotFound("route"))
 		return
 	}
+	setRoute(r.Context(), pattern)
 	rt.mux.ServeHTTP(w, r)
 }
