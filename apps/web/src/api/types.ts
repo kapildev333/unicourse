@@ -361,7 +361,7 @@ export interface paths {
         };
         /**
          * List Courses
-         * @description Who: admin, dept_admin.
+         * @description Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections).
          */
         get: operations["listCourses"];
         put?: never;
@@ -411,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Preview courses import
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you". Existing rows are never updated.
          */
         post: operations["previewCourseImport"];
         delete?: never;
@@ -431,7 +431,7 @@ export interface paths {
         put?: never;
         /**
          * Import courses
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you". Existing rows are never updated.
          */
         post: operations["importCourses"];
         delete?: never;
@@ -449,7 +449,7 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: admin, dept_admin; read for the section's staff and enrolled members.
+         * @description Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections).
          */
         get: operations["listSections"];
         put?: never;
@@ -473,7 +473,7 @@ export interface paths {
         };
         /**
          * Get section
-         * @description Who: admin, dept_admin; read for the section's staff and enrolled members.
+         * @description Who: admin, dept_admin of the course's department, staff and enrolled members.
          */
         get: operations["getSection"];
         put?: never;
@@ -503,7 +503,7 @@ export interface paths {
         put?: never;
         /**
          * Preview sections import
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". Existing rows are never updated.
          */
         post: operations["previewSectionImport"];
         delete?: never;
@@ -523,7 +523,7 @@ export interface paths {
         put?: never;
         /**
          * Import sections
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". Existing rows are never updated.
          */
         post: operations["importSections"];
         delete?: never;
@@ -541,13 +541,13 @@ export interface paths {
         };
         /**
          * List section staff
-         * @description Who: admin, dept_admin; staff and enrolled members of the section.
+         * @description Who: admin, dept_admin of the course's department, staff and enrolled members. Accepted staff only; invited staff are in Section.pendingStaff.
          */
         get: operations["listSectionStaff"];
         put?: never;
         /**
          * Add section staff
-         * @description Who: admin, dept_admin; instructor of the section for ta rows. Instructors may only send role ta.
+         * @description Who: admin, dept_admin; instructor of the section for ta rows. Instructors may only send role ta. 409: already staff; invitation already pending for this section; user is already a member (invited membership).
          */
         post: operations["createSectionStaff"];
         delete?: never;
@@ -627,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Preview enrollments import
-         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: "invalid email", "membership is not active", "domain not allowed".
          */
         post: operations["previewEnrollmentImport"];
         delete?: never;
@@ -647,7 +647,7 @@ export interface paths {
         put?: never;
         /**
          * Import enrollments
-         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file.
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: "invalid email", "membership is not active", "domain not allowed".
          */
         post: operations["importEnrollments"];
         delete?: never;

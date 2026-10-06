@@ -137,40 +137,43 @@ func errBody(raw []byte) (code string, details []httpx.FieldError) {
 }
 
 func TestHelpers(t *testing.T) {
-	if !isUUID("00000000-0000-4000-8000-000000000001") || isUUID("nope") || isUUID("00000000-0000-4000-8000-00000000000G") {
-		t.Fatal("isUUID")
+	if !IsUUID("00000000-0000-4000-8000-000000000001") || IsUUID("nope") || IsUUID("00000000-0000-4000-8000-00000000000G") {
+		t.Fatal("IsUUID")
 	}
 	for _, in := range []string{`[]`, `null`} {
-		if ids, err := scanIDs([]byte(in)); err != nil || ids == nil || len(ids) != 0 {
-			t.Fatalf("scanIDs(%s) = %#v, %v", in, ids, err)
+		if ids, err := ScanIDs([]byte(in)); err != nil || ids == nil || len(ids) != 0 {
+			t.Fatalf("ScanIDs(%s) = %#v, %v", in, ids, err)
 		}
 	}
-	if ids, _ := scanIDs([]byte(`["a","b"]`)); len(ids) != 2 {
-		t.Fatal("scanIDs values")
+	if ids, _ := ScanIDs([]byte(`["a","b"]`)); len(ids) != 2 {
+		t.Fatal("ScanIDs values")
 	}
-	if v, fe := trimLen("name", "  hi ", 5); v != "hi" || fe != nil {
-		t.Fatal("trimLen ok")
+	if v, fe := TrimLen("name", "  hi ", 5); v != "hi" || fe != nil {
+		t.Fatal("TrimLen ok")
 	}
-	if _, fe := trimLen("name", "  ", 5); fe == nil || fe.Message != "is required" || fe.Field != "name" {
-		t.Fatal("trimLen empty")
+	if _, fe := TrimLen("name", "  ", 5); fe == nil || fe.Message != "is required" || fe.Field != "name" {
+		t.Fatal("TrimLen empty")
 	}
-	if _, fe := trimLen("name", strings.Repeat("é", 6), 5); fe == nil || fe.Message != "must be at most 5 characters" {
-		t.Fatalf("trimLen long: %v", fe)
+	if _, fe := TrimLen("name", "a\u0000b", 5); fe == nil || fe.Field != "name" || fe.Message != "must not contain NUL" {
+		t.Fatalf("TrimLen NUL: %v", fe)
 	}
-	if e, ok := noFields().(*httpx.Error); !ok || e.Code != "validation_failed" || len(e.Details) != 1 || e.Details[0].Field != "" {
-		t.Fatal("noFields")
+	if _, fe := TrimLen("name", strings.Repeat("é", 6), 5); fe == nil || fe.Message != "must be at most 5 characters" {
+		t.Fatalf("TrimLen long: %v", fe)
+	}
+	if e, ok := NoFields().(*httpx.Error); !ok || e.Code != "validation_failed" || len(e.Details) != 1 || e.Details[0].Field != "" {
+		t.Fatal("NoFields")
 	}
 	r := httptest.NewRequest("GET", "/x?limit=2", nil)
-	p, after, afterID, err := page(r)
+	p, after, afterID, err := Page(r)
 	if err != nil || p.Limit != 2 || after != nil || afterID != nil {
 		t.Fatal("page no cursor")
 	}
 	cur := httpx.NextCursor(testTime, "00000000-0000-4000-8000-000000000001")
-	p, after, afterID, err = page(httptest.NewRequest("GET", "/x?cursor="+cur, nil))
+	p, after, afterID, err = Page(httptest.NewRequest("GET", "/x?cursor="+cur, nil))
 	if err != nil || !testTime.Equal(after.(time.Time)) || afterID != "00000000-0000-4000-8000-000000000001" {
 		t.Fatalf("page cursor: %v %v %v", after, afterID, err)
 	}
-	if _, _, _, err := page(httptest.NewRequest("GET", "/x?limit=x", nil)); err == nil {
+	if _, _, _, err := Page(httptest.NewRequest("GET", "/x?limit=x", nil)); err == nil {
 		t.Fatal("page bad limit")
 	}
 }

@@ -26,7 +26,7 @@ const dateLayout = "2006-01-02"
 // termFields validates a full (merged) term; empty dates are "is required".
 func termFields(t Term) (Term, error) {
 	var details []httpx.FieldError
-	name, fe := trimLen("name", t.Name, 100)
+	name, fe := TrimLen("name", t.Name, 100)
 	if fe != nil {
 		details = append(details, *fe)
 	}
@@ -63,7 +63,7 @@ func termWriteErr(err error) error {
 }
 
 func listTerms(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	p, after, afterID, err := page(r)
+	p, after, afterID, err := Page(r)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -121,18 +121,18 @@ func updateTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("term")
 	}
-	var in struct{ Name, StartsOn, EndsOn optStr }
+	var in struct{ Name, StartsOn, EndsOn OptStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if err := patchNulls(nf("name", in.Name), nf("startsOn", in.StartsOn), nf("endsOn", in.EndsOn)); err != nil {
+	if err := PatchNulls(Named("name", in.Name), Named("startsOn", in.StartsOn), Named("endsOn", in.EndsOn)); err != nil {
 		return 0, nil, err
 	}
 	if !in.Name.Set && !in.StartsOn.Set && !in.EndsOn.Set {
-		return 0, nil, noFields()
+		return 0, nil, NoFields()
 	}
 	var before Term
 	err := tx.QueryRowContext(r.Context(), `select id, name, to_char(starts_on,'YYYY-MM-DD'), to_char(ends_on,'YYYY-MM-DD'), created_at from terms where id = $1 for update`, id).
@@ -169,7 +169,7 @@ func deleteTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("term")
 	}
 	var before Term

@@ -13,10 +13,10 @@ import (
 
 var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-func isUUID(s string) bool { return uuidRe.MatchString(s) }
+func IsUUID(s string) bool { return uuidRe.MatchString(s) }
 
-// scanIDs decodes a json array of ids (to_json / json_agg); the result is never nil.
-func scanIDs(b []byte) ([]string, error) {
+// ScanIDs decodes a json array of ids (to_json / json_agg); the result is never nil.
+func ScanIDs(b []byte) ([]string, error) {
 	ids := []string{}
 	if err := json.Unmarshal(b, &ids); err != nil {
 		return nil, err
@@ -27,10 +27,10 @@ func scanIDs(b []byte) ([]string, error) {
 	return ids, nil
 }
 
-// page parses limit/cursor. Without a cursor after and afterID are both nil, which the keyset
+// Page parses limit/cursor. Without a cursor after and afterID are both nil, which the keyset
 // clause `($1::timestamptz is null or (created_at, id) > ($1, $2::uuid))` treats as "first page";
 // fetch p.Limit+1 rows. after is `any` (not time.Time) so "no cursor" is a real SQL NULL.
-func page(r *http.Request) (p httpx.Page, after any, afterID any, err error) {
+func Page(r *http.Request) (p httpx.Page, after any, afterID any, err error) {
 	if p, err = httpx.ParsePage(r); err != nil {
 		return p, nil, nil, err
 	}
@@ -41,11 +41,14 @@ func page(r *http.Request) (p httpx.Page, after any, afterID any, err error) {
 	return p, nil, nil, nil
 }
 
-// trimLen trims v and checks it is non-empty and at most max runes.
-func trimLen(field, v string, max int) (string, *httpx.FieldError) {
+// TrimLen trims v and checks it is non-empty and at most max runes.
+func TrimLen(field, v string, max int) (string, *httpx.FieldError) {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return v, &httpx.FieldError{Field: field, Message: "is required"}
+	}
+	if strings.ContainsRune(v, 0) { // postgres rejects NUL in text (22021)
+		return v, &httpx.FieldError{Field: field, Message: "must not contain NUL"}
 	}
 	if utf8.RuneCountInString(v) > max {
 		return v, &httpx.FieldError{Field: field, Message: "must be at most " + strconv.Itoa(max) + " characters"}
@@ -53,6 +56,6 @@ func trimLen(field, v string, max int) (string, *httpx.FieldError) {
 	return v, nil
 }
 
-func noFields() error {
+func NoFields() error {
 	return httpx.Validation(httpx.FieldError{Field: "", Message: "no fields to update"})
 }

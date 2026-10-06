@@ -22,13 +22,13 @@ type Department struct {
 	createdAt time.Time
 }
 
-// optStr is a PATCH string field that tells absent from explicit null.
-type optStr struct {
+// OptStr is a PATCH string field that tells absent from explicit null.
+type OptStr struct {
 	Set, Null bool
 	V         string
 }
 
-func (o *optStr) UnmarshalJSON(b []byte) error {
+func (o *OptStr) UnmarshalJSON(b []byte) error {
 	o.Set = true
 	if string(b) == "null" {
 		o.Null = true
@@ -37,15 +37,16 @@ func (o *optStr) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &o.V)
 }
 
-// patchNulls returns a "must be a string" error per explicitly-null field (name order).
-type namedOpt struct {
+// NamedOpt pairs a PATCH field name with its OptStr for PatchNulls.
+type NamedOpt struct {
 	name string
-	v    optStr
+	v    OptStr
 }
 
-func nf(name string, v optStr) namedOpt { return namedOpt{name, v} }
+func Named(name string, v OptStr) NamedOpt { return NamedOpt{name, v} }
 
-func patchNulls(fields ...namedOpt) error {
+// PatchNulls returns a "must be a string" error per explicitly-null field (argument order).
+func PatchNulls(fields ...NamedOpt) error {
 	var d []httpx.FieldError
 	for _, f := range fields {
 		if f.v.Null {
@@ -63,7 +64,7 @@ var deptCodeRe = regexp.MustCompile(`^[A-Z0-9]{2,10}$`)
 // deptFields validates name and code (all errors at once, body field order).
 func deptFields(name, code string) (string, error) {
 	var details []httpx.FieldError
-	name, fe := trimLen("name", name, 100)
+	name, fe := TrimLen("name", name, 100)
 	if fe != nil {
 		details = append(details, *fe)
 	}
@@ -86,7 +87,7 @@ func deptWriteErr(err error) error {
 }
 
 func listDepartments(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	p, after, afterID, err := page(r)
+	p, after, afterID, err := Page(r)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -145,18 +146,18 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
-	var in struct{ Name, Code optStr }
+	var in struct{ Name, Code OptStr }
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if err := patchNulls(nf("name", in.Name), nf("code", in.Code)); err != nil {
+	if err := PatchNulls(Named("name", in.Name), Named("code", in.Code)); err != nil {
 		return 0, nil, err
 	}
 	if !in.Name.Set && !in.Code.Set {
-		return 0, nil, noFields()
+		return 0, nil, NoFields()
 	}
 	var before Department
 	err := tx.QueryRowContext(r.Context(), `select id, name, code, created_at from departments where id = $1 for update`, id).
@@ -192,7 +193,7 @@ func deleteDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, httpx.Forbidden()
 	}
 	id := r.PathValue("id")
-	if !isUUID(id) {
+	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
 	var before Department
