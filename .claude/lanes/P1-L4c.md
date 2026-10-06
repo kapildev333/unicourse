@@ -10,3 +10,8 @@ Finished; awaiting orchestrator verification.
 - Members page reads the university name and invalidates `['me']` on every role change/removal (simpler than comparing userId to the caller).
 ## Requests
 ## Blockers
+
+## Fix round
+- Self-demotion navigates to the admin index; `['me']` refetched only when the caller's own membership changes or is removed. Shared `useRefresh` used in departments/terms. Audit form `onSubmit` preventDefault. Tests tightened (PATCH bodies, audit instants, DELETE paths, tab aria-current).
+- Tab indicator root cause: base `border-transparent`/`text-ink-muted` and active `border-accent`/`text-accent` were both applied (TanStack merges className); stylesheet order let the base colors win. Fixed with `inactiveProps` carrying the inactive colors.
+- Admin feature files reformatted to repo style (single quotes, no semis, 120 cols) in a separate commit.

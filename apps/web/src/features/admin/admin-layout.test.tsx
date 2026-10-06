@@ -28,6 +28,7 @@ it('marks only the current admin tab as active', async () => {
   await screen.findByText('members page')
   expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Members' })).toHaveClass('border-accent', 'text-accent')
+  expect(screen.getByRole('link', { name: 'Members' })).not.toHaveClass('border-transparent')
   for (const name of ['Departments', 'Terms', 'Invitations', 'Audit log']) {
     const link = screen.getByRole('link', { name })
     expect(link).not.toHaveAttribute('aria-current')
