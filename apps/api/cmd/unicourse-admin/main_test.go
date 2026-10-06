@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func env(k string) string {
 func admin(t *testing.T, db *sql.DB, args ...string) (code int, out, errOut string) {
 	t.Helper()
 	var o, e bytes.Buffer
-	code = run(context.Background(), args, env, db, &o, &e)
+	code = run(context.Background(), args, env, func() (*sql.DB, error) { return db, nil }, &o, &e)
 	return code, o.String(), e.String()
 }
 
@@ -68,8 +69,9 @@ func TestCreateUniversityAndAccept(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, baseURL+"/invite/") {
-		t.Fatalf("no invitation url in %q", out)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if !strings.HasPrefix(lines[len(lines)-1], baseURL+"/invite/") {
+		t.Fatalf("last line is not the invitation url: %q", out)
 	}
 	var tz, loc, doms string
 	if err := db.QueryRow(`select timezone, locale, array_to_string(allowed_email_domains, ',') from universities where slug = 'example'`).Scan(&tz, &loc, &doms); err != nil {
@@ -102,6 +104,14 @@ func TestCreateUniversityRejects(t *testing.T) {
 		"slug":     {create("--slug", "Bad_Slug"), "slug"},
 		"domains":  {create("--domains", "a@b.edu"), "domains"},
 		"email":    {create("--admin-email", "nope"), "admin-email"},
+		"reserved": {create("--slug", "invite"), "reserved"},
+		"local":    {create("--timezone", "Local"), "timezone"},
+		"locale":   {create("--locale", "english_US"), "locale"},
+		"emptyloc": {create("--locale", ""), "locale"},
+		"nul":      {create("--name", "a\x00b"), "name"},
+		"ctrl":     {create("--name", "a\nb"), "name"},
+		"long":     {create("--name", strings.Repeat("x", 201)), "name"},
+		"stray":    {create("extra"), "unexpected argument"},
 		"missing":  {[]string{"create-university"}, "--name, --slug, --domains, --timezone, --admin-email"},
 	} {
 		if code, _, errOut := admin(t, db, tc.args...); code != 2 || !strings.Contains(errOut, tc.want) {
@@ -138,6 +148,44 @@ func TestMigrateAndUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {"bogus"}, {"-h"}} {
 		if code, _, e := admin(t, db, args...); code != 2 || !strings.Contains(e, "usage") {
 			t.Errorf("%v: code %d, stderr %q", args, code, e)
+		}
+	}
+}
+
+type failMailer struct{}
+
+func (failMailer) Send(context.Context, string, string, string) error { return errors.New("boom") }
+func (failMailer) URL() string                                        { return "" }
+
+func TestCreateUniversityIsAtomic(t *testing.T) {
+	db := testdb.Open(t)
+	old := newMailer
+	newMailer = func(string) captor { return failMailer{} }
+	defer func() { newMailer = old }()
+	if code, _, e := admin(t, db, create()...); code != 1 || !strings.Contains(e, "boom") {
+		t.Fatalf("code %d: %s", code, e)
+	}
+	if n := count(t, db, `select count(*) from universities`); n != 0 {
+		t.Fatalf("universities = %d", n)
+	}
+}
+
+func TestDomainsDeduplicated(t *testing.T) {
+	db := testdb.Open(t)
+	if code, _, e := admin(t, db, create("--domains", "a.edu,A.edu, a.edu")...); code != 0 {
+		t.Fatal(e)
+	}
+	if n := count(t, db, `select count(*) from universities where cardinality(allowed_email_domains) = 1`); n != 1 {
+		t.Fatalf("domains not deduplicated")
+	}
+}
+
+func TestUsageNeedsNoDatabase(t *testing.T) {
+	open := func() (*sql.DB, error) { return nil, errors.New("database opened") }
+	for _, args := range [][]string{nil, {"-h"}, {"create-university", "-h"}, {"create-university"}, {"bogus"}} {
+		var o, e bytes.Buffer
+		if code := run(context.Background(), args, env, open, &o, &e); code != 2 || strings.Contains(e.String(), "database opened") {
+			t.Errorf("%v: code %d, stderr %q", args, code, e.String())
 		}
 	}
 }

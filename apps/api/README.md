@@ -29,7 +29,7 @@ go run ./cmd/unicourse-admin create-university --name "Example" --slug example \
 ```
 
 No mail is sent. The command prints the admin invitation URL (`<base>/invite/<token>?email=...`); send it to
-the admin, who signs in with that email and becomes the university's admin. `create-university -h` lists all flags.
+the admin, who signs in with that email and becomes the university's admin. `create-university -h` lists all flags. Usage output (no arguments, `-h`, unknown command) exits 2 and needs no database. Reserved slugs (`api`, `assets`, `invite`, `sign-in`, ...) are rejected.
 
 ## Environment
 

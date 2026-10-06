@@ -205,7 +205,7 @@ func TestSignInExpiredInvitation(t *testing.T) {
 	fx := testdb.Seed(t, db)
 	ctx := context.Background()
 	// a.edu is allowed by domain: signs in, but the expired invitation is not accepted.
-	insertInvitation(t, db, fx.UniversityA, "old@a.edu", "member", nil, time.Now().Add(-time.Second))
+	insertInvitation(t, db, fx.UniversityA, "old@a.edu", "member", nil, time.Now().Add(-time.Hour))
 	uid, err := SignIn(ctx, db, "old@a.edu", "")
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +217,7 @@ func TestSignInExpiredInvitation(t *testing.T) {
 		t.Fatal("expired invitation was accepted")
 	}
 	// Expired and no domain: not allowed.
-	insertInvitation(t, db, fx.UniversityA, "late@other.org", "member", nil, time.Now().Add(-time.Second))
+	insertInvitation(t, db, fx.UniversityA, "late@other.org", "member", nil, time.Now().Add(-time.Hour))
 	if _, err := SignIn(ctx, db, "late@other.org", ""); !errors.Is(err, ErrNotAllowed) {
 		t.Fatalf("want ErrNotAllowed, got %v", err)
 	}
