@@ -22,7 +22,7 @@ Content hosting, assignments, grading, announcements · rooms, timeslots, enroll
 | Allowed third-party Go modules | `github.com/jackc/pgx/v5` (Postgres driver, via `database/sql`), `golang.org/x/oauth2` and `github.com/coreos/go-oidc/v3` (OIDC), `golang.org/x/crypto` (token hashing). Anything else is a PLAN.md decision. |
 | Database | PostgreSQL 16. Hand-written SQL. Row-level security enforces tenancy. Migrations are numbered `.sql` files embedded with `embed` and applied by our own runner. |
 | Web | React 18, Vite, TypeScript strict, TanStack Router (file-based) and TanStack Query, Tailwind. npm. |
-| Contract | `apps/api/openapi.yaml`, hand-maintained. `apps/web/src/api/` client types are generated from it (`openapi-typescript`, dev dependency). A CI check asserts every route registered in Go exists in the contract and vice versa. |
+| Contract | `apps/api/openapi.json`, hand-maintained. `apps/web/src/api/` client types are generated from it (`openapi-typescript`, dev dependency). A CI check asserts every route registered in Go exists in the contract and vice versa. |
 | Tests | `go test` with the `testing` package only; integration tests run against real Postgres from `docker-compose.yml`. Web: Vitest + Testing Library for components; one Playwright end-to-end flow. |
 | Local run | `docker compose up` (Postgres), `go run ./cmd/api`, `npm run dev`. |
 
@@ -129,7 +129,7 @@ Four screens, in `apps/web/src/features/`:
 | `courses` | Course list per department; section list per term with instructor and TA chips; section detail with staff editor and roster (table, remove, CSV import with preview-then-commit and per-row errors) | admin, dept_admin, instructor (staff editor limited to TAs) |
 | `my-sections` | Sections grouped by term with role badge; links into section detail (read-only for TAs and students) | every member |
 
-Routing: `/sign-in`, `/invite/{token}`, `/{slug}/me`, `/{slug}/admin/*`, `/{slug}/courses/*`, `/{slug}/sections/{id}`. The API client is generated from `openapi.yaml`; no hand-written fetch calls outside `src/api/`. Query keys are per resource and invalidated on write. Forms show field errors from `details` next to the field and the `message` at the top.
+Routing: `/sign-in`, `/invite/{token}`, `/{slug}/me`, `/{slug}/admin/*`, `/{slug}/courses/*`, `/{slug}/sections/{id}`. The API client is generated from `openapi.json`; no hand-written fetch calls outside `src/api/`. Query keys are per resource and invalidated on write. Forms show field errors from `details` next to the field and the `message` at the top.
 
 Accessibility baseline: every interactive element keyboard reachable, labels on all inputs, focus moves to the first error on failed submit, colour never the only signal (role badges carry text).
 
@@ -150,7 +150,7 @@ apps/api/
 │   ├── audit/               Write(tx, entry), List
 │   └── testdb/              test-only: fresh schema per test package, two-university fixtures
 ├── migrations/              0001_init.sql, …
-├── openapi.yaml
+├── openapi.json
 ├── docker-compose.yml       postgres:16
 └── go.mod                   module github.com/kapildev333/unicourse/apps/api
 
@@ -203,7 +203,7 @@ Structured logs with `log/slog`, JSON in production, one line per request (metho
 | `authz` | every predicate × every role | table-driven `go test` |
 | domain packages | handlers through `httptest` against real Postgres: success, validation, conflict, forbidden | one `_test.go` per handler file; shared fixtures in `internal/testdb` |
 | CSV import | preview classification, checksum mismatch, all-or-nothing | table-driven with small CSV fixtures |
-| contract | routes in Go == routes in `openapi.yaml` | `go test` that walks the mux patterns and the YAML |
+| contract | routes in Go == routes in `openapi.json` | `go test` that walks the mux patterns and the JSON |
 | web | each feature's main component: render, validation display, error envelope display | Vitest + Testing Library |
 | end to end | admin creates term, course, section; assigns instructor and TA; imports roster; TA signs in (magic link via stdout mailer) and sees the section and roster | Playwright against `docker compose` + API + web |
 
