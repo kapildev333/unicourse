@@ -29,7 +29,7 @@ func withActor(ctx context.Context, a Actor) context.Context {
 func NormalizeEmail(s string) (string, error) {
 	e := strings.ToLower(strings.TrimSpace(s))
 	a, err := mail.ParseAddress(e)
-	if err != nil || a.Address != e || strings.Count(e, "@") != 1 || strings.HasPrefix(e, "@") || strings.HasSuffix(e, "@") {
+	if err != nil || len(e) > 254 || a.Address != e || strings.Count(e, "@") != 1 || strings.HasPrefix(e, "@") || strings.HasSuffix(e, "@") {
 		return "", httpx.Validation(httpx.FieldError{Field: "email", Message: "must be a valid email address"})
 	}
 	return e, nil

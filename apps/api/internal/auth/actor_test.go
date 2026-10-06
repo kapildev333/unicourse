@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
@@ -13,7 +14,7 @@ func TestNormalizeEmail(t *testing.T) {
 	if err != nil || got != "alice@cs.example.edu" {
 		t.Fatalf("got %q, %v", got, err)
 	}
-	for _, bad := range []string{"", "a", "a@", "@b", "a@b@c", "Alice <a@b.edu>"} {
+	for _, bad := range []string{"", "a", "a@", "@b", "a@b@c", "Alice <a@b.edu>", strings.Repeat("a", 250) + "@b.edu"} {
 		_, err := NormalizeEmail(bad)
 		var he *httpx.Error
 		if !errors.As(err, &he) || he.Code != "validation_failed" || len(he.Details) != 1 || he.Details[0].Field != "email" {

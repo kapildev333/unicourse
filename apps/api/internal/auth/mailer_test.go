@@ -1,13 +1,16 @@
 package auth
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 var urlRe = regexp.MustCompile(`https?://\S+`)
@@ -46,6 +49,9 @@ func TestSMTPMailerURL(t *testing.T) {
 	if _, err := NewSMTPMailer("smtps://h:465?from=a@b.edu"); err == nil {
 		t.Fatal("smtps accepted")
 	}
+	if _, err := NewSMTPMailer("smtp://h?from=a@b.edu"); err == nil {
+		t.Fatal("missing port accepted")
+	}
 	if _, err := NewSMTPMailer("smtp://u:p@h:25?from=a@b.edu"); err != nil {
 		t.Fatal(err)
 	}
@@ -55,5 +61,100 @@ func TestSMTPMailerURL(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message lacks %q:\n%q", want, msg)
 		}
+	}
+}
+
+func newTestMailer(t *testing.T, addr string) *smtpMailer {
+	t.Helper()
+	m, err := NewSMTPMailer("smtp://" + addr + "?from=noreply@x.edu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm := m.(*smtpMailer)
+	sm.dialTimeout, sm.ioTimeout = 200*time.Millisecond, 200*time.Millisecond
+	return sm
+}
+
+func TestSMTPMailerSilentServerTimesOut(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+		}
+	}()
+	start := time.Now()
+	if err := newTestMailer(t, ln.Addr().String()).Send(context.Background(), "a@a.edu", "S", "x"); err == nil {
+		t.Fatal("want error")
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("took %v", d)
+	}
+}
+
+func TestSMTPMailerDelivers(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	got := make(chan string, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		r := bufio.NewReader(c)
+		say := func(s string) { c.Write([]byte(s + "\r\n")) }
+		say("220 fake")
+		var data strings.Builder
+		inData := false
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			line = strings.TrimRight(line, "\r\n")
+			switch {
+			case inData && line == ".":
+				inData = false
+				got <- data.String()
+				say("250 ok")
+			case inData:
+				data.WriteString(line + "\n")
+			case strings.HasPrefix(line, "EHLO"), strings.HasPrefix(line, "HELO"):
+				say("250 fake")
+			case strings.HasPrefix(line, "DATA"):
+				inData = true
+				say("354 go")
+			case strings.HasPrefix(line, "QUIT"):
+				say("221 bye")
+				return
+			default:
+				say("250 ok")
+			}
+		}
+	}()
+	m := newTestMailer(t, ln.Addr().String())
+	m.ioTimeout = 5 * time.Second
+	if err := m.Send(context.Background(), "a@a.edu", "Hello\r\nBcc: evil@x", "l1\nl2"); err != nil {
+		t.Fatal(err)
+	}
+	msg := <-got
+	for _, want := range []string{"From: noreply@x.edu\n", "To: a@a.edu\n", "Subject: HelloBcc: evil@x\n", "\nl1\nl2\n"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("missing %q in %q", want, msg)
+		}
+	}
+	if strings.Contains(msg, "\nBcc:") {
+		t.Fatal("header injection")
 	}
 }
