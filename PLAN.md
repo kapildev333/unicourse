@@ -21,6 +21,13 @@ Spec: `docs/specs/2026-10-05-platform-core-and-staffing.md` · Implementation pl
 | D14 | `RegisterAll` cannot live in `httpx` (import cycle with the domain packages): route wiring and the contract test live in a new package `internal/app`; `httpx.Router` answers unknown routes with the 404 envelope | Orchestrator 2026-10-06 |
 | D15 | Deleting a department, term or course that is still referenced is a 409 `conflict` (`pg.MapDeleteError`; FKs `on delete restrict`); staff, enrollments and pending staff are parts of a section and cascade with it | Orchestrator 2026-10-06, owner to confirm |
 | D16 | Contract conventions (`docs/design/P0-L4.md` §2, §6): path keys relative to `/api/v1`; no field is ever `null` (optional = omitted, arrays always present); `/healthz` and `/readyz` are outside the contract; sign-in callbacks always answer 302 and report failures as `/sign-in?error=<code>`; audit log is newest first | Orchestrator 2026-10-06, owner to confirm |
+| D17 | `GET /departments` is readable by any active member (spec said admin only; department admins need the names for course forms). Writes stay admin-only | Orchestrator 2026-10-06, owner to confirm |
+| D18 | Term names are unique per university (section import resolves `termName`); duplicate is a 409 | Orchestrator 2026-10-06, owner to confirm |
+| D19 | Tenant-to-tenant foreign keys are composite `(university_id, x_id)` and tenant uniques lead with `university_id`: FK and unique checks ignore RLS, so without this university A could reference, or detect, B's rows. A foreign-tenant parent id is a plain 404 | Orchestrator 2026-10-06, owner to confirm |
+| D20 | `updated_at` is maintained by a database trigger on every table; SQL never sets it | Orchestrator 2026-10-06 |
+| D21 | Roster-import rows for students without an account go to `pending_enrollments (invitation_id, section_id)`, applied at sign-in like D10. `csvimport` classifies and applies per import, not per row (a 50k-row roster is a handful of statements) | Orchestrator 2026-10-06, owner to confirm |
+| D22 | Contract additions beyond spec §6: `Section.pendingStaff` (invited, not yet signed in), optional `AuditEntry.actor`, `maxLength` 100 on department/term names, 20 on course code and section number, 200 on course title. Plain members get 403 on the course and section lists (their view is `/me/sections`); a department admin reads every course and section but writes only in own departments | Orchestrator 2026-10-06, owner to confirm |
+| D23 | Web: light theme only; `/` redirect lives in `routes/index.tsx`; a department admin's Admin area shows only Invitations; no toasts (inline status line); UI error copy is keyed on `code:field` client-side | Orchestrator 2026-10-06 on the P1-L4 designer's proposal |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -34,24 +41,24 @@ Spec: `docs/specs/2026-10-05-platform-core-and-staffing.md` · Implementation pl
 | Lane | Model | Scope (disjoint) | Status |
 |------|-------|------------------|--------|
 | P0-L1 - API skeleton and `httpx` (Task 1, W) | Sonnet 5.5 | `apps/api/{go.mod,cmd/api,internal/config,internal/httpx,docker-compose.yml,docker/}` | **done** - [#6](https://github.com/kapildev333/unicourse/pull/6). Evidence: gates re-run green with `-race`; built binary over real HTTP: `/healthz` 200, `/readyz` 503, unknown route and wrong method return the 404 envelope, `X-Request-Id` echoed or regenerated, SIGTERM exits 0; compose Postgres up with role `unicourse` rolsuper=f rolbypassrls=f |
-| P0-L2 - `pg`, schema, RLS, `testdb`, `audit` (Task 2, W) | Sonnet 5.5 | `apps/api/{migrations,internal/pg,internal/testdb,internal/audit}`, `cmd/api/main.go`, `ci.yml` api job | worker running |
+| P0-L2 - `pg`, schema, RLS, `testdb`, `audit` (Task 2, W) | Sonnet 5.5 | `apps/api/{migrations,internal/pg,internal/testdb,internal/audit}`, `cmd/api/main.go`, `ci.yml` api job | **done** - [#10](https://github.com/kapildev333/unicourse/pull/10). Evidence: gates green twice with `-race` as non-superuser role against real Postgres rebuilt from empty; mutation check (old policies and uniques restored in a scratch copy) makes the two new tenancy tests fail; built API migrates an empty database and `/readyz` is 200; catalog: 16 tables, 12 forced-RLS tenant tables, 15 policies, `updated_at` trigger everywhere; CI api job green with the role-setup step |
 | P0-L3 - Web skeleton and API client (Task 3, W) | Sonnet 5.5 | `apps/web/` | **done** - [#7](https://github.com/kapildev333/unicourse/pull/7). Evidence: `npm ci`, lint, typecheck, 10 tests, build re-run green from a clean install with no generated-file drift; headless Chrome against `vite preview` renders all six routes |
-| P0-L4 - `openapi.json` and contract test (Task 4, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P0-L4.md`, `apps/api/openapi.json`, `apps/api/internal/httpx/routes.go`, `apps/api/internal/app`, `apps/web/src/api/types.ts`, `ci.yml` web job | design done (42 operations, +1 by D11); worker running |
+| P0-L4 - `openapi.json` and contract test (Task 4, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P0-L4.md`, `apps/api/openapi.json`, `apps/api/internal/httpx/routes.go`, `apps/api/internal/app`, `apps/web/src/api/types.ts`, `ci.yml` web job | **done** - [#9](https://github.com/kapildev333/unicourse/pull/9). Evidence: api and web gates green from a clean install; `npm run generate` leaves no diff; contract queried: 43 operations, every one with a `Who:` line, no `null`, D11 routes present; reviewer proved on a scratch copy that the contract test fails in every direction |
 
 ## Phase 1 - Platform core
 | Lane | Model | Scope (disjoint) | Status |
 |------|-------|------------------|--------|
-| P1-L1 - Authentication (Task 5, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L1.md`, `apps/api/internal/auth` | design done; build as P1-L1a (primitives), b (`SignIn`, OIDC), c (handlers, wiring) after P0-L2 and P0-L4 land |
-| P1-L2 - Tenant scope, `authz`, departments, terms, memberships, invitations, audit route (Task 6, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L2.md`, `apps/api/internal/{authz,tenant}` | designer running |
+| P1-L1 - Authentication (Task 5, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L1.md`, `apps/api/internal/auth` | design done ([#11](https://github.com/kapildev333/unicourse/pull/11)); P1-L1a (primitives) worker running; then b (`SignIn`, OIDC), c (handlers, wiring) |
+| P1-L2 - Tenant scope, `authz`, departments, terms, memberships, invitations, audit route (Task 6, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L2.md`, `apps/api/internal/{authz,tenant}` | design done (#11); build as P1-L2a (`authz`, `tenant.Wrap`), b (departments, terms), c (memberships, invitations, audit route) after P1-L1a |
 | P1-L3 - `unicourse-admin` CLI (Task 7, W) | Sonnet 5.5 | `apps/api/cmd/unicourse-admin` | not started |
-| P1-L4 - Web `auth` and `admin` features (Task 8, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L4.md`, `apps/web/src/{features/auth,features/admin,routes}` | designer running |
+| P1-L4 - Web `auth` and `admin` features (Task 8, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P1-L4.md`, `apps/web/src/{features/auth,features/admin,routes,components,lib}` | design done; P1-L4a (shared layer, shell, sign-in) built, in review; then b (departments, terms), c (members, invitations, audit log) |
 
 ## Phase 2 - Courses, sections, staffing, rosters
 | Lane | Model | Scope (disjoint) | Status |
 |------|-------|------------------|--------|
-| P2-L1 - `csvimport` engine (Task 9, W) | Sonnet 5.5 | `apps/api/internal/csvimport` | not started |
-| P2-L2 - Courses, sections, staff, enrollments, imports, my-sections (Task 10, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L2.md`, `apps/api/internal/course` | not started |
-| P2-L3 - Web `courses` and `my-sections` features (Task 11, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L3.md`, `apps/web/src/{features/courses,features/my-sections,routes}` | not started |
+| P2-L1 - `csvimport` engine (Task 9, W; interface per `docs/design/P2-L2.md` §7) | Sonnet 5.5 | `apps/api/internal/csvimport` | worker running |
+| P2-L2 - Courses, sections, staff, enrollments, imports, my-sections (Task 10, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L2.md`, `apps/api/internal/course` | design done (#11); build as P2-L2a (courses, sections), b (staff, enrollments, my-sections), c (imports) after P1-L2 and P2-L1 |
+| P2-L3 - Web `courses` and `my-sections` features (Task 11, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P2-L3.md`, `apps/web/src/{features/courses,features/my-sections,routes}` | design done (#11); build as P2-L3a, b, c after P1-L4 |
 
 ## Phase 3 - End to end
 | Lane | Model | Scope (disjoint) | Status |
@@ -64,13 +71,23 @@ Notes P0-L3: Tailwind 4 (no `tailwind.config.ts`), React 18.3, TypeScript ~5.9 a
 Notes P0-L4 (design): the contract wins over the Go structs printed in the implementation plan where they differ (nested `university` in `/me`, `Section` always embeds `course`, `term`, `staff`, staff add returns 202 with the invitation, imports return 200 with the applied rows).
 
 Notes P1-L1 (design): Microsoft sign-in needs the `email` and `xms_edov` optional claims in the app registration. Secure cookies work on `http://localhost` in Chromium and Firefox, not Safari.
+Notes P0-L2: the reviewer probed RLS with real SQL and found no cross-tenant read or write, but two weaknesses fixed before landing (D19 uniques, self policies widening tenant reads). Self policies apply only while no university is set: auth reads cross-university rows before `pg.SetUniversity`. `testdb.Open` takes an advisory lock (DB test packages serialise, no `-p 1`), refuses superuser roles and databases not ending in `_test`. Check violations (23514) and malformed uuids (22P02) are unmapped: handlers validate first.
+
+Notes P0-L4: the first API lane with routes mounts `app.NewRouter` in `cmd/api/main.go` under `/api/v1/`; each API lane removes its lines from `internal/app/pending_routes.txt`; P2-L2c deletes the file. Contract changes after this are widenings only and regenerate `apps/web/src/api/types.ts` in the same PR (CI checks drift).
+
+Notes P2-L2 (design): pending (invited) staff cannot be removed individually; revoking the invitation removes them. `pending_routes.txt` and the contract-test skip are deleted by P2-L2c.
 
 ## Backlog
 - Spec §4 "the platform CLI uses a separate role for `universities` administration": not built; CLI uses `UNICOURSE_DATABASE_URL`. Add a dedicated role when a non-engineer runs the CLI (raised by orchestrator).
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
 - Per-IP magic-link limit is in memory and per process; move to Postgres when more than one API process runs (raised by P1-L1).
+- Before production: split the database roles so the API role does not own the tables (an owner can disable RLS); migrations run as a separate owner role, e.g. through `unicourse-admin migrate` (raised by P0-L2 review; changes D4 - owner's call).
+- Before real SMTP onboarding: send invitation mail after commit through an outbox; today mail is sent inside the request transaction, which a 50k-row roster import would hold open (raised by P1-L2 and P2-L2 designs).
+- A dedicated endpoint to cancel one pending staff assignment, if admins ask (raised by P2-L3 design).
+- Department picker, term select and course picker read one page of 200; add search when a university exceeds that (raised by P1-L4 and P2-L3 designs).
 - Enable branch protection with required checks `api`, `web` once the repo plan allows (CLAUDE.md).
 
 ## Journal
 - 2026-10-05: Spec 1 and its implementation plan merged (#4). Owner started `/orchestrate` on a 30-minute loop and delegated decisions overnight (D8). PLAN.md filled from the implementation plan. Docker Desktop started for local Postgres. Launched P0-L1, P0-L3 workers and P0-L4, P1-L1 designers in parallel.
 - 2026-10-06: P0-L1 (#6) and P0-L3 (#7) landed after review fixes and orchestrator verification. P0-L4 and P1-L1 designs done; D9-D16 ruled. Launched P0-L2 and P0-L4 workers and P1-L2, P1-L4 designers.
+- 2026-10-06: Phase 0 complete: P0-L4 (#9) and P0-L2 (#10) landed. All five remaining designs written and merged with orchestrator rulings (#11); D17-D23 ruled. Launched P1-L1a, P2-L1 and P1-L4a workers.
