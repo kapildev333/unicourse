@@ -16,8 +16,14 @@ export function Dialog(props: {
   useEffect(() => {
     const d = ref.current
     if (!d) return
+    const trigger = document.activeElement // read before showModal moves focus
     if (open && !d.open) d.showModal()
     if (!open && d.open) d.close()
+    if (!open) return
+    // conditionally mounted dialogs are removed without close(); hand focus back to the trigger either way
+    return () => {
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
+    }
   }, [open])
 
   // native <dialog> traps focus and closes on Escape

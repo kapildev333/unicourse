@@ -17,3 +17,36 @@ it('labels each dialog by its own title', () => {
   expect(d2.querySelector(`[id="${id2}"]`)).toHaveTextContent('Two')
   expect(screen.queryByRole('dialog')).toBeNull() // closed
 })
+
+it('returns focus to the trigger when closed or unmounted', () => {
+  HTMLDialogElement.prototype.showModal ||= function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close ||= function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+  }
+  const { rerender, unmount } = render(
+    <>
+      <button>trigger</button>
+      <Dialog open={false} onClose={() => {}} title="T">
+        <input aria-label="x" />
+      </Dialog>
+    </>,
+  )
+  const trigger = screen.getByText('trigger')
+  const dlg = (open: boolean) => (
+    <>
+      <button>trigger</button>
+      <Dialog open={open} onClose={() => {}} title="T">
+        <input aria-label="x" />
+      </Dialog>
+    </>
+  )
+  trigger.focus()
+  rerender(dlg(true))
+  ;(document.querySelector('input') as HTMLElement).focus()
+  expect(document.activeElement).not.toBe(trigger)
+  rerender(dlg(false))
+  expect(document.activeElement).toBe(trigger)
+  unmount()
+})
