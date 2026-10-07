@@ -612,3 +612,89 @@ func TestSignInAuditSkipsStaleDepartment(t *testing.T) {
 		t.Fatalf("membership row %+v", m)
 	}
 }
+
+func userName(t *testing.T, db *sql.DB, id string) (n string) {
+	t.Helper()
+	if err := pg.WithPlatformTx(context.Background(), db, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select display_name from users where id = $1`, id).Scan(&n)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestSignInInvitationName(t *testing.T) {
+	ctx := context.Background()
+	for _, c := range []struct {
+		name, oidc, existing, want string
+		expired                    bool
+	}{
+		{"magic link takes the invitation name", "", "", "Dana CSV", false},
+		{"OIDC name wins", "Dana OIDC", "", "Dana OIDC", false},
+		{"existing name wins", "", "Set", "Set", false},
+		{"expired invitation name is ignored", "", "", "", true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			db := testdb.Open(t)
+			fx := testdb.Seed(t, db)
+			exp := time.Now().Add(time.Hour)
+			if c.expired {
+				exp = time.Now().Add(-time.Hour)
+			}
+			if c.existing != "" {
+				if err := pg.WithPlatformTx(ctx, db, func(tx *sql.Tx) error {
+					_, err := tx.Exec(`insert into users (email, display_name) values ('dana@a.edu', $1)`, c.existing)
+					return err
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			inv := insertInvitation(t, db, fx.UniversityA, "dana@a.edu", "member", nil, exp)
+			texec(t, db, fx.UniversityA, `update invitations set display_name = 'Dana CSV' where id = $1`, inv)
+			uid, err := SignIn(ctx, db, "dana@a.edu", c.oidc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := userName(t, db, uid); got != c.want {
+				t.Fatalf("name %q, want %q", got, c.want)
+			}
+			if !c.expired {
+				// invitation.accept + membership.create only: the name fill is not audited
+				if n := tcount(t, db, fx.UniversityA, `select count(*) from audit_log`); n != 2 {
+					t.Fatalf("audit rows %d, want 2", n)
+				}
+			}
+		})
+	}
+}
+
+func TestSignInInvitationNameOldestWithName(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	insertInvitation(t, db, fx.UniversityA, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	b := insertInvitation(t, db, fx.UniversityB, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityB, `update invitations set display_name = 'Second' where id = $1`, b)
+	uid, err := SignIn(context.Background(), db, "dana@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := userName(t, db, uid); got != "Second" {
+		t.Fatalf("name %q", got)
+	}
+}
+
+func TestSignInInvitationNameOldestOfTwoNamed(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	a := insertInvitation(t, db, fx.UniversityA, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	b := insertInvitation(t, db, fx.UniversityB, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `update invitations set display_name = 'First' where id = $1`, a)
+	texec(t, db, fx.UniversityB, `update invitations set display_name = 'Second' where id = $1`, b)
+	uid, err := SignIn(context.Background(), db, "dana@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := userName(t, db, uid); got != "First" {
+		t.Fatalf("name %q, want First", got)
+	}
+}

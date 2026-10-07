@@ -234,6 +234,42 @@
           }
         },
         "description": "Who: signed in."
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Set the current user's display name",
+        "description": "Who: signed in, for their own name only. displayName is trimmed; 1-100 characters. The name is the person's across every university. Audited as membership.update (before/after displayName) in each university where the user has an active membership; no change, no audit.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated; same body as getMe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
       }
     },
     "/universities/{slug}/me/sections": {
@@ -1857,7 +1893,7 @@
       "post": {
         "operationId": "previewEnrollmentImport",
         "summary": "Preview enrollments import",
-        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\".",
+        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\", \"displayName must be at most 100 characters\".",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1909,7 +1945,7 @@
       "post": {
         "operationId": "importEnrollments",
         "summary": "Import enrollments",
-        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\".",
+        "description": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\", \"displayName must be at most 100 characters\".",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -2806,6 +2842,21 @@
           "user",
           "memberships"
         ]
+      },
+      "MeUpdate": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "example": "Alice Doe",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "additionalProperties": false
       },
       "Department": {
         "type": "object",

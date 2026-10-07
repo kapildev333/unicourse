@@ -561,3 +561,108 @@ func TestMagicLinkDoesNotWaitForMailer(t *testing.T) {
 	}
 
 }
+
+func (x *hx) userByEmail(email string) (id, name string) {
+	x.t.Helper()
+	if err := pg.WithPlatformTx(context.Background(), x.db, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id, display_name from users where email = $1`, email).Scan(&id, &name)
+	}); err != nil {
+		x.t.Fatal(err)
+	}
+	return
+}
+
+func TestUpdateMe(t *testing.T) {
+	x := newHX(t)
+	const path = "/api/v1/me"
+	if w := x.do("PATCH", path, `{"displayName":"X"}`); w.Code != 401 || !strings.Contains(w.Body.String(), `"code":"unauthenticated"`) {
+		t.Fatalf("no cookie: %d %s", w.Code, w.Body)
+	}
+	c := x.signedIn("admin@a.edu")
+	w := x.do("PATCH", path, `{"displayName":"  Alice Doe  "}`, c)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"displayName":"Alice Doe"`) || !strings.Contains(w.Body.String(), `"departmentIds":[]`) {
+		t.Fatalf("happy: %d %s", w.Code, w.Body)
+	}
+	if g := x.do("GET", path, "", c); g.Body.String() != w.Body.String() {
+		t.Fatalf("GET /me differs from PATCH body: %s vs %s", g.Body, w.Body)
+	}
+	for body, msg := range map[string]string{
+		`{"displayName":""}`:    "is required",
+		`{"displayName":"   "}`: "is required",
+		`{}`:                    "is required",
+		`{"displayName":null}`:  "is required",
+		`{"displayName":"` + strings.Repeat("é", 101) + `"}`: "must be at most 100 characters",
+		`{"displayName":"a\u0000b"}`:                         "must not contain NUL",
+	} {
+		w := x.do("PATCH", path, body, c)
+		if w.Code != 400 || !strings.Contains(w.Body.String(), `"validation_failed"`) || !strings.Contains(w.Body.String(), `"displayName"`) || !strings.Contains(w.Body.String(), msg) {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body)
+		}
+	}
+	if w := x.do("PATCH", path, `{"displayName":"`+strings.Repeat("é", 100)+`"}`, c); w.Code != 200 {
+		t.Fatalf("100 runes: %d %s", w.Code, w.Body)
+	}
+	x.do("PATCH", path, `{"displayName":"Alice Doe"}`, c)
+	// another user's name cannot be set
+	adminB, _ := x.userByEmail("admin@b.edu")
+	for _, body := range []string{`{"displayName":5}`, `{"displayName":"X","userId":"` + adminB + `"}`} {
+		if w := x.do("PATCH", path, body, c); w.Code != 400 {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body)
+		}
+	}
+	if _, n := x.userByEmail("admin@b.edu"); n != "Admin" {
+		t.Fatalf("admin B renamed to %q", n)
+	}
+	if n := len(auditRows(t, x.db, x.fx.UniversityB)); n != 0 {
+		t.Fatalf("B audit rows %d", n)
+	}
+}
+
+func TestUpdateMeAudit(t *testing.T) {
+	x := newHX(t)
+	c := x.signedIn("admin@a.edu")
+	adminA, _ := x.userByEmail("admin@a.edu")
+	var mA string
+	if err := pg.WithTx(context.Background(), x.db, x.fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from memberships where user_id = $1`, adminA).Scan(&mA)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if w := x.do("PATCH", "/api/v1/me", `{"displayName":"Alice Doe"}`, c); w.Code != 200 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	r := findAudit(t, auditRows(t, x.db, x.fx.UniversityA), "membership.update")
+	if r.EntityType != "membership" || r.EntityID != mA || r.Actor != adminA || r.Before["displayName"] != "Admin" || r.After["displayName"] != "Alice Doe" {
+		t.Fatalf("%+v", r)
+	}
+	if w := x.do("PATCH", "/api/v1/me", `{"displayName":"Alice Doe"}`, c); w.Code != 200 {
+		t.Fatal(w.Code)
+	}
+	if n := len(auditRows(t, x.db, x.fx.UniversityA)); n != 1 {
+		t.Fatalf("unchanged name audited: %d rows", n)
+	}
+	// second active membership: one row per university
+	if err := pg.WithTx(context.Background(), x.db, x.fx.UniversityB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into memberships (university_id, user_id, role, status) values ($1,$2,'member','active')`, x.fx.UniversityB, adminA)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if w := x.do("PATCH", "/api/v1/me", `{"displayName":"Alice Two"}`, c); w.Code != 200 {
+		t.Fatal(w.Code)
+	}
+	if a, b := len(auditRows(t, x.db, x.fx.UniversityA)), len(auditRows(t, x.db, x.fx.UniversityB)); a != 2 || b != 1 {
+		t.Fatalf("audit rows A=%d B=%d", a, b)
+	}
+	// no membership: name saved, nothing audited
+	n := x.signedIn("new@a.edu")
+	if w := x.do("PATCH", "/api/v1/me", `{"displayName":"Newbie"}`, n); w.Code != 200 {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if _, name := x.userByEmail("new@a.edu"); name != "Newbie" {
+		t.Fatal(name)
+	}
+	if a := len(auditRows(t, x.db, x.fx.UniversityA)); a != 2 {
+		t.Fatalf("A rows %d", a)
+	}
+}

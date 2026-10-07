@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 type prow struct {
@@ -426,5 +427,160 @@ func TestCoursesImportCredits(t *testing.T) {
 	}
 	if cr("N2") != "4.0" || cr("N3") != "3.0" || cr("CS101") != "3.0" {
 		t.Fatalf("credits N2 %s N3 %s CS101 %s", cr("N2"), cr("N3"), cr("CS101"))
+	}
+}
+
+func (e *env) blankName(email string) {
+	e.T.Helper()
+	if err := pg.WithPlatformTx(context.Background(), e.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update users set display_name = '' where id = $1`, e.UserID[email])
+		return err
+	}); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+func (e *env) userName(id string) (n string) {
+	e.T.Helper()
+	if err := pg.WithPlatformTx(context.Background(), e.DB, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select display_name from users where id = $1`, id).Scan(&n)
+	}); err != nil {
+		e.T.Fatal(err)
+	}
+	return n
+}
+
+func (e *env) invName(email string) (n string) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select display_name from invitations where email = $1`, email).Scan(&n)
+	})
+	return n
+}
+
+func (e *env) commit(path, csv string) {
+	e.T.Helper()
+	p := e.preview(e.Admin, path, csv)
+	if st, raw := e.upload(e.Admin, path, csv, p.Checksum); st != 200 {
+		e.T.Fatalf("commit: %d %s", st, raw)
+	}
+}
+
+func TestRosterImportNames(t *testing.T) {
+	e := newEnv(t)
+	e.blankName("stud@a.edu")
+	e.blankName("other@a.edu") // not enrolled
+	e.blankName("inst@a.edu")
+	path := "/sections/" + e.SectionA + "/enrollments/import"
+	// blank = inst (member, not enrolled, blanked); other keeps its name via a fresh set below
+	if err := pg.WithPlatformTx(context.Background(), e.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update users set display_name = 'Set' where id = $1`, e.UserID["other@a.edu"])
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	csv := "email,displayName\ninst@a.edu, Blank Person \nother@a.edu,Other New\nnew1@a.edu,New One\nnew2@a.edu,\nstud@a.edu,Stud New\n"
+	p := e.preview(e.Admin, path, csv)
+	if got := actions(p); got != "2:add:|3:add:|4:invite:|5:invite:|6:exists:" {
+		t.Fatalf("got %s", got)
+	}
+	if e.userName(e.UserID["inst@a.edu"]) != "" || e.count(`select count(*) from invitations where email like 'new%'`) != 0 {
+		t.Fatal("preview wrote a name")
+	}
+	e.commit(path, csv)
+	if g := e.userName(e.UserID["inst@a.edu"]); g != "Blank Person" {
+		t.Fatalf("inst %q", g)
+	}
+	if g := e.userName(e.UserID["other@a.edu"]); g != "Set" {
+		t.Fatalf("other %q", g)
+	}
+	if g := e.userName(e.UserID["stud@a.edu"]); g != "" {
+		t.Fatalf("stud (exists row) %q", g)
+	}
+	if e.invName("new1@a.edu") != "New One" || e.invName("new2@a.edu") != "" {
+		t.Fatal("invitation names")
+	}
+	var mid string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from memberships where user_id = $1`, e.UserID["inst@a.edu"]).Scan(&mid)
+	})
+	n, before, after := e.audit("membership.update", mid)
+	if n != 1 || before.String != `{"displayName": ""}` || after.String != `{"displayName": "Blank Person"}` {
+		t.Fatalf("audit %d %v %v", n, before, after)
+	}
+	if e.count(`select count(*) from audit_log where action = 'membership.update'`) != 1 {
+		t.Fatal("extra membership.update rows")
+	}
+	st, raw := e.call(e.Admin, "GET", "/sections/"+e.SectionA+"/enrollments", nil)
+	if st != 200 || !strings.Contains(string(raw), `"displayName":"Blank Person"`) {
+		t.Fatalf("enrollments: %d %s", st, raw)
+	}
+}
+
+func TestRosterImportNamesFillOnlyIfEmpty(t *testing.T) {
+	e := newEnv(t)
+	sec2 := e.newSection(e.Fx.TermA, "002")
+	p1, p2 := "/sections/"+e.SectionA+"/enrollments/import", "/sections/"+sec2+"/enrollments/import"
+	e.blankName("inst@a.edu")
+	e.commit(p1, "email,displayName\nnew3@a.edu,First\ninst@a.edu,Ann\n")
+	e.commit(p2, "email,displayName\nnew3@a.edu,Second\ninst@a.edu,Bea\n")
+	e.commit(p1, "email,displayName\nnew4@a.edu,\n")
+	e.commit(p2, "email,displayName\nnew4@a.edu,Late\n")
+	if g := e.invName("new4@a.edu"); g != "Late" {
+		t.Fatalf("existing unnamed invitation not filled: %q", g)
+	}
+	if e.invName("new3@a.edu") != "First" || e.userName(e.UserID["inst@a.edu"]) != "Ann" {
+		t.Fatalf("overwritten: %q %q", e.invName("new3@a.edu"), e.userName(e.UserID["inst@a.edu"]))
+	}
+}
+
+func TestRosterImportNameLength(t *testing.T) {
+	e := newEnv(t)
+	path := "/sections/" + e.SectionA + "/enrollments/import"
+	long, ok := strings.Repeat("é", 101), strings.Repeat("é", 100)
+	p := e.preview(e.Admin, path, "email,displayName\nnew1@a.edu,"+long+"\nnew2@a.edu,"+ok+"\n")
+	if got := actions(p); got != "2:error:displayName must be at most 100 characters|3:invite:" {
+		t.Fatalf("got %s", got)
+	}
+	e.commit(path, "email,displayName\nnew2@a.edu,"+ok+"\n")
+	if e.invName("new2@a.edu") != ok {
+		t.Fatal("100 runes not stored")
+	}
+}
+
+func TestRosterImportNameOtherUniversity(t *testing.T) {
+	e := newEnv(t)
+	var id string
+	if err := pg.WithPlatformTx(context.Background(), e.DB, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into users (email, display_name) values ('zed@a.edu', '') returning id`).Scan(&id)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pg.WithTx(context.Background(), e.DB, e.Fx.UniversityB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into memberships (university_id, user_id, role, status) values ($1,$2,'member','active')`, e.Fx.UniversityB, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	path := "/sections/" + e.SectionA + "/enrollments/import"
+	csv := "email,displayName\nzed@a.edu,Zed\n"
+	if got := actions(e.preview(e.Admin, path, csv)); got != "2:invite:" {
+		t.Fatalf("got %s", got)
+	}
+	e.commit(path, csv)
+	if e.userName(id) != "" || e.invName("zed@a.edu") != "Zed" {
+		t.Fatal("wrong name placement")
+	}
+	var nb int
+	if err := pg.WithTx(context.Background(), e.DB, e.Fx.UniversityB, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select count(*) from audit_log`).Scan(&nb)
+	}); err != nil || nb != 0 {
+		t.Fatalf("B audit rows %d %v", nb, err)
+	}
+	if _, err := auth.SignIn(context.Background(), e.DB, "zed@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if e.userName(id) != "Zed" {
+		t.Fatalf("after sign-in %q", e.userName(id))
 	}
 }

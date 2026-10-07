@@ -94,7 +94,7 @@ func strMap(ctx context.Context, tx *sql.Tx, q string, args ...any) (map[string]
 
 // ---- 8.1 enrollments ----
 
-type enrollRef struct{ UserID, Email, InvitationID string }
+type enrollRef struct{ UserID, Email, InvitationID, Name string }
 
 func enrollmentsImport(d tenant.Deps, r *http.Request, tx *sql.Tx, s authz.Scope) (csvimport.Spec, csvimport.Classifier, csvimport.Applier, error) {
 	secID := r.PathValue("id")
@@ -155,11 +155,13 @@ func enrollmentClassifier(s authz.Scope, secID string) csvimport.Classifier {
 			switch {
 			case e == "":
 				out[i] = verr("invalid email")
+			case utf8.RuneCountInString(recs[i].Data["displayname"]) > 100:
+				out[i] = verr("displayName must be at most 100 characters")
 			case st.Status == "active":
 				if enrolled[st.UserID] {
 					out[i] = csvimport.Verdict{Action: csvimport.Exists}
 				} else {
-					out[i] = csvimport.Verdict{Action: csvimport.Add, Ref: enrollRef{UserID: st.UserID, Email: e}}
+					out[i] = csvimport.Verdict{Action: csvimport.Add, Ref: enrollRef{UserID: st.UserID, Email: e, Name: recs[i].Data["displayname"]}}
 				}
 			case st.Status != "":
 				out[i] = verr("membership is not active")
@@ -167,10 +169,10 @@ func enrollmentClassifier(s authz.Scope, secID string) csvimport.Classifier {
 				if pending[st.InvitationID] {
 					out[i] = csvimport.Verdict{Action: csvimport.Exists}
 				} else {
-					out[i] = csvimport.Verdict{Action: csvimport.Invite, Ref: enrollRef{Email: e, InvitationID: st.InvitationID}}
+					out[i] = csvimport.Verdict{Action: csvimport.Invite, Ref: enrollRef{Email: e, InvitationID: st.InvitationID, Name: recs[i].Data["displayname"]}}
 				}
 			case slices.Contains(domains, e[strings.LastIndex(e, "@")+1:]):
-				out[i] = csvimport.Verdict{Action: csvimport.Invite, Ref: enrollRef{Email: e}}
+				out[i] = csvimport.Verdict{Action: csvimport.Invite, Ref: enrollRef{Email: e, Name: recs[i].Data["displayname"]}}
 			default:
 				out[i] = verr("domain not allowed")
 			}
@@ -181,18 +183,27 @@ func enrollmentClassifier(s authz.Scope, secID string) csvimport.Classifier {
 
 func enrollmentApplier(d tenant.Deps, s authz.Scope, secID string) csvimport.Applier {
 	return func(ctx context.Context, tx *sql.Tx, rows []csvimport.Row) error {
-		var users, newEmails, invIDs []string
-		emailOf := map[string]string{}
+		var users, newEmails, invIDs, fillIDs, fillNames, invFillIDs, invFillNames []string
+		emailOf, nameOf := map[string]string{}, map[string]string{}
 		for _, row := range rows {
 			ref := row.Ref.(enrollRef)
 			switch {
 			case ref.UserID != "":
 				users = append(users, ref.UserID)
 				emailOf[ref.UserID] = ref.Email
+				if ref.Name != "" {
+					fillIDs, fillNames = append(fillIDs, ref.UserID), append(fillNames, ref.Name)
+				}
 			case ref.InvitationID != "":
 				invIDs = append(invIDs, ref.InvitationID)
+				if ref.Name != "" {
+					invFillIDs, invFillNames = append(invFillIDs, ref.InvitationID), append(invFillNames, ref.Name)
+				}
 			default:
 				newEmails = append(newEmails, ref.Email)
+				if ref.Name != "" {
+					nameOf[ref.Email] = ref.Name
+				}
 			}
 		}
 		if len(users) > 0 {
@@ -219,12 +230,50 @@ func enrollmentApplier(d tenant.Deps, s authz.Scope, secID string) csvimport.App
 				return err
 			}
 		}
+		if len(fillIDs) > 0 { // fill only empty names; one membership.update audit per filled user
+			res, err := tx.QueryContext(ctx, `with filled as (
+				update users u set display_name = x.n
+				from unnest($1::uuid[], $2::text[]) as x(id, n)
+				where u.id = x.id and u.display_name = ''
+				returning u.id, u.display_name)
+				select m.id, f.display_name from filled f join memberships m on m.user_id = f.id`, fillIDs, fillNames)
+			if err != nil {
+				return err
+			}
+			var es []audit.Entry
+			for res.Next() {
+				var mid, name string
+				if err := res.Scan(&mid, &name); err != nil {
+					res.Close()
+					return err
+				}
+				es = append(es, audit.Entry{ActorUserID: s.UserID, Action: "membership.update", EntityType: "membership", EntityID: mid,
+					Before: map[string]string{"displayName": ""}, After: map[string]string{"displayName": name}})
+			}
+			res.Close()
+			if err := res.Err(); err != nil {
+				return err
+			}
+			if err := audit.WriteMany(ctx, tx, s.UniversityID, es); err != nil {
+				return err
+			}
+		}
 		invs, err := tenant.CreateInvitations(ctx, tx, s.UniversityID, s.UserID, newEmails, authz.Member, d.BaseURL)
 		if err != nil {
 			return err
 		}
 		for _, v := range invs {
 			invIDs = append(invIDs, v.ID)
+			if n := nameOf[v.Email]; n != "" {
+				invFillIDs, invFillNames = append(invFillIDs, v.ID), append(invFillNames, n)
+			}
+		}
+		if len(invFillIDs) > 0 {
+			if _, err := tx.ExecContext(ctx, `update invitations i set display_name = x.n
+				from unnest($1::uuid[], $2::text[]) as x(id, n)
+				where i.id = x.id and i.display_name = ''`, invFillIDs, invFillNames); err != nil {
+				return err
+			}
 		}
 		if len(invIDs) == 0 {
 			return nil
