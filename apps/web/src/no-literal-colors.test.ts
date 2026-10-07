@@ -8,8 +8,8 @@ const rules: [string, RegExp][] = [
   ['white/black utility', /\b[a-z-]+-(?:white|black)\b/],
   ['Tailwind palette utility', new RegExp(`\\b[a-z-]+-(?:${palette})-(?:50|[1-9]00|950)\\b`)],
   ['dark: variant', /(?:^|[\s'"`{:])dark:/],
-  ['arbitrary named colour', /-\[(?:white|black)\]/],
-  ['colour function', /\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/],
+  ['arbitrary named colour', /\b(?:bg|text|border|fill|stroke|outline|ring|decoration|divide|shadow|caret|accent|placeholder)-\[(?:color:)?[a-z]+\]/],
+  ['colour function', /\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix|color)\(/],
 ]
 
 it('uses colour tokens only', () => {
@@ -24,7 +24,7 @@ it('uses colour tokens only', () => {
 it('scans the tree and every rule can fire', () => {
   expect(Object.keys(files).length).toBeGreaterThan(50)
   // built by concatenation so Tailwind's source scan finds no utility in this file
-  const bad = ["'#b54708'", 'bg-' + 'white', 'text-slate-' + '500', '"dark' + ':bg-surface"', 'md:dark' + ':bg-canvas', 'bg-[' + 'white]', 'rgb(0 0 0)']
+  const bad = ["'#b54708'", 'bg-' + 'white', 'text-slate-' + '500', '"dark' + ':bg-surface"', 'md:dark' + ':bg-canvas', 'bg-[' + 'white]', 'rgb(0 0 0)', 'bg-[' + 'red]', 'text-[color:' + 'white]', 'color-' + 'mix(in oklab, red, blue)']
   const names = rules.map(([n]) => n)
   const hit = (s: string) => rules.filter(([, re]) => re.test(s)).map(([n]) => n)
   expect(hit(bad[0])).toContain(names[0])
@@ -34,4 +34,7 @@ it('scans the tree and every rule can fire', () => {
   expect(hit(bad[4])).toContain(names[3]) // stacked variant
   expect(hit(bad[5])).toContain(names[4])
   expect(hit(bad[6])).toContain(names[5])
+  expect(hit(bad[7])).toContain(names[4]) // any named colour
+  expect(hit(bad[8])).toContain(names[4]) // color: hint
+  expect(hit(bad[9])).toContain(names[5]) // color-mix(
 })

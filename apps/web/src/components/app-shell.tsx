@@ -42,7 +42,7 @@ function HeaderSearch({ slug }: { slug: string }) {
         type="search"
         maxLength={100}
         aria-label="Find a course"
-        placeholder="Search the catalog"
+        placeholder="Find a course"
         className="h-10 w-full rounded-full border border-line-strong bg-canvas pr-4 pl-11 text-sm text-ink placeholder:text-ink-muted transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       />
     </form>
