@@ -48,6 +48,7 @@ export function StaffEditor(props: {
     mutationFn: (body: { email: string; role: Role }) =>
       unwrap(api.POST('/universities/{slug}/sections/{id}/staff', { params: { path: { slug, id: sectionId } }, body })),
     onSuccess: async (data, body) => {
+      setEmail('') // before the refetch so a late clear can't wipe the next email being typed
       if ('invited' in data) {
         await refresh([slug, 'my-sections'], [slug, 'invitations'])
         setNotice(`Invitation sent to ${body.email}. They will appear on the staff once they sign in.`)
@@ -55,7 +56,6 @@ export function StaffEditor(props: {
         await refresh([slug, 'my-sections'])
         setNotice(`${personName(data)} added as ${body.role === 'ta' ? 'TA' : 'Instructor'}.`)
       }
-      setEmail('')
     },
   })
   const remove = useMutation({

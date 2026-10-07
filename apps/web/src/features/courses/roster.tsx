@@ -128,6 +128,7 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )

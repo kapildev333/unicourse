@@ -82,7 +82,7 @@ it('lists sections with staff chips and invited chips', async () => {
   expect(within(row).getByRole('link', { name: 'CS101' })).toHaveAttribute('href', '/a/sections/s1')
   const cells = within(row).getAllByRole('cell')
   expect(within(cells[2]).getByText('Dana Poe')).toBeInTheDocument()
-  expect(within(cells[3]).getByText('x@a.edu (invited)')).toBeInTheDocument()
+  expect(within(cells[3]).getByText('x@a.edu Invited')).toBeInTheDocument()
   expect(screen.getByRole('table', { name: 'Sections in Spring 2026' })).toBeInTheDocument()
   const none = screen.getByText('MATH1').closest('tr')!
   expect(within(none).getAllByText('none')).toHaveLength(2)
@@ -212,7 +212,7 @@ it('stacks the table with labels and shows staff as plain text, +N past two name
     'TAs',
     null,
   ])
-  expect(within(row).getByText('Dana Poe +2')).toBeInTheDocument()
+  expect(within(row).getByText('Dana Poe +2').parentElement).toHaveAttribute('title', 'Dana Poe, jo@a.edu, Eve Ray')
   expect(row.querySelector('.border')).toBeNull()
   expect(screen.getByRole('search')).toHaveTextContent('Showing 2')
 })

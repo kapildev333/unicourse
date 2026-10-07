@@ -39,21 +39,22 @@ function StaffCell({ section, staffRole }: { section: Section; staffRole: 'instr
         <span className="sr-only">none</span>
       </>
     )
-  const firstName = staff[0] ? personName(staff[0]) : `${pending[0].email} (invited)`
+  const firstName = staff[0] ? personName(staff[0]) : `${pending[0].email} Invited`
   const names = [
     ...staff.map((s) => <span key={s.userId}>{personName(s)}</span>),
     ...pending.map((s) => (
       <span key={s.email} className="text-ink-muted">
-        {s.email} (invited)
+        {s.email} Invited
       </span>
     )),
   ]
+  const fullList = [...staff.map(personName), ...pending.map((s) => `${s.email} Invited`)].join(', ')
   const join = (items: React.ReactNode[]) =>
     items.flatMap((n, i) => (i === 0 ? [n] : [<span key={`sep${i}`}>, </span>, n]))
   // more than two: first name and a count; the full list stays available to assistive tech
   if (total <= 2) return <span className="text-sm">{join(names)}</span>
   return (
-    <span className="text-sm">
+    <span className="text-sm" title={fullList}>
       <span aria-hidden="true">
         {`${firstName} +${total - 1}`}
       </span>

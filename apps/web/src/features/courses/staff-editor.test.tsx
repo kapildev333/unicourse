@@ -308,3 +308,26 @@ it('names the failure', async () => {
   renderPage('u-x')
   expect(await screen.findByText("Couldn't load section")).toBeInTheDocument()
 })
+
+it('clears the email box before the refetch resolves', async () => {
+  let posted = false
+  let release!: () => void
+  const gate = new Promise<void>((r) => (release = r))
+  mockApi({
+    [S]: async () => {
+      if (posted) await gate
+      return { body: mk([ins]) }
+    },
+    [E]: () => ({ body: { items: [] } }),
+    'POST /universities/a/sections/s1/staff': () => {
+      posted = true
+      return { status: 201, body: tom }
+    },
+  })
+  renderPage('u-ins')
+  const input = await screen.findByLabelText('Add by email')
+  fireEvent.change(input, { target: { value: 'tom@a.edu' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add TA' }))
+  await waitFor(() => expect(input).toHaveValue(''))
+  release()
+})
