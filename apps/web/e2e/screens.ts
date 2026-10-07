@@ -48,6 +48,11 @@ async function snap(page: Page, base: string, desc: string, o: { dialog?: boolea
       const file = `${base}-${scheme}-${w}.png`
       await page.screenshot({ path: path.join(out, file), fullPage: true })
       index.push(`${file} - ${desc}`)
+      if (w === 390) {
+        const width = await page.evaluate(() => document.documentElement.scrollWidth)
+        expect.soft(width, file).toBeLessThanOrEqual(390)
+        if (width > 390) index.push(`WIDE ${file} ${width}`)
+      }
     }
   await page.setViewportSize({ width: 1440, height: 900 }) // leave the page desktop-sized for the next action
   await page.emulateMedia({ colorScheme: 'light' })
@@ -71,6 +76,7 @@ const courses = [
   ['BIO150', 'Cell Biology', 4, 'BIO', [[3, '15:00', '16:20', 'Life Sciences 120'], [5, '09:00', '10:20', 'Life Sciences 120']], [0, 1, 3, 7], prof2],
 ] as const
 const depts = [['Computer Science', 'CS'], ['Mathematics', 'MATH'], ['Economics', 'ECON'], ['Biology', 'BIO']]
+const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const csv = (rows: string[][]) => ['email,displayName', ...rows.map((r) => r.join(','))].join('\n') + '\n'
 const usScale = [['A', 93, 4], ['A-', 90, 3.7], ['B+', 87, 3.3], ['B', 83, 3], ['B-', 80, 2.7], ['C+', 77, 2.3], ['C', 73, 2], ['C-', 70, 1.7], ['D+', 67, 1.3], ['D', 63, 1], ['D-', 60, 0.7], ['F', 0, 0]]
 const csMid = [87.5, 62, 94, 71.25, 78, 55.5, 89, 81.75]
@@ -227,7 +233,7 @@ test('capture every screen', async ({ browser, page }) => {
     await expect(page.getByRole('dialog').getByRole('button', { name: /^Import \d+ row/ })).toBeVisible()
     await snap(page, '46-section-csv-import-dialog-admin', 'Roster CSV import dialog with a preview, admin', { dialog: true })
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
-    await page.getByRole('button', { name: `Remove ${people[7].email} from the roster` }).click()
+    await page.getByRole('button', { name: new RegExp(`^Remove (${[people[7].name, people[7].email].map(esc).join('|')}) from the roster$`) }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await snap(page, '47-section-remove-dialog-admin', 'Remove from roster confirmation dialog open, admin', { dialog: true })
     await page.getByRole('button', { name: 'Cancel' }).click()
@@ -283,6 +289,18 @@ test('capture every screen', async ({ browser, page }) => {
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 30_000 })
     await snap(page, '71-states-error-banner-admin', 'Sections list when the API answers 500 (error banner), admin')
     await page.unroute(failed)
+  })
+
+  await test.step('success and warning states', async () => {
+    await page.goto(`/${slug}/grade-scale`)
+    await page.getByRole('button', { name: 'Save scale' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Grade scale saved' })).toBeVisible()
+    await snap(page, '72-states-success-admin', 'Grade scale saved (success StatusMessage), admin')
+    // CS210 has weights 40 + 60; a third assessment makes 110, which shows the "Must total 100%" warning badge
+    await api(profPage, 'post', `${A}/sections/${sec.CS210}/assessments`, { name: 'Extra Credit', maxPoints: 10, weight: 10, published: true })
+    await profPage.goto(`/${slug}/sections/${sec.CS210}/grades`)
+    await expect(profPage.getByText('Must total 100% to finalize')).toBeVisible()
+    await snap(profPage, '73-states-weight-warning-instructor', 'Gradebook CS210 with weights totalling 110 (warning badge), instructor')
   })
 
   await test.step('no access page', async () => {

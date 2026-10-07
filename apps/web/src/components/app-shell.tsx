@@ -1,31 +1,51 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
 import { Button } from './button'
 import { inputClass } from './form-field'
 import { ThemeSwitch } from './theme-switch'
 
-const navLink = {
-  className:
-    'inline-flex h-10 items-center text-sm decoration-2 underline-offset-8 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-  activeProps: {
-    className: 'font-bold text-ink underline decoration-accent',
-    'aria-current': 'page' as const,
-  },
-  inactiveProps: {
-    className: 'font-medium text-ink-muted hover:text-accent-hover',
-  },
+const navBase =
+  'inline-flex min-h-11 items-center text-sm decoration-2 underline-offset-8 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:min-h-10'
+
+// Current-item rules (S5-05): Courses also covers section detail, Admin also covers the grade scale.
+function NavLink(props: { to: string; slug: string; match: RegExp; children: React.ReactNode }) {
+  const path = useRouterState({ select: (s) => s.location.pathname })
+  const current = props.match.test(path)
+  return (
+    <Link
+      to={props.to}
+      params={{ slug: props.slug }}
+      aria-current={current ? 'page' : undefined}
+      className={`${navBase} ${current ? 'font-bold text-ink underline decoration-accent' : 'font-medium text-ink-muted hover:text-accent-hover'}`}
+    >
+      {props.children}
+    </Link>
+  )
 }
 
 function HeaderSearch({ slug }: { slug: string }) {
   const navigate = useNavigate()
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return
+      e.preventDefault()
+      input.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
   return (
     <form
       role="search"
       aria-label="Catalog"
-      className="relative order-last basis-full xl:order-none xl:min-w-48 xl:flex-1 xl:basis-auto"
+      className="relative order-last w-full basis-full max-w-xl min-w-0 xl:order-3 xl:mx-auto xl:min-w-64 xl:flex-1 xl:basis-auto"
       onSubmit={(e) => {
         e.preventDefault()
         const q = String(new FormData(e.currentTarget).get('q') ?? '').trim()
@@ -38,6 +58,9 @@ function HeaderSearch({ slug }: { slug: string }) {
     >
       <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-muted" />
       <input
+        ref={input}
+        aria-keyshortcuts="/"
+        title="Press / to search"
         name="q"
         type="search"
         maxLength={100}
@@ -60,65 +83,75 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
   return (
     <>
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex min-h-18 max-w-336 flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 xl:flex-nowrap xl:py-0">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="mx-auto flex min-h-18 max-w-336 flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2 md:gap-y-3 md:py-3 xl:flex-nowrap xl:py-0">
+          <div className="order-1 flex shrink-0 items-center gap-3">
             <span className="text-2xl leading-none font-bold tracking-tight text-ink">UniCourse</span>
             {me.memberships.length === 1 && (
               <>
-                <span aria-hidden="true" className="h-6 w-px bg-line" />
-                <span className="min-w-0 max-w-48 truncate text-sm text-ink-muted" title={name}>
+                <span aria-hidden="true" className="hidden h-6 w-px bg-line md:block" />
+                <span
+                  className="hidden max-w-48 min-w-0 truncate text-sm text-ink-muted md:inline"
+                  title={name}
+                >
                   {name}
                 </span>
               </>
             )}
           </div>
-          <nav aria-label="Main" className="flex shrink-0 items-center gap-4">
-            <Link to="/$slug/me" params={{ slug }} {...navLink}>
+          {me.memberships.length > 1 && (
+            <select
+              aria-label="University"
+              className={
+                inputClass + ' order-3 max-w-full min-w-0 max-md:w-40 md:w-40 xl:order-4 xl:shrink-0 2xl:w-56'
+              }
+              value={slug}
+              onChange={(e) =>
+                void navigate({
+                  to: '/$slug/me',
+                  params: { slug: e.target.value },
+                })
+              }
+            >
+              {me.memberships.map((m) => (
+                <option key={m.university.slug} value={m.university.slug}>
+                  {m.university.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <nav
+            aria-label="Main"
+            className="order-3 flex flex-wrap items-center gap-x-4 md:order-2 md:mr-auto md:shrink-0 xl:mr-0"
+          >
+            <NavLink to="/$slug/me" slug={slug} match={/^\/[^/]+\/me\/?$/}>
               My sections
-            </Link>
-            <Link to="/$slug/catalog" params={{ slug }} {...navLink}>
+            </NavLink>
+            <NavLink to="/$slug/catalog" slug={slug} match={/^\/[^/]+\/catalog\/?$/}>
               Catalog
-            </Link>
+            </NavLink>
             {isAdmin && (
-              <Link to="/$slug/courses" params={{ slug }} {...navLink}>
+              <NavLink to="/$slug/courses" slug={slug} match={/^\/[^/]+\/(courses|sections\/[^/]+\/?$)/}>
                 Courses
-              </Link>
+              </NavLink>
             )}
             {isAdmin && (
-              <Link to="/$slug/admin" params={{ slug }} {...navLink}>
+              <NavLink to="/$slug/admin" slug={slug} match={/^\/[^/]+\/(admin|grade-scale)(\/|$)/}>
                 Admin
-              </Link>
+              </NavLink>
             )}
           </nav>
           <HeaderSearch slug={slug} />
-          <div className="ml-auto flex shrink-0 items-center gap-3">
-            {me.memberships.length > 1 && (
-              <select
-                aria-label="University"
-                className={inputClass + ' w-40 min-w-0 xl:w-56'}
-                value={slug}
-                onChange={(e) =>
-                  void navigate({
-                    to: '/$slug/me',
-                    params: { slug: e.target.value },
-                  })
-                }
-              >
-                {me.memberships.map((m) => (
-                  <option key={m.university.slug} value={m.university.slug}>
-                    {m.university.name}
-                  </option>
-                ))}
-              </select>
-            )}
+          <div className="order-2 ml-auto flex shrink-0 items-center gap-3 md:order-5 md:ml-0">
             <ThemeSwitch />
             <Button
               variant="secondary"
-              title={`Signed in as ${me.user.email}`}
+              aria-label="Sign out"
+              title={`Sign out (${me.user.email})`}
+              className="max-md:w-10 max-md:px-0"
               onClick={() => void signOut(queryClient)}
             >
               <LogOut />
-              Sign out
+              <span className="hidden md:inline">Sign out</span>
             </Button>
           </div>
         </div>
