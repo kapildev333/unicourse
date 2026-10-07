@@ -59,6 +59,7 @@ function renderPage(role: Role, routes: Parameters<typeof mockApi>[0] = {}, gb: 
   const fn = mockApi({
     'GET /universities/a/sections/s1': () => ({ body: section(staff) }),
     [GB]: () => ({ body: gb }),
+    'GET /universities/a/me/sections': () => ({ body: { terms: [] } }),
     'GET /universities/a/grade-scale': () => ({ body: { rows: usPreset } }),
     ...routes,
   })
@@ -105,6 +106,15 @@ it('instructor sees headers, weights warning, rows and stats', async () => {
   expect(screen.getByText('85.00%')).toBeInTheDocument()
   expect(screen.getByText('81.40%')).toBeInTheDocument()
   expect(screen.getByText('Letters: A 1 · B 1')).toBeInTheDocument()
+})
+
+it('renders under the section band and tab strip with one h1', async () => {
+  renderPage('instructor')
+  await screen.findByText('40 pts · 40%')
+  expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['CS101 · Section 001'])
+  expect(screen.getByRole('heading', { level: 2, name: 'Gradebook' })).toBeInTheDocument()
+  const tabs = screen.getByRole('navigation', { name: 'Section pages' })
+  expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('href', '/a/sections/s1/grades')
 })
 
 it('saves on blur with one PUT, shows Saved, announces and refetches', async () => {
@@ -309,12 +319,13 @@ it('a newer draft survives the response of an older save and is saved on its own
   expect(JSON.parse(await calls(fn, PUT1)[1][0].text())).toEqual({ scores: [{ userId: 'u-sam', points: 35 }] })
 })
 
-it('the description keeps a hyphenated course code', async () => {
+it('the band and table caption keep a hyphenated course code', async () => {
   const sec = section([{ userId: 'u0', role: 'instructor', email: 'x@a.edu' }])
   renderPage('instructor', {
     'GET /universities/a/sections/s1': () => ({ body: { ...sec, course: { ...sec.course, code: 'CS-101' } } }),
   })
-  expect(await screen.findByText(/^CS-101 · Section 001 · /)).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'CS-101 · Section 001' })).toBeInTheDocument()
+  expect(await screen.findByRole('table', { name: 'Gradebook for CS-101-001' })).toBeInTheDocument()
 })
 
 const finalBook = () => ({

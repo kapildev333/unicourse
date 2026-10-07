@@ -9,13 +9,13 @@ import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
 import { useMe, useUniversity } from '../auth/use-me'
 import { personName } from '../courses/access'
 import { RemoveDialog } from '../courses/remove-dialog'
+import { SectionFrame } from '../section/section-frame'
 import { AssessmentDialog } from './assessment-dialog'
 import { FinalizeDialog, finalizeCopy, OverrideDialog } from './finalize-dialog'
 import { fmt2, fmtNum, gradebookAccess, parsePoints, round2, sentence, totalsHundred, weightTotal } from './grade'
@@ -25,23 +25,19 @@ import {
   useGradebook,
   useGradeScale,
   useGradesRefresh,
-  useSection,
   type Assessment,
-  type Gradebook,
+  type Gradebook as GradebookData,
+  type Section,
 } from './queries'
 import { ScoreCell, type Cell } from './score-cell'
 import { ScoresImportDialog } from './scores-import-dialog'
 
-type Student = Gradebook['students'][number]
+type Student = GradebookData['students'][number]
 
 const scoreCopy: Record<string, string> = {
   'validation_failed:points': 'Enter a number from 0 to twice the maximum points.',
   'validation_failed:userId': 'This student is no longer enrolled. Reload the page.',
   forbidden: "You can't enter scores in this section.",
-}
-const sectionCopy = {
-  not_found: "This section doesn't exist or was deleted.",
-  forbidden: "You aren't staff on this section.",
 }
 const capName = 'max-w-48 truncate sm:w-px sm:max-w-none sm:overflow-visible sm:whitespace-nowrap'
 const key = (s: Student, a: Assessment) => `${s.userId}:${a.id}`
@@ -115,11 +111,17 @@ function FinalCell({ s }: { s: Student }) {
 }
 
 export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: string }) {
+  return (
+    <SectionFrame slug={slug} sectionId={sectionId}>
+      {(section) => <Gradebook slug={slug} sectionId={sectionId} sec={section} />}
+    </SectionFrame>
+  )
+}
+
+function Gradebook({ slug, sectionId, sec }: { slug: string; sectionId: string; sec: Section }) {
   const { membership } = useUniversity()
   const me = useMe().data
-  const sq = useSection(slug, sectionId)
-  const section = sq.data
-  const access = section && me ? gradebookAccess(membership, me.user.id, section) : undefined
+  const access = me ? gradebookAccess(membership, me.user.id, sec) : undefined
   const gq = useGradebook(slug, sectionId, !!access?.view)
   const scale = useGradeScale(slug).data
   const refreshGrades = useGradesRefresh(slug)
@@ -156,64 +158,22 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
     onError: (e) => setPageError(`Couldn't export the gradebook: ${errorMessage(e)}`),
   })
 
-  const back = (label: string) => (
-    <Link
-      to="/$slug/sections/$id"
-      params={{ slug, id: sectionId }}
-      className="mb-2 inline-block text-sm text-accent hover:underline"
-    >
-      ← {label}
-    </Link>
-  )
 
-  if (sq.isPending || !me) return <Loading />
-  if (sq.error) {
-    const title = sq.error.status === 404 ? 'Section not found' : sq.error.status === 403 ? 'No access' : undefined
-    return (
-      <>
-        {back('Section')}
-        <ErrorBanner
-          title={title ?? "Couldn't load the section"}
-          onRetry={title ? undefined : () => void sq.refetch()}
-        >
-          {errorMessage(sq.error, sectionCopy)}
-        </ErrorBanner>
-      </>
-    )
-  }
-  const sec = sq.data
   const code = `${sec.course.code}-${sec.number}`
   const noAccess = (
     <ErrorBanner title="No access">
       Only this section&apos;s staff and administrators can open its gradebook.
     </ErrorBanner>
   )
-  if (!access?.view)
-    return (
-      <>
-        {back(`${sec.course.code} section ${sec.number}`)}
-        {noAccess}
-      </>
-    )
-  if (gq.isPending)
-    return (
-      <>
-        {back(`${sec.course.code} section ${sec.number}`)}
-        <Loading variant="table" columns={['Student', 'Percent', 'Letter']} label="Loading the gradebook…" />
-      </>
-    )
+  if (!access?.view) return noAccess
+  if (gq.isPending) return <Loading variant="table" columns={['Student', 'Percent', 'Letter']} label="Loading the gradebook…" />
   if (gq.error)
-    return (
-      <>
-        {back(`${sec.course.code} section ${sec.number}`)}
-        {gq.error.status === 403 ? (
-          noAccess
-        ) : (
-          <ErrorBanner title="Couldn't load the gradebook" onRetry={() => void gq.refetch()}>
-            {errorMessage(gq.error)}
-          </ErrorBanner>
-        )}
-      </>
+    return gq.error.status === 403 ? (
+      noAccess
+    ) : (
+      <ErrorBanner title="Couldn't load the gradebook" onRetry={() => void gq.refetch()}>
+        {errorMessage(gq.error)}
+      </ErrorBanner>
     )
 
   const { assessments, students, stats } = gq.data
@@ -358,11 +318,19 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
 
   return (
     <>
-      {back(`${sec.course.code} section ${sec.number}`)}
-      <PageHeader
-        title="Gradebook"
-        action={
-          access.finalize &&
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <h2 className="text-xl font-bold">
+          Gradebook
+          {finalized && (
+            <>
+              {' '}
+              <Badge tone="neutral" className="align-middle">
+                Finalized
+              </Badge>
+            </>
+          )}
+        </h2>
+        {access.finalize &&
           (finalized ? (
             <Button variant="secondary" onClick={() => setReopening(true)}>
               Reopen grades
@@ -382,22 +350,8 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 </p>
               )}
             </div>
-          ))
-        }
-        description={
-          <>
-            {`${sec.course.code} · Section ${sec.number} · ${sec.course.title}, ${sec.term.name}`}
-            {finalized && (
-              <>
-                {' '}
-                <Badge tone="neutral" className="align-middle">
-                  Finalized
-                </Badge>
-              </>
-            )}
-          </>
-        }
-      />
+          ))}
+      </div>
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <span className="text-sm">Weights total {fmtNum(total)}%</span>
         {!totalsHundred(assessments) && <Badge tone="warning">Must total 100% to finalize</Badge>}
