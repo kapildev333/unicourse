@@ -26,6 +26,18 @@ func readJSON(t *testing.T) map[string]any {
 	return doc
 }
 
+// pending: routes in openapi.json that a later P7-L1 sub-lane registers. Empty when P7-L1c lands.
+var pending = map[string]bool{
+	"GET /api/v1/universities/{}/sections/{}/gradebook":                             true, // L1b
+	"GET /api/v1/universities/{}/sections/{}/final-grades":                          true, // L1b
+	"POST /api/v1/universities/{}/sections/{}/final-grades":                         true, // L1b
+	"DELETE /api/v1/universities/{}/sections/{}/final-grades":                       true, // L1b
+	"PATCH /api/v1/universities/{}/sections/{}/final-grades/{}":                     true, // L1b
+	"GET /api/v1/universities/{}/me/grades":                                         true, // L1b
+	"POST /api/v1/universities/{}/sections/{}/assessments/{}/scores/import/preview": true, // L1c
+	"POST /api/v1/universities/{}/sections/{}/assessments/{}/scores/import":         true, // L1c
+}
+
 func TestContractMatchesRouter(t *testing.T) {
 	doc := readJSON(t)
 	servers := doc["servers"].([]any)
@@ -54,7 +66,7 @@ func TestContractMatchesRouter(t *testing.T) {
 	for _, r := range NewRouter(Deps{}).Routes() {
 		code = append(code, r.Method+" "+r.Pattern)
 	}
-	for _, p := range diff(spec, code, map[string]bool{}) {
+	for _, p := range diff(spec, code, pending) {
 		t.Error(p)
 	}
 }

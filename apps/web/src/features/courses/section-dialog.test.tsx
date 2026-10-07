@@ -8,7 +8,7 @@ import { SectionDialog } from './section-dialog'
 afterEach(() => vi.unstubAllGlobals())
 
 const term = { id: 't1', name: 'Fall 2026', startsOn: '2026-08-25', endsOn: '2026-12-15' }
-const course = { id: 'c1', departmentId: 'd1', code: 'CS101', title: 'Intro' }
+const course = { id: 'c1', departmentId: 'd1', code: 'CS101', title: 'Intro', credits: 3 }
 const meeting = { id: 'm1', weekday: 1, startsAt: '10:00', endsAt: '11:15', location: 'Room 101' }
 const existing = {
   id: 's1',

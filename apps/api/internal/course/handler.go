@@ -46,7 +46,7 @@ func scanSection(sc interface{ Scan(...any) error }, extra ...any) (Section, err
 	var s Section
 	var staff, pending, meetings []byte
 	dest := []any{&s.ID, &s.CourseID, &s.TermID, &s.Number, &s.createdAt,
-		&s.Course.ID, &s.Course.DepartmentID, &s.Course.Code, &s.Course.Title,
+		&s.Course.ID, &s.Course.DepartmentID, &s.Course.Code, &s.Course.Title, &s.Course.Credits,
 		&s.Term.ID, &s.Term.Name, &s.Term.StartsOn, &s.Term.EndsOn, &staff, &pending, &meetings}
 	if err := sc.Scan(append(dest, extra...)...); err != nil {
 		return s, err

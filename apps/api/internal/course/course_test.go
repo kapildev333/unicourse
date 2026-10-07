@@ -3,6 +3,7 @@ package course
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -57,7 +58,7 @@ func TestCourseCreate(t *testing.T) {
 	e := newEnv(t)
 	st, raw := e.call(e.DaIn, "POST", "/courses", map[string]any{"departmentId": e.Fx.DeptA, "code": "  CS201 ", "title": " Data Structures "})
 	m := jmap(t, raw)
-	if st != 201 || len(m) != 4 || m["code"] != "CS201" || m["title"] != "Data Structures" || m["departmentId"] != e.Fx.DeptA {
+	if st != 201 || len(m) != 5 || m["code"] != "CS201" || m["title"] != "Data Structures" || m["departmentId"] != e.Fx.DeptA {
 		t.Fatalf("create: %d %s", st, raw)
 	}
 	id, _ := m["id"].(string)
@@ -258,5 +259,64 @@ func TestCourseListQ(t *testing.T) {
 		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, want) {
 			t.Errorf("%.30s: %d %s", q, st, raw)
 		}
+	}
+}
+
+func TestCourseCredits(t *testing.T) {
+	e := newEnv(t)
+	mk := func(code string, credits any) (int, []byte) {
+		b := map[string]any{"departmentId": e.Fx.DeptA, "code": code, "title": "T"}
+		if credits != nil {
+			b["credits"] = credits
+		}
+		return e.call(e.Admin, "POST", "/courses", b)
+	}
+	st, raw := mk("K1", nil)
+	if st != 201 || !strings.Contains(string(raw), `"credits":3.0`) {
+		t.Fatalf("default: %d %s", st, raw)
+	}
+	for _, c := range []struct {
+		in   any
+		want string
+	}{{4.5, `"credits":4.5`}, {20, `"credits":20.0`}} {
+		if st, raw := mk(fmt.Sprint("K", c.in), c.in); st != 201 || !strings.Contains(string(raw), c.want) {
+			t.Fatalf("create %v: %d %s", c.in, st, raw)
+		}
+	}
+	for _, bad := range []any{20.1, -1, 3.25} {
+		st, raw := mk(fmt.Sprint("B", bad), bad)
+		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"credits"}) {
+			t.Errorf("create %v: %d %s", bad, st, raw)
+		}
+	}
+	id := jmap(t, []byte(func() string { _, r := mk("K9", nil); return string(r) }()))["id"].(string)
+	st, raw = e.call(e.Admin, "PATCH", "/courses/"+id, map[string]any{"credits": 1.5})
+	if st != 200 || !strings.Contains(string(raw), `"credits":1.5`) {
+		t.Fatalf("patch: %d %s", st, raw)
+	}
+	if n, before, after := e.audit("course.update", id); n != 1 || !strings.Contains(after.String, `1.5`) || !strings.Contains(before.String, `3.0`) {
+		t.Fatalf("audit %d %v %v", n, before, after)
+	}
+	st, raw = e.call(e.Admin, "PATCH", "/courses/"+id, map[string]any{"credits": nil, "title": nil})
+	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"title", "credits"}) {
+		t.Fatalf("null: %d %s", st, raw)
+	}
+	if st, raw := e.call(e.Admin, "GET", "/courses", nil); st != 200 || !strings.Contains(string(raw), `"credits":`) {
+		t.Fatalf("list: %d %s", st, raw)
+	}
+	if st, raw := e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil); st != 200 || !strings.Contains(string(raw), `"credits":3.0`) {
+		t.Fatalf("section: %d %s", st, raw)
+	}
+}
+
+func TestDeleteSectionWithFinalGrades(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ($1,$2,$3,'incomplete',3,$3)`,
+			e.Fx.UniversityA, e.SectionA, e.UserID["stud@a.edu"])
+		return err
+	})
+	if st, raw := e.call(e.Admin, "DELETE", "/sections/"+e.SectionA, nil); st != 409 {
+		t.Fatalf("delete: %d %s", st, raw)
 	}
 }

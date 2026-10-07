@@ -390,3 +390,41 @@ func TestRosterImportLarge(t *testing.T) {
 		t.Fatal("rows missing")
 	}
 }
+
+func TestCoursesImportCredits(t *testing.T) {
+	e := newEnv(t)
+	csv := "departmentCode,code,title\nCS,N1,No column\n"
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update departments set code = 'CS' where id = $1`, e.Fx.DeptA)
+		return err
+	})
+	imp := func(csv string) pview {
+		p := e.preview(e.Admin, "/courses/import", csv)
+		return p
+	}
+	p := imp(csv)
+	e.upload(e.Admin, "/courses/import", csv, p.Checksum)
+	cr := func(code string) (s string) {
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			return tx.QueryRow(`select credits::text from courses where code = $1`, code).Scan(&s)
+		})
+		return
+	}
+	if got := cr("N1"); got != "3.0" {
+		t.Fatalf("no column: %s", got)
+	}
+	csv = "departmentCode,code,title,credits\nCS,N2,Four,4\nCS,N3,Empty,\nCS,N4,Bad,abc\nCS,N5,Big,25\nCS,N6,Frac,1.25\nCS,CS101,Existing,9\n"
+	p = imp(csv)
+	want := "2:add:|3:add:|4:error:credits must be a number|5:error:credits must be between 0 and 20|6:error:credits must have at most 1 decimal|7:exists:"
+	if got := actions(p); got != want {
+		t.Fatalf("got %s", got)
+	}
+	ok := "departmentCode,code,title,credits\nCS,N2,Four,4\nCS,N3,Empty,\nCS,CS101,Existing,9\n"
+	p = imp(ok)
+	if st, raw := e.upload(e.Admin, "/courses/import", ok, p.Checksum); st != 200 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if cr("N2") != "4.0" || cr("N3") != "3.0" || cr("CS101") != "3.0" {
+		t.Fatalf("credits N2 %s N3 %s CS101 %s", cr("N2"), cr("N3"), cr("CS101"))
+	}
+}

@@ -191,6 +191,9 @@ func createUniversity(ctx context.Context, args []string, env func(string) strin
 		if err := pg.SetUniversity(ctx, tx, id); err != nil {
 			return err
 		}
+		if _, err := tx.ExecContext(ctx, `select seed_us_grade_scale($1)`, id); err != nil {
+			return err
+		}
 		_, err := tenant.CreateInvitation(ctx, tx, tenant.NewInvitation{UniversityID: id, Email: email, Role: authz.Admin}, m.Enqueue, base)
 		return err
 	})
