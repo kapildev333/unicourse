@@ -104,8 +104,7 @@ export function MySectionsPage(props: {
           body="Sections you teach, assist or take in this term appear here."
           action={
             <div className="flex justify-center gap-4">
-              {/* ponytail: cast until the catalog route exists (P5-L2b); drop the cast then */}
-              <Link {...({ to: '/$slug/catalog', params: { slug }, search: { termId: term.id } } as unknown as { to: '/' })} className="text-accent underline">
+              <Link to="/$slug/catalog" params={{ slug }} search={{ termId: term.id }} className="text-accent underline">
                 Browse the catalog
               </Link>
               {canManageCourses(membership) && (
