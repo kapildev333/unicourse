@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { Trash2 } from 'lucide-react'
+import { useId, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Button } from '../../components/button'
@@ -11,7 +12,7 @@ import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useMe } from '../auth/use-me'
-import { fmt2, fmtNum, hasScaleErrors, sentence, validateScale, type ScaleErrors } from './grade'
+import { fmt2, fmtNum, hasScaleErrors, parseDecimal, round2, sentence, validateScale, type ScaleErrors } from './grade'
 import { canadianPreset, usPreset } from './presets'
 import { useGradeScale, useScaleRefresh, type GradeScale, type GradeScaleRow } from './queries'
 
@@ -26,7 +27,18 @@ const scaleCopy = {
   conflict: 'Someone else changed the scale at the same time. Reload the page and try again.',
   forbidden: 'Only university administrators can change the grade scale.',
 }
+const scaleTitle = 'Grade scale'
+const scaleDescription =
+  'Letters, the minimum percent for each, and the grade points used for GPA. Final grades already recorded keep the letter they were given.'
 const adminsOnly = 'Only university administrators can change the grade scale.'
+
+/** "90 to 92.99": from this row's minimum up to just under the next higher minimum (100 for the top row). */
+function range(rows: EditRow[], r: EditRow): string {
+  const min = parseDecimal(r.minPercent)
+  if (min === undefined || min > 100) return '—'
+  const above = rows.map((x) => parseDecimal(x.minPercent)).filter((m): m is number => m !== undefined && m > min && m <= 100)
+  return above.length === 0 ? `${fmtNum(min)} to 100` : `${fmtNum(min)} to ${fmtNum(round2(Math.min(...above) - 0.01))}`
+}
 
 const sorted = (rows: GradeScaleRow[]) => [...rows].sort((a, b) => b.minPercent - a.minPercent)
 
@@ -87,6 +99,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
   const [errors, setErrors] = useState<ScaleErrors | null>(null)
   const [serverError, setServerError] = useState<unknown>(null)
   const [notice, setNotice] = useState('')
+  const formId = useId()
   const formRef = useRef<HTMLFormElement>(null)
   const bannerRef = useRef<HTMLDivElement>(null)
   const focusKey = useRef<string | null>(null)
@@ -120,8 +133,12 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
   })
   useFocusFirstError(formRef, errors ?? serverError, bannerRef)
 
-  const edit = (key: string, f: Field, v: string) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [f]: v } : r)))
+  const edit = (key: string, f: Field, v: string) => {
+    setNotice('')
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [f]: v } : r)))
+  }
   const load = (p: GradeScaleRow[]) => {
+    setNotice('')
     setRows(toEdit(p))
     setErrors(null)
     setServerError(null)
@@ -139,15 +156,15 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
     })
   }
 
-  const cell = (r: EditRow, i: number, f: Field, label: string, decimals: boolean) => {
+  const cell = (r: EditRow, i: number, f: Field, label: string, decimals: boolean, width: string) => {
     const err = errors?.rows[i]?.[f]
     const id = `scale-${r.key}-${f}-error`
     return (
-      <td>
+      <td className={f === 'letter' ? '' : 'text-right'}>
         <input
           type="text"
           inputMode={decimals ? 'decimal' : undefined}
-          className={`${inputClass} w-24`}
+          className={`${inputClass} ${width}`}
           aria-label={`${label}, row ${i + 1}`}
           aria-invalid={err ? true : undefined}
           aria-describedby={err ? id : undefined}
@@ -174,86 +191,100 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
   }
 
   return (
-    <form ref={formRef} noValidate onSubmit={save} className="flex flex-col gap-4">
-      <StatusMessage message={notice} />
-      {errors?.table ? (
-        <ErrorBanner ref={bannerRef} title="">
-          {errors.table}
-        </ErrorBanner>
-      ) : (
-        serverError != null && <FormErrors ref={bannerRef} error={serverError} copy={scaleCopy} />
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={() => load(usPreset)}>
-          Load US preset
-        </Button>
-        <Button variant="secondary" onClick={() => load(canadianPreset)}>
-          Load Canadian preset
-        </Button>
-        {dirty && <span className="ml-auto text-sm text-ink-muted">Unsaved changes</span>}
-      </div>
-      <Table caption="Grade scale">
-        <thead>
-          <tr>
-            <th scope="col">Letter</th>
-            <th scope="col">Minimum percent</th>
-            <th scope="col">Grade points</th>
-            <th scope="col">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.key}>
-              {cell(r, i, 'letter', 'Letter', false)}
-              {cell(r, i, 'minPercent', 'Minimum percent', true)}
-              {cell(r, i, 'points', 'Grade points', true)}
-              <td className="text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-danger hover:bg-danger-soft"
-                  aria-label={`Remove row ${i + 1}`}
-                  onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-                >
-                  Remove
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-      <div>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            const key = `r${nextKey++}`
-            focusKey.current = key
-            setRows((rs) => [...rs, { key, letter: '', minPercent: '', points: '' }])
-          }}
-        >
-          Add row
-        </Button>
-      </div>
-      <div className="flex justify-end gap-2">
-        {dirty && (
+    <>
+      <PageHeader
+        title={scaleTitle}
+        description={scaleDescription}
+        action={
+          <Button type="submit" form={formId} disabled={m.isPending}>
+            {m.isPending ? 'Saving…' : 'Save scale'}
+          </Button>
+        }
+      />
+      <form id={formId} ref={formRef} noValidate onSubmit={save} className="flex flex-col gap-4">
+        {notice && <StatusMessage message={notice} />}
+        {errors?.table ? (
+          <ErrorBanner ref={bannerRef} title="">
+            {errors.table}
+          </ErrorBanner>
+        ) : (
+          serverError != null && <FormErrors ref={bannerRef} error={serverError} copy={scaleCopy} />
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={() => load(usPreset)}>
+            Load US preset
+          </Button>
+          <Button variant="secondary" onClick={() => load(canadianPreset)}>
+            Load Canadian preset
+          </Button>
           <Button
             variant="secondary"
             onClick={() => {
-              reset(data)
-              setErrors(null)
-              setServerError(null)
+              const key = `r${nextKey++}`
+              focusKey.current = key
+              setRows((rs) => [...rs, { key, letter: '', minPercent: '', points: '' }])
             }}
           >
-            Discard changes
+            Add row
           </Button>
+          {dirty && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                reset(data)
+                setErrors(null)
+                setServerError(null)
+              }}
+            >
+              Discard changes
+            </Button>
+          )}
+        </div>
+        {dirty && (
+          <p role="status" className="text-sm text-ink-muted">
+            Unsaved changes
+          </p>
         )}
-        <Button type="submit" disabled={m.isPending}>
-          {m.isPending ? 'Saving…' : 'Save scale'}
-        </Button>
-      </div>
-    </form>
+        <Table caption="Grade scale" className="relative">
+          <thead>
+            <tr>
+              <th scope="col">Letter</th>
+              <th scope="col" className="text-right">
+                Minimum percent
+              </th>
+              <th scope="col" className="text-right">
+                Grade points
+              </th>
+              <th scope="col">Range</th>
+              <th scope="col" className="text-right">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.key}>
+                {cell(r, i, 'letter', 'Letter', false, 'w-20!')}
+                {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28! text-right')}
+                {cell(r, i, 'points', 'Grade points', true, 'w-28! text-right')}
+                <td className="text-ink-muted">{range(rows, r)}</td>
+                <td className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Remove row ${i + 1}`}
+                    onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    Remove
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </form>
+    </>
   )
 }
 
@@ -262,8 +293,12 @@ export function ScaleEditorPage({ slug }: { slug: string }) {
   const scale = useGradeScale(slug)
   const isAdmin = me.data?.memberships.find((m) => m.university.slug === slug)?.role === 'admin'
   let body: React.ReactNode
-  if (scale.isPending || me.isPending) body = <Loading />
-  else if (scale.error) body = <ErrorBanner onRetry={() => void scale.refetch()}>{errorMessage(scale.error)}</ErrorBanner>
+  if (scale.isPending || me.isPending) body = <Loading variant="table" columns={['Letter', 'Minimum percent', 'Grade points']} label="Loading the grade scale…" />
+  else if (scale.error) body = (
+      <ErrorBanner title="Couldn't load the grade scale" onRetry={() => void scale.refetch()}>
+        {errorMessage(scale.error)}
+      </ErrorBanner>
+    )
   else if (isAdmin) body = <ScaleForm slug={slug} data={scale.data} />
   else
     body = (
@@ -272,12 +307,10 @@ export function ScaleEditorPage({ slug }: { slug: string }) {
         <p className="mt-4 text-sm text-ink-muted">{adminsOnly}</p>
       </>
     )
+  if (isAdmin && !scale.isPending && !me.isPending && !scale.error) return body
   return (
     <>
-      <PageHeader
-        title="Grade scale"
-        description="Letters, the minimum percent for each, and the grade points used for GPA. Final grades already recorded keep the letter they were given."
-      />
+      <PageHeader title={scaleTitle} description={scaleDescription} />
       {body}
     </>
   )

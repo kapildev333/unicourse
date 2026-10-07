@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import { ApiError } from '../../api/errors'
+import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
 import { Dialog } from '../../components/dialog'
 import { ErrorBanner } from '../../components/error-banner'
@@ -13,6 +14,8 @@ import { fmt2, finalPercent, letterFor, sentence } from './grade'
 import { useGradesRefresh, type Gradebook, type GradeScale } from './queries'
 
 type Student = Gradebook['students'][number]
+
+const capName = 'max-w-48 truncate sm:max-w-none sm:overflow-visible sm:whitespace-normal'
 
 export const finalizeCopy = {
   'validation_failed:weights': 'Assessment weights must total 100% before you finalize.',
@@ -75,10 +78,12 @@ export function FinalizeDialog(props: {
     },
   })
 
-  const rows = students.map((s) => {
-    const { percent, missing } = finalPercent(assessments, s.scores)
-    return { s, percent, missing, letter: letterFor(scale.rows, percent)?.letter ?? '—' }
-  })
+  const rows = students
+    .map((s) => {
+      const { percent, missing } = finalPercent(assessments, s.scores)
+      return { s, percent, missing, letter: letterFor(scale.rows, percent)?.letter ?? '—' }
+    })
+    .sort((a, b) => Number(b.missing > 0) - Number(a.missing > 0)) // stable: missing rows first
   const withMissing = rows.filter((r) => r.missing > 0).length
   const tally = scale.rows
     .map((r) => [r.letter, rows.filter((x) => x.letter === r.letter).length] as const)
@@ -139,15 +144,16 @@ export function FinalizeDialog(props: {
           {students.length} students · {withMissing} with missing scores · Preview:{' '}
           {tally.map(([l, n]) => `${l} ${n}`).join(' · ') || '—'}
         </p>
-        <div className="max-h-[55vh] overflow-y-auto">
-          <Table caption="Preview of final grades">
+        <div className="max-h-[55vh] overflow-y-auto rounded border-b border-line">
+          <Table caption="Preview of final grades" className="relative">
             <thead>
               <tr>
-                <th scope="col">Student</th>
+                <th scope="col" className={capName}>
+                  Student
+                </th>
                 <th scope="col" className="text-right">
                   Percent
                 </th>
-                <th scope="col">Letter</th>
                 <th scope="col">Grade</th>
                 <th scope="col">Reason</th>
               </tr>
@@ -159,22 +165,26 @@ export function FinalizeDialog(props: {
                 const name = personName(s)
                 return (
                   <tr key={s.userId}>
-                    <th scope="row" className="font-bold">
+                    <th scope="row" title={name} className={`font-bold ${capName}`}>
                       {name}
                     </th>
                     <td className="text-right">
                       {fmt2(percent)}%
-                      {missing > 0 && <span className="text-ink-muted"> ({missing} missing)</span>}
+                      {missing > 0 && (
+                        <>
+                          {' '}
+                          <Badge tone="warning">{missing} missing</Badge>
+                        </>
+                      )}
                     </td>
-                    <td>{letter}</td>
                     <td>
                       <select
                         aria-label={`Grade for ${name}`}
-                        className={inputClass}
+                        className={`${inputClass} min-w-28!`}
                         value={pick?.value ?? ''}
                         onChange={(e) => setPick(s, { value: e.target.value })}
                       >
-                        <option value="">Computed: {letter}</option>
+                        <option value="">Keep {letter}</option>
                         <GradeOptions scale={scale} />
                       </select>
                     </td>
@@ -205,7 +215,9 @@ export function FinalizeDialog(props: {
             </tbody>
           </Table>
         </div>
-        <p className="text-xs text-ink-muted">Preview only. The recorded grades come from the server.</p>
+        <p className="text-xs text-ink-muted">
+          Showing {rows.length} of {students.length}. Preview only. The recorded grades come from the server.
+        </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={close}>
             Cancel

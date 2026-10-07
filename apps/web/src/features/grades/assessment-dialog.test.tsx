@@ -35,6 +35,7 @@ function setup(routes: Parameters<typeof mockApi>[0], assessment?: Assessment) {
         sectionId="s1"
         assessment={assessment}
         scoredCount={3}
+        otherWeight={60}
         onClose={onClose}
         onSaved={onSaved}
       />
@@ -121,4 +122,12 @@ it('delete names the score count and deletes', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
   await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Midterm deleted.'))
   expect(sent(fn, 'DELETE')).toHaveLength(1)
+})
+
+it('shows the other assessments total in the weight hint and sizes the inputs after inputClass', () => {
+  setup({})
+  expect(screen.getByText(/Other assessments total 60%\./)).toBeInTheDocument()
+  expect(screen.getByLabelText('Max points').className).toMatch(/w-full.* w-32!/)
+  expect(screen.getByLabelText('Weight (%)').className).toMatch(/w-full.* w-32!/)
+  expect(screen.getByLabelText('Due date').className).toMatch(/w-full.* w-48!/)
 })

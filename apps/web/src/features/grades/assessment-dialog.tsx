@@ -24,10 +24,12 @@ export function AssessmentDialog(props: {
   sectionId: string
   assessment?: Assessment
   scoredCount: number
+  /** Sum of the weights of the section's other assessments. */
+  otherWeight: number
   onClose: () => void
   onSaved: (message: string) => void
 }) {
-  const { slug, sectionId, assessment, scoredCount, onClose, onSaved } = props
+  const { slug, sectionId, assessment, scoredCount, otherWeight, onClose, onSaved } = props
   const refresh = useGradesRefresh(slug)
   const [name, setName] = useState(assessment?.name ?? '')
   const [maxPoints, setMax] = useState(assessment ? fmtNum(assessment.maxPoints) : '')
@@ -139,7 +141,7 @@ export function AssessmentDialog(props: {
           <input
             type="text"
             inputMode="decimal"
-            className={`${inputClass} w-32`}
+            className={`${inputClass} w-32!`}
             value={maxPoints}
             onChange={(e) => setMax(e.target.value)}
           />
@@ -147,13 +149,13 @@ export function AssessmentDialog(props: {
         <FormField
           label="Weight (%)"
           name="weight"
-          hint="Share of the section grade. All weights must total 100 to finalize."
+          hint={`Share of the section grade. All weights must total 100 to finalize. Other assessments total ${fmtNum(otherWeight)}%.`}
           error={fields.weight}
         >
           <input
             type="text"
             inputMode="decimal"
-            className={`${inputClass} w-32`}
+            className={`${inputClass} w-32!`}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
           />
@@ -161,7 +163,7 @@ export function AssessmentDialog(props: {
         <FormField label="Due date" name="dueOn" hint="Optional." error={fields.dueOn}>
           <input
             type="date"
-            className={`${inputClass} w-48`}
+            className={`${inputClass} w-48!`}
             value={dueOn}
             onChange={(e) => setDueOn(e.target.value)}
           />

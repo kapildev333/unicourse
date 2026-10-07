@@ -354,3 +354,65 @@ it('Finalize grades opens the dialog when weights total 100', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Finalize grades' }))
   expect(await screen.findByRole('heading', { name: 'Finalize grades for CS101-001' })).toBeInTheDocument()
 })
+
+const pub = (students: Record<string, unknown>[], final = false) => ({
+  assessments: [asm('a1', 'Midterm', 40, 40, true), asm('a2', 'Final exam', 100, 60, false)],
+  students: final
+    ? students.map((s) => ({ ...s, final: { status: 'graded', letter: 'B', points: 3, percent: 85 } }))
+    : students,
+  stats: { mean: 81.4, median: 83, letters: { B: 1, A: 1, C: 0 } },
+})
+
+it('caps the Student cells and keeps the full name in the title', async () => {
+  renderPage('instructor')
+  const th = await screen.findByRole('rowheader', { name: /Erin Moe/ })
+  expect(th).toHaveAttribute('title', 'Erin Moe')
+  expect(th).toHaveClass('max-w-48', 'truncate')
+  expect(screen.getByRole('columnheader', { name: 'Student' })).toHaveClass('max-w-48', 'truncate')
+})
+
+it('flags missing scores of published assessments and shows one email line for unnamed students', async () => {
+  const bare = { ...stu('zed', ''), displayName: undefined }
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 30 }, { percent: 75 }), stu('sam', 'Sam Lee', {}, { percent: 10 }), bare]))
+  await screen.findByText('Letters: A 1 · B 1')
+  const sam = screen.getByRole('row', { name: /Sam Lee/ })
+  expect(within(sam).getByText('Missing')).toBeInTheDocument()
+  expect(within(sam).getByText('(1 missing)')).toBeInTheDocument()
+  expect(within(screen.getByRole('row', { name: /Erin Moe/ })).queryByText('Missing')).not.toBeInTheDocument()
+  const zed = screen.getByRole('rowheader', { name: 'zed@a.edu' })
+  expect(zed.querySelectorAll('span')).toHaveLength(0)
+  expect(screen.getAllByText('zed@a.edu')).toHaveLength(1)
+})
+
+it('with final grades shows Finalized, Running headers and the instructor note', async () => {
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 30 })], true))
+  expect(await screen.findByText('Finalized')).toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Running %' })).toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Running letter' })).toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Final' })).toBeInTheDocument()
+  expect(screen.getByText(/reopen grades to recompute/)).toBeInTheDocument()
+})
+
+it('TA sees the TA note when finalized', async () => {
+  renderPage('ta', {}, pub([stu('erin', 'Erin Moe', { a1: 30 })], true))
+  expect(
+    await screen.findByText('Final grades are recorded. Score changes do not change them until an instructor reopens grades.'),
+  ).toBeInTheDocument()
+})
+
+it('omits letters with a zero count and gives the footer headers the surface background', async () => {
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 30 })]))
+  expect(await screen.findByText('Letters: A 1 · B 1')).toBeInTheDocument()
+  expect(screen.getByRole('rowheader', { name: 'Mean' })).toHaveClass('bg-surface')
+})
+
+it('names what failed to load', async () => {
+  renderPage('instructor', { [GB]: () => ({ status: 500, body: { error: { code: 'internal', message: 'x', details: [] } } }) })
+  expect(await screen.findByText("Couldn't load the gradebook")).toBeInTheDocument()
+})
+
+it('an explicit 0 score on a published assessment is not Missing', async () => {
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 0 }, { percent: 0 })]))
+  await screen.findByText('Letters: A 1 · B 1')
+  expect(screen.queryByText('Missing')).not.toBeInTheDocument()
+})

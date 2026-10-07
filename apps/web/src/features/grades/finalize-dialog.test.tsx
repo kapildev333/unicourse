@@ -62,9 +62,18 @@ const confirm = () => fireEvent.click(screen.getByRole('button', { name: /^Final
 it('previews percent, missing count, letter and summary', () => {
   setup()
   expect(screen.getByText(/2 students · 1 with missing scores · Preview: /)).toHaveTextContent('A- 1 · F 1')
-  expect(screen.getByRole('cell', { name: '30.00% (1 missing)' })).toBeInTheDocument()
-  expect(screen.getByText('(1 missing)')).toBeInTheDocument()
-  expect(screen.getByRole('option', { name: 'Computed: F' })).toBeInTheDocument()
+  expect(screen.getByRole('cell', { name: '30.00% 1 missing' })).toBeInTheDocument()
+  expect(screen.getByText('1 missing')).toBeInTheDocument()
+  expect(screen.getByRole('option', { name: 'Keep F' })).toBeInTheDocument()
+  expect(screen.queryByRole('columnheader', { name: 'Letter' })).not.toBeInTheDocument()
+  expect(screen.getByText(/Showing 2 of 2/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Grade for Sam Lee').className).toContain('min-w-28!')
+  // the student with a missing score sorts first, and the name cells are capped
+  const rows = screen.getAllByRole('rowheader')
+  expect(rows[0]).toHaveTextContent('Sam Lee')
+  expect(rows[0]).toHaveAttribute('title', 'Sam Lee')
+  expect(rows[0]).toHaveClass('max-w-48', 'truncate')
+  expect(screen.getByRole('columnheader', { name: 'Student' })).toHaveClass('max-w-48', 'truncate')
 })
 
 it('blocks an override without a reason and focuses the input', () => {

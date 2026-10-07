@@ -98,3 +98,35 @@ it('dept_admin sees the table read-only with the administrators-only note', asyn
   expect(screen.queryByRole('button', { name: 'Save scale' })).not.toBeInTheDocument()
   expect(screen.getByText('Only university administrators can change the grade scale.')).toBeInTheDocument()
 })
+
+it('shows each row range from the next higher minimum', async () => {
+  renderPage('admin', {})
+  await screen.findByLabelText('Letter, row 1')
+  expect(input('Letter, row 1').closest('tr')).toHaveTextContent('93 to 100')
+  expect(input('Letter, row 2').closest('tr')).toHaveTextContent('90 to 92.99')
+  fireEvent.change(input('Minimum percent, row 2'), { target: { value: '91' } })
+  expect(input('Letter, row 2').closest('tr')).toHaveTextContent('91 to 92.99')
+})
+
+it('puts Save in the header, sizes the columns and makes Remove a neutral ghost', async () => {
+  renderPage('admin', {})
+  await screen.findByLabelText('Letter, row 1')
+  const save = screen.getByRole('button', { name: 'Save scale' })
+  expect(save.closest('form')).toBeNull()
+  expect(save).toHaveAttribute('form')
+  expect(input('Letter, row 1').className).toContain('w-20')
+  expect(input('Grade points, row 1').className).toContain('w-28')
+  expect(screen.getByRole('button', { name: 'Remove row 1' }).className).not.toContain('text-danger')
+})
+
+it('shows Unsaved changes as muted text and never together with the saved notice', async () => {
+  renderPage('admin', { [P]: (r) => r.text().then((t) => ({ body: JSON.parse(t) })) })
+  await screen.findByLabelText('Letter, row 1')
+  fireEvent.change(input('Grade points, row 1'), { target: { value: '4.3' } })
+  expect(screen.getByText('Unsaved changes')).toHaveClass('text-ink-muted')
+  fireEvent.click(screen.getByRole('button', { name: 'Save scale' }))
+  await screen.findByText(/Grade scale saved/)
+  fireEvent.change(input('Grade points, row 1'), { target: { value: '4.2' } })
+  expect(screen.queryByText(/Grade scale saved/)).not.toBeInTheDocument()
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+})
