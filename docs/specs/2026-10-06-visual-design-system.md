@@ -18,28 +18,28 @@ A marketing or landing site · a logo beyond a text wordmark · charts · a comp
 
 ### 3.1 Palette
 
-One coolors.co trending palette, used as is: **Deep Blue Sea**, `https://coolors.co/palette/134074-13315c-0b2545-8da9c4-eef4ed`.
+One coolors.co trending palette, used as is, chosen by the owner on 2026-10-06: **Olive Garden Feast**, `https://coolors.co/palette/606c38-283618-fefae0-dda15e-bc6c25`.
 
 | Swatch | Hex | Light mode role | Dark mode role |
 |---|---|---|---|
-| Yale blue | `#134074` | accent: primary buttons, links, active navigation, focus ring base | surface of the primary button (white text, 10.4:1), raised table header |
-| Berkeley blue | `#13315C` | ink for headings (12.9:1 on white) | surface: cards, tables, dialogs, inputs |
-| Oxford blue | `#0B2545` | ink for body text (15.4:1 on white, 13.8:1 on canvas) | canvas: page background |
-| Powder blue | `#8DA9C4` | hairlines, table rules, disabled text, decorative only (2.4:1, never for text) | muted text (5.3:1 on surface), links (or a derived lighter tint when 7:1 is wanted), input borders |
-| Mint cream | `#EEF4ED` | canvas: page background | ink: body text (11.6:1 on surface, 13.8:1 on canvas) |
+| Dark moss green | `#606C38` | accent: primary buttons (white text, 5.7:1), links, active navigation, focus ring | surface tint for the raised table header; secondary accent |
+| Pakistan green | `#283618` | ink for body text and headings (13.5:1 on white) | canvas: page background |
+| Cornsilk | `#FEFAE0` | canvas: page background | ink: body text (12.2:1 on the dark canvas) |
+| Earth yellow | `#DDA15E` | warning and highlight backgrounds with dark text only (2.3:1 on white, never as text) | accent: links, active navigation, primary button fill with dark text (5.7:1 on the dark canvas) |
+| Tiger's eye | `#BC6C25` | accent hover on buttons; badge backgrounds with dark text; never body text on white (4.0:1) | accent hover; borders that must carry meaning (3.3:1 on the dark canvas) |
 
-Derived shades are allowed only where the five swatches cannot meet §7, and each one is written down in the design document with the swatch it is derived from and its measured ratio: a light-mode muted text (a Berkeley blue tint around `#4A5D78`, ≥ 6:1 on white and canvas), a light-mode strong line for input borders (≥ 3:1 on white), an accent-soft background for active navigation and badges (an Oxford blue tint at low alpha over the surface), hover shades of the accent, and a dark-mode line between surface and canvas. Pure white `#FFFFFF` is the light-mode surface; there is no pure black anywhere.
+Derived shades are allowed only where the five swatches cannot meet §7, and each one is written down in the design document with the swatch it is derived from and its measured ratio: a light-mode muted text (a Pakistan green tint, ≥ 6:1 on white and canvas), hairlines and a strong line for input borders (Pakistan green at low alpha over the surface, the strong one ≥ 3:1), an accent-soft background for active navigation and badges (Dark moss green at low alpha over the surface), a dark-mode surface one step lighter than the canvas, a dark-mode muted text and lines (Cornsilk at reduced alpha). Pure white `#FFFFFF` is the light-mode surface; there is no pure black anywhere.
 
-Status colours are not brand colours and stay out of the palette: danger (red), success (green), warning (amber), each as a text shade for its mode and a soft background, each ≥ 4.5:1 on the surface it sits on. They are the only colours outside the palette and they are used only to mean error, success or caution, never for decoration.
+Status colours are not brand colours and stay out of the palette: danger (red), success (a cooler green that reads apart from the olive accent), warning (built on Earth yellow), each as a text shade for its mode and a soft background, each ≥ 4.5:1 on the surface it sits on. They are used only to mean error, success or caution, never for decoration.
 
 ### 3.2 Typography
 
-Two open-source families from Google Fonts, self-hosted through `@fontsource-variable` packages so the app makes no request to Google at runtime:
+Two open-source families from Google Fonts, chosen by the owner on 2026-10-06, self-hosted through fontsource packages so the app makes no request to Google at runtime:
 
-- **Source Serif 4** (variable) for the wordmark and page titles (`h1`) only. Weight 600, tight tracking, optical size left to the font.
-- **Source Sans 3** (variable) for everything else: body, tables, forms, buttons, section headings (`h2`, `h3`). Weights 400, 500 and 600 only.
+- **DM Serif Display** for the wordmark and page titles (`h1`) only. It ships in one weight (400) with an italic; use the regular only. Tight tracking, sizes from 24 px up so its high contrast stays legible.
+- **DM Sans** (variable) for everything else: body, tables, forms, buttons, section headings (`h2`, `h3`). Weights 400, 500 and 600 only; optical size left to the font.
 
-Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px minimum anywhere (captions, badges), 20/24 px page titles, 16 px section headings. Line height 1.5 for body, 1.25 for headings. Tabular numerals (`font-variant-numeric: tabular-nums`) on tables, class codes, times and counts. System fonts remain the fallback stack.
+Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px minimum anywhere (captions, badges), 24 px page titles, 16 px section headings. Line height 1.5 for body, 1.2 for titles. Tabular numerals (`font-variant-numeric: tabular-nums`) on tables, class codes, times and counts. System fonts remain the fallback stack.
 
 ### 3.3 Icons
 
@@ -60,7 +60,7 @@ Colour and opacity transitions of 150 ms on hover and focus, nothing else animat
 
 - The semantic tokens that exist today (`canvas`, `surface`, `line`, `line-strong`, `ink`, `ink-muted`, `accent`, `accent-hover`, `accent-soft`, `focus`, `danger`, `danger-hover`, `danger-soft`, `success`, `success-soft`) keep their names and gain `warning` and `warning-soft`. They are defined once as CSS custom properties; Tailwind utilities reference the variables, so a component written as `bg-surface text-ink` is correct in both modes with no `dark:` variant. Feature code never uses a `dark:` variant, a literal hex, `bg-white`, `text-white`, `text-black` or a Tailwind grey; `text-white` on a primary button becomes a token (`on-accent`).
 - Dark mode is a second set of values for the same variables, applied when `<html data-theme="dark">`, and when `data-theme` is absent and `prefers-color-scheme: dark`. `color-scheme` is set on `html` for both modes so native controls, scrollbars and the `<dialog>` backdrop follow.
-- The theme switch lives in the header, as a labelled control with three options, System, Light and Dark (Lucide `monitor`, `sun`, `moon`), and stores the choice in `localStorage` under `unicourse:theme`. A small inline script in `index.html` applies the stored choice before the first paint. A `theme.ts` module in `lib/` owns the read, write and apply logic and has a unit test; no React context is needed.
+- The theme switch lives in the header, as a labelled control with three options, System, Light and Dark (Lucide `monitor`, `sun`, `moon`), and stores the choice in `localStorage` under `unicourse:theme`. A small same-origin script file (`/theme-boot.js`, loaded blocking in the head; the API's content security policy forbids inline scripts) applies the stored choice before the first paint. A `theme.ts` module in `lib/` owns the read, write and apply logic and has a unit test; no React context is needed.
 - Tests run in light mode; the one theme unit test covers the apply logic, and one end-to-end test switches to Dark, reloads, and asserts `data-theme="dark"` survives.
 
 ## 5. What "not AI-generated" means here
@@ -97,10 +97,10 @@ WCAG 2.1 AA in both modes: 4.5:1 for text, 3:1 for input borders, focus rings an
 
 ## 8. Constraints and dependencies
 
-- Allowed new packages, and no others: `lucide-react` (runtime), `@fontsource-variable/source-sans-3` and `@fontsource-variable/source-serif-4` (runtime, bundled by Vite). D3 is amended for these three (D50).
+- Allowed new packages, and no others: `lucide-react` (runtime), `@fontsource-variable/dm-sans` and `@fontsource/dm-serif-display` (runtime, bundled by Vite). D3 is amended for these three (D50).
 - Tailwind stays the styling layer; `index.css` is the single place tokens, fonts and the two base recipes (`ui-table`, skeleton) live. No new CSS files per feature.
 - Routes, copy, roles, API calls and test identifiers do not change. The retired class assertions in `admin-layout.test.tsx` become `aria-current="page"` assertions.
-- A unit test (`src/no-literal-colors.test.ts`) reads every `.tsx` and `.ts` file under `src/` except tests and `index.css` and fails on `#` hex colours, `bg-white`, `text-white`, `text-black`, Tailwind grey/slate/zinc/neutral/stone utilities and `dark:` variants.
+- A unit test (`src/no-literal-colors.test.ts`) reads every `.tsx` and `.ts` file under `src/` except tests and `index.css` and fails on `#` hex colours, `bg-white`, `text-white`, `text-black`, arbitrary named colours such as `bg-[white]`, Tailwind palette utilities (grey, slate, zinc, neutral, stone and the hue scales), colour functions and `dark:` variants, stacked or not.
 
 ## 9. Gates
 

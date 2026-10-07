@@ -19,8 +19,8 @@
 ## File Structure
 
 ```
-apps/web/index.html                              fonts preload-free (bundled), theme boot script, color-scheme
-apps/web/package.json                            lucide-react, @fontsource-variable/source-sans-3, @fontsource-variable/source-serif-4
+apps/web/index.html                              theme boot script (same-origin file, CSP), color-scheme
+apps/web/package.json                            lucide-react, @fontsource-variable/dm-sans, @fontsource/dm-serif-display
 apps/web/src/index.css                           fonts, tokens for both modes, base, ui-table, skeleton
 apps/web/src/lib/theme.ts (+ test)               read/write/apply `unicourse:theme`
 apps/web/src/components/theme-switch.tsx         System / Light / Dark control
