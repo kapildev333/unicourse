@@ -80,4 +80,5 @@ func optText(field, v string, max int) (string, *httpx.FieldError) {
 type person struct {
 	UserID      string `json:"userId"`
 	DisplayName string `json:"displayName"`
+	Email       string `json:"email"`
 }

@@ -2133,6 +2133,12 @@ export interface components {
              * @example Dana Reyes
              */
             displayName: string;
+            /**
+             * Format: email
+             * @description Shown when displayName is empty.
+             * @example dana.reyes@example.edu
+             */
+            email: string;
         };
         SectionDescriptionUpdate: {
             /**

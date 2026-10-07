@@ -77,6 +77,9 @@ func TestDescriptionAuthz(t *testing.T) {
 			}
 		}
 	}
+	if _, raw := e.call(e.Other, "GET", "/sections/"+e.SectionA, nil); !strings.Contains(string(raw), `"description":"x"`) {
+		t.Errorf("plain member GET lacks description: %s", raw)
+	}
 	zero := "00000000-0000-0000-0000-000000000000"
 	for _, p := range []string{zero, "x"} {
 		if st, _ := e.call(e.Admin, "PUT", "/sections/"+p+"/description", map[string]any{"description": "x"}); st != 404 {
