@@ -1,4 +1,6 @@
+import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
+import { Button } from './button'
 
 export function Dialog(props: {
   open: boolean
@@ -39,9 +41,9 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className={`m-auto w-full ${wide ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
+      className={`m-auto w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:w-full ${wide ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
     >
-      <h2 id={titleId} className="text-xl font-bold">
+      <h2 id={titleId} className="pr-8 text-xl font-bold">
         {title}
       </h2>
       {description && (
@@ -50,10 +52,14 @@ export function Dialog(props: {
         </p>
       )}
       <div className="mt-5">{children}</div>
+      {/* last in DOM so native autofocus still lands on the first control (Cancel), placed top right by CSS */}
+      <Button variant="ghost" size="sm" aria-label="Close" title="Close" className="absolute top-3 right-3" onClick={() => ref.current?.close()}>
+        <X aria-hidden="true" />
+      </Button>
     </dialog>
   )
 }
 
 export function DialogFooter({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 flex items-center justify-end gap-2 border-t border-line pt-4">{children}</div>
+  return <div className="sticky -bottom-6 -mb-6 pb-6 mt-2 flex items-center justify-end gap-2 border-t border-line bg-surface pt-4">{children}</div>
 }

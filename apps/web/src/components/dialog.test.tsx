@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { StrictMode } from 'react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode, useState } from 'react'
 import { expect, it } from 'vitest'
 import { Dialog } from './dialog'
 
@@ -87,4 +87,47 @@ it('returns focus to the trigger of a conditionally mounted dialog under StrictM
   rerender(ui(true))
   rerender(ui(false))
   expect(document.activeElement).toBe(trigger)
+})
+
+it('has an icon-only Close button that closes and returns focus to the trigger', () => {
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  }
+  const Host = () => {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>trigger</button>
+        <Dialog open={open} onClose={() => setOpen(false)} title="T">
+          body
+        </Dialog>
+      </>
+    )
+  }
+  render(<Host />)
+  const trigger = screen.getByText('trigger')
+  trigger.focus()
+  fireEvent.click(trigger)
+  const close = screen.getByRole('button', { name: 'Close', hidden: true })
+  expect(close).toHaveAttribute('title', 'Close')
+  fireEvent.click(close)
+  expect(document.querySelector('dialog')).not.toHaveAttribute('open')
+  expect(document.activeElement).toBe(trigger)
+})
+
+it('fits a 390 px phone: margins and a height cap', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T">a</Dialog>)
+  const d = document.querySelector('dialog')!
+  expect(d).toHaveClass('w-[calc(100%-2rem)]', 'max-h-[calc(100dvh-2rem)]')
+})
+
+it('keeps the viewport height cap at every width so the body scrolls on desktop', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T">a</Dialog>)
+  const d = document.querySelector('dialog')!
+  expect(d.className).not.toMatch(/max-h-none/)
+  expect(d).toHaveClass('max-h-[calc(100dvh-2rem)]')
 })

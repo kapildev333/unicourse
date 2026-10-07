@@ -45,6 +45,6 @@ it('the two dark blocks match', () => {
     re.exec(css)![1].split(';').map((d) => d.trim()).filter(Boolean)
   const a = body(/html\[data-theme='dark'\]\s*\{([^}]*)\}/)
   const b = body(/html:not\(\[data-theme\]\)\s*\{([^}]*)\}/)
-  expect(a).toHaveLength(19)
+  expect(a).toHaveLength(20)
   expect(b).toEqual(a)
 })

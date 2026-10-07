@@ -1,4 +1,4 @@
-import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { Link, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { RoleBadge } from './badge'
@@ -36,4 +36,36 @@ it('is one link named by code and title, inside one list item, carrying meta, ba
   for (const t of ['Dana Poe', 'Mon 10:00–11:15 · Room 101', 'TA', 'Clashes with CS102-001'])
     expect(within(link).getByText(t)).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 3, name: 'Intro to CS' })).toBeInTheDocument()
+})
+
+it('badge row is pushed to the foot; a footer link sits outside the main link', async () => {
+  const root = createRootRoute()
+  const page = createRoute({
+    getParentRoute: () => root,
+    path: '/',
+    component: () => (
+      <ul>
+        <Card
+          code="CS101-001"
+          title="Intro"
+          meta={[]}
+          badge={<span>Instructor</span>}
+          footer={<Link to="/$slug/sections/$id" params={{ slug: 'a', id: 's1' }}>Gradebook</Link>}
+          params={{ slug: 'a', id: 's1' }}
+        />
+      </ul>
+    ),
+  })
+  const stub = createRoute({ getParentRoute: () => root, path: '$slug/sections/$id', component: () => null })
+  const router = createRouter({
+    routeTree: root.addChildren([page, stub]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+  render(<RouterProvider router={router} />)
+  const main = await screen.findByRole('link', { name: 'CS101-001 Intro' })
+  const foot = screen.getByRole('link', { name: 'Gradebook' })
+  expect(screen.getAllByRole('link')).toHaveLength(2)
+  expect(main).not.toContainElement(foot)
+  expect(screen.getByRole('listitem')).toContainElement(foot)
+  expect(screen.getByText('Instructor').parentElement).toHaveClass('mt-auto')
 })
