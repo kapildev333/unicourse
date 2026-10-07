@@ -164,6 +164,9 @@ func applyOverride(g gradeAudit, o override, m matrix, st GradebookStudent) (gra
 		}
 		g.Percent, g.Letter = round2(p), row.Letter
 	}
+	if wasGraded && (!o.Letter.Set || o.Letter.V == g.Letter) {
+		return g, nil // same letter: keep the recorded points, the scale may have moved since
+	}
 	if o.Letter.Set {
 		g.Letter = o.Letter.V
 	}
