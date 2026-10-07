@@ -14,7 +14,9 @@ import (
 
 var ctx = context.Background()
 
-type ids struct{ dept, term, course, section, user, inv, assessment string }
+type ids struct{ dept, term, course, section, user, inv, assessment, week string }
+
+const weekInsert = "insert into weeks (university_id, section_id, title, position) values ('{U}', '{S}', 'Week 1', 1)"
 
 const assessmentInsert = "insert into assessments (university_id, section_id, name, max_points, weight) values ('{U}', '{S}', 'Midterm', 100, 40)"
 
@@ -31,11 +33,13 @@ var rest = map[string]string{
 	"audit_log":             `insert into audit_log (university_id, action, entity_type, entity_id) values ('{U}', 'create', 'section', '{S}')`,
 	"grade_scales":          `insert into grade_scales (university_id, letter, min_percent, points) values ('{U}', 'A', 93, 4)`,
 	"scores":                `insert into scores (university_id, assessment_id, user_id, points, graded_by) values ('{U}', '{A}', '{USR}', 1, '{USR}')`,
+	"announcements":         `insert into announcements (university_id, section_id, author_user_id, title, body) values ('{U}', '{S}', '{USR}', 'T', 'B')`,
+	"materials":             `insert into materials (university_id, section_id, week_id, title, file_name, content_type, size_bytes, sha256, position, uploaded_by_user_id) values ('{U}', '{S}', '{W}', 'T', 't.pdf', 'application/pdf', 1, repeat('a', 64), 1, '{USR}')`,
 	"final_grades":          `insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ('{U}', '{S}', '{USR}', 'incomplete', 3, '{USR}')`,
 }
 
 func sub(q, uni string, i ids) string {
-	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment).Replace(q)
+	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment, "{W}", i.week).Replace(q)
 }
 
 // populate fills every tenant table for uni inside an open WithTx(uni) transaction.
@@ -52,6 +56,7 @@ func populate(t *testing.T, tx *sql.Tx, uni, user string) ids {
 	q(&i.course, `insert into courses (university_id, department_id, code, title) values ('`+uni+`', '`+i.dept+`', 'C1', 'C') returning id`)
 	q(&i.section, `insert into sections (university_id, course_id, term_id, number) values ('`+uni+`', '`+i.course+`', '`+i.term+`', '001') returning id`)
 	q(&i.assessment, sub(assessmentInsert, uni, i)+" returning id")
+	q(&i.week, sub(weekInsert, uni, i)+" returning id")
 	q(&i.inv, sub(rest["invitations"], uni, i)+` returning id`)
 	for name, stmt := range rest {
 		if name == "invitations" {
@@ -108,6 +113,7 @@ func TestWithTxIsolatesUniversities(t *testing.T) {
 		"courses":     `insert into courses (university_id, department_id, code, title) values ('{U}', '{D}', 'ZZ', 'C')`,
 		"sections":    `insert into sections (university_id, course_id, term_id, number) values ('{U}', (select id from courses limit 1), (select id from terms limit 1), '002')`,
 		"assessments": assessmentInsert,
+		"weeks":       weekInsert,
 	}
 	for k, v := range rest {
 		attempts[k] = v
@@ -283,6 +289,9 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"pending_enrollments->both":          rest["pending_enrollments"],
 		"pending_enrollments->invitations":   `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', '{INV}', (select id from sections limit 1))`,
 		"assessments->sections":              assessmentInsert,
+		"announcements->sections":            rest["announcements"],
+		"weeks->sections":                    weekInsert,
+		"materials->weeks":                   rest["materials"],
 		"scores->assessments":                rest["scores"],
 		"final_grades->sections":             rest["final_grades"],
 		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
@@ -386,5 +395,25 @@ func TestEveryUpdatedAtTableHasTrigger(t *testing.T) {
 		var name string
 		rows.Scan(&name)
 		t.Errorf("%s has updated_at but no set_updated_at trigger", name)
+	}
+}
+
+// A material's week must belong to the material's section (composite FK, design decision 7).
+func TestMaterialWeekInSection(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	user := newUser(t, db, "u@b.edu")
+	err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		i := populate(t, tx, f.UniversityA, user)
+		var second string
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1, $2, $3, '002') returning id`, f.UniversityA, i.course, i.term).Scan(&second); err != nil {
+			t.Fatal(err)
+		}
+		i.section = second // week stays in the first section
+		_, err := tx.Exec(sub(rest["materials"], f.UniversityA, i))
+		return pg.MapError(err)
+	})
+	if !errors.Is(err, pg.ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }

@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
-import { adminBin, apiBin, apiDir, apiLog, e2eEnv, tmpDir, webRoot } from './env'
+import { adminBin, apiBin, apiDir, apiLog, e2eEnv, filesDir, tmpDir, webRoot } from './env'
 
 // Builds the web app and both Go binaries, migrates, and starts the API serving the built web app.
 export default async function globalSetup() {
@@ -9,6 +9,7 @@ export default async function globalSetup() {
   if (taken) throw new Error(`something already answers on ${base}; stop it before running e2e`)
   fs.rmSync(tmpDir, { recursive: true, force: true })
   fs.mkdirSync(tmpDir, { recursive: true })
+  fs.mkdirSync(filesDir)
   const run = (cmd: string, args: string[], cwd?: string) => execFileSync(cmd, args, { cwd, env: e2eEnv, stdio: 'inherit' })
   run('npm', ['run', 'build'], webRoot)
   run('go', ['build', '-o', apiBin, './cmd/api'], apiDir)

@@ -1,5 +1,6 @@
 # Local Postgres for development and tests; roles and databases come from docker/initdb.sql.
 # How to run and the env var table: see README.md.
+# Uploaded files are not in a container: the API (go run) keeps them in UNICOURSE_FILES_DIR, locally apps/api/data/files (gitignored; see README.md).
 services:
   postgres:
     image: postgres:16

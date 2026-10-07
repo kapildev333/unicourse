@@ -30,6 +30,9 @@ const entityLabels: Record<EntityType, string> = {
   assessment: 'Assessment',
   final_grade: 'Final grade',
   grade_scale: 'Grade scale',
+  announcement: 'Announcement',
+  week: 'Week',
+  material: 'Material',
 }
 const verbs: Record<string, string> = {
   create: 'created',

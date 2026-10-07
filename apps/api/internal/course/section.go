@@ -33,6 +33,7 @@ type Section struct {
 	CourseID     string         `json:"courseId"`
 	TermID       string         `json:"termId"`
 	Number       string         `json:"number"`
+	Description  string         `json:"description"`
 	Course       Course         `json:"course"`
 	Term         tenant.Term    `json:"term"`
 	Staff        []Staff        `json:"staff"`
@@ -51,7 +52,7 @@ type sectionAudit struct {
 
 // sectionCols and sectionFrom are the one select used wherever a Section is read (staff and
 // pending staff aggregated per row by correlated subqueries on indexed section_id: no N+1).
-const sectionCols = `s.id, s.course_id, s.term_id, s.number, s.created_at,
+const sectionCols = `s.id, s.course_id, s.term_id, s.number, s.description, s.created_at,
 	c.id, c.department_id, c.code, c.title, c.credits::text,
 	t.id, t.name, to_char(t.starts_on, 'YYYY-MM-DD'), to_char(t.ends_on, 'YYYY-MM-DD'),
 	coalesce((select json_agg(json_build_object('userId', u.id, 'email', u.email, 'displayName', u.display_name, 'role', ss.role)
@@ -101,6 +102,11 @@ func readSection(r *http.Request, tx *sql.Tx, id string) (Section, error) {
 		return sec, httpx.NotFound("section")
 	}
 	return sec, err
+}
+
+// ReadSection is readSection for package content (PUT description answers with the Section).
+func ReadSection(r *http.Request, tx *sql.Tx, id string) (Section, error) {
+	return readSection(r, tx, id)
 }
 
 // loadForWrite locks the section and returns its audit record and course department.

@@ -12,6 +12,8 @@ export UNICOURSE_OWNER_DATABASE_URL=postgres://unicourse_owner:unicourse_owner@l
 export UNICOURSE_TEST_OWNER_DATABASE_URL=postgres://unicourse_owner:unicourse_owner@localhost:5432/unicourse_test?sslmode=disable
 export UNICOURSE_BASE_URL=http://localhost:8080
 export UNICOURSE_SESSION_SECRET=dev-secret-dev-secret-dev-secret-00
+mkdir -p data/files
+export UNICOURSE_FILES_DIR=$PWD/data/files
 go run ./cmd/unicourse-admin migrate   # the API does not migrate
 go run ./cmd/api
 ```
@@ -46,6 +48,7 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_OWNER_DATABASE_URL` | CLI | Postgres connection string for the owner role `unicourse_owner`; used by `unicourse-admin` (all commands), never set it for the API process |
 | `UNICOURSE_BASE_URL` | yes | public URL of the API (OAuth redirects, magic links) |
 | `UNICOURSE_SESSION_SECRET` | yes | secret for session and token signing, at least 32 bytes |
+| `UNICOURSE_FILES_DIR` | yes | existing writable directory for uploaded material files, laid out `<university_id>/<material_id>` (temp uploads in `<university_id>/.tmp/`); every API process must mount the same directory; back it up together with the database. Locally `apps/api/data/files` (gitignored) |
 | `UNICOURSE_ADDR` | no | listen address, default `:8080` |
 | `UNICOURSE_GOOGLE_CLIENT_ID`, `UNICOURSE_GOOGLE_CLIENT_SECRET` | no | Google sign-in |
 | `UNICOURSE_MICROSOFT_CLIENT_ID`, `UNICOURSE_MICROSOFT_CLIENT_SECRET` | no | Microsoft sign-in |
@@ -82,6 +85,15 @@ reassign owned by unicourse to unicourse_owner;
 ```
 
   then `unicourse-admin migrate` with the owner URL against each of the three databases.
+
+## Files
+
+Material files live under `UNICOURSE_FILES_DIR/<university_id>/<material_id>`; uploads are first written to `<university_id>/.tmp/`. Only `internal/blob` touches the directory.
+
+- The database row is the source of truth: a file without a row is garbage, a row without a file is a logged 500 on download.
+- Restore the database and the files directory together.
+- `UNICOURSE_OWNER_DATABASE_URL=... UNICOURSE_FILES_DIR=... unicourse-admin prune-files` lists files no material references; `--delete` removes them. Files younger than one hour and `.tmp/` are skipped; `.tmp/` files older than a day can be deleted by hand.
+- One volume is the ceiling (D88): all API processes must share the directory. Moving to an S3-compatible store means replacing `internal/blob` behind the same methods.
 
 ## Run the whole app from one binary
 

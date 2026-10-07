@@ -2686,6 +2686,621 @@
           }
         }
       }
+    },
+    "/universities/{slug}/sections/{id}/description": {
+      "put": {
+        "operationId": "updateSectionDescription",
+        "summary": "Set section description",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Plain text, trimmed, at most 10000 characters; empty clears it. Audited as section.update. Errors: description.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionDescriptionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Section"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/announcements": {
+      "get": {
+        "operationId": "listAnnouncements",
+        "summary": "List announcements",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Newest first, paginated.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnouncementList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAnnouncement",
+        "summary": "Post announcement",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. With email (default true) one mail per enrolled student and staff member other than the author is queued in the same transaction; emailed is false when nobody was mailed. Errors: title, body, email.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/announcements/{announcementId}": {
+      "patch": {
+        "operationId": "updateAnnouncement",
+        "summary": "Edit announcement",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section (any author's announcement). Never sends mail. Errors: title, body; {} is field \"\" (no fields to update).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/announcementId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Announcement"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAnnouncement",
+        "summary": "Delete announcement",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Never sends mail.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/announcementId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/weeks": {
+      "get": {
+        "operationId": "listWeeks",
+        "summary": "List weeks with materials",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWeek",
+        "summary": "Create week",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Appended last. Errors: title, notes; weeks when the section already has 100 weeks.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeekCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Week"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/weeks/{weekId}": {
+      "patch": {
+        "operationId": "updateWeek",
+        "summary": "Edit or move week",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. position moves the week; the others are renumbered 1..n. Errors: title, notes, position; {} is field \"\".",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/weekId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeekUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Week"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWeek",
+        "summary": "Delete week",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Deletes its materials and their files; the remaining weeks are renumbered.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/weekId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/weeks/{weekId}/materials": {
+      "post": {
+        "operationId": "uploadMaterial",
+        "summary": "Upload material",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than 100 MB\", \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/weekId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Material"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/materials/{materialId}": {
+      "patch": {
+        "operationId": "updateMaterial",
+        "summary": "Rename or move material",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Errors: title, weekId (\"is not a week of this section\", \"week already holds 200 files\"), position; {} is field \"\".",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/materialId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Material"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMaterial",
+        "summary": "Delete material",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. The file is removed after the deletion commits.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/materialId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/materials/{materialId}/download": {
+      "get": {
+        "operationId": "downloadMaterial",
+        "summary": "Download material",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag \"<sha256>\", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/materialId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Part of the file (Range request).",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified (If-None-Match matched the ETag)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3199,7 +3814,10 @@
               "enrollment",
               "assessment",
               "final_grade",
-              "grade_scale"
+              "grade_scale",
+              "announcement",
+              "week",
+              "material"
             ],
             "example": "term"
           },
@@ -3504,6 +4122,12 @@
             "example": "001",
             "maxLength": 20
           },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "example": "Lectures Tuesday and Thursday. Office hours on Fridays.",
+            "description": "Plain text, line breaks kept; empty string when unset."
+          },
           "course": {
             "$ref": "#/components/schemas/Course"
           },
@@ -3540,7 +4164,8 @@
           "term",
           "staff",
           "pendingStaff",
-          "meetings"
+          "meetings",
+          "description"
         ]
       },
       "SectionCreate": {
@@ -4962,6 +5587,366 @@
           "terms",
           "cumulativeCredits"
         ]
+      },
+      "ContentAuthor": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Dana Reyes",
+            "description": "Empty when the user has not set a name."
+          }
+        },
+        "required": [
+          "userId",
+          "displayName"
+        ]
+      },
+      "SectionDescriptionUpdate": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "example": "Lectures Tuesday and Thursday.",
+            "description": "Plain text; trimmed; empty clears it."
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "Announcement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "sectionId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "Midterm moved to Thursday"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 20000,
+            "example": "The midterm is now on Thursday in Room 101.\nBring a pencil."
+          },
+          "author": {
+            "$ref": "#/components/schemas/ContentAuthor"
+          },
+          "emailed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether mail was queued when it was posted."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          }
+        },
+        "required": [
+          "id",
+          "sectionId",
+          "title",
+          "body",
+          "author",
+          "emailed",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AnnouncementList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Announcement"
+            },
+            "description": "Newest first."
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AnnouncementCreate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Midterm moved to Thursday",
+            "description": "One line."
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000,
+            "example": "The midterm is now on Thursday in Room 101."
+          },
+          "email": {
+            "type": "boolean",
+            "example": true,
+            "description": "Omitted means true: mail everyone enrolled in or staffing the section, except the author."
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "AnnouncementUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Midterm moved to Thursday"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000,
+            "example": "The midterm is now on Thursday in Room 101."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Material": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "weekId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "Lecture 1 slides"
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "lecture-1.pdf"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "application/pdf"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 104857600,
+            "example": 482113
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "uploadedBy": {
+            "$ref": "#/components/schemas/ContentAuthor"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-05T14:03:22Z"
+          }
+        },
+        "required": [
+          "id",
+          "weekId",
+          "title",
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "position",
+          "uploadedBy",
+          "createdAt"
+        ]
+      },
+      "Week": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "sectionId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Week 1"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000,
+            "example": "Read chapter 1 before Tuesday."
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "materials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Material"
+            },
+            "description": "By position."
+          }
+        },
+        "required": [
+          "id",
+          "sectionId",
+          "title",
+          "notes",
+          "position",
+          "materials"
+        ]
+      },
+      "WeekList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Week"
+            },
+            "description": "By position; unpaginated (at most 100 weeks of at most 200 materials)."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "WeekCreate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Week 1",
+            "description": "One line."
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000,
+            "example": "Read chapter 1 before Tuesday.",
+            "description": "Omitted means empty."
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "WeekUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Week 1"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000,
+            "example": "Read chapter 1 before Tuesday."
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2,
+            "description": "1 to the number of weeks; the others are renumbered."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MaterialUpload": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "Lecture 1 slides",
+            "description": "Omitted or blank means the file name."
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "MaterialUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Lecture 1 slides"
+          },
+          "weekId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11",
+            "description": "Another week of the same section; the file goes last unless position is given."
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1,
+            "description": "1 to the number of files in the (target) week."
+          }
+        },
+        "additionalProperties": false
       }
     },
     "parameters": {
@@ -5087,7 +6072,10 @@
             "enrollment",
             "assessment",
             "final_grade",
-            "grade_scale"
+            "grade_scale",
+            "announcement",
+            "week",
+            "material"
           ]
         }
       },
@@ -5141,6 +6129,33 @@
       },
       "assessmentId": {
         "name": "assessmentId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "announcementId": {
+        "name": "announcementId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "weekId": {
+        "name": "weekId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "materialId": {
+        "name": "materialId",
         "in": "path",
         "required": true,
         "schema": {

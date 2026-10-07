@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Addr, BaseURL, DatabaseURL, SessionSecret                                    string
+	Addr, BaseURL, DatabaseURL, SessionSecret, FilesDir                          string
 	GoogleClientID, GoogleClientSecret, MicrosoftClientID, MicrosoftClientSecret string
 	SMTPURL, WebOrigin, WebDir                                                   string
 	// TrustedProxies are the reverse proxies whose X-Forwarded-For is believed; empty trusts none.
@@ -30,6 +30,7 @@ func Load(getenv func(string) string) (Config, error) {
 		DatabaseURL:           req("DATABASE_URL"),
 		BaseURL:               req("BASE_URL"),
 		SessionSecret:         req("SESSION_SECRET"),
+		FilesDir:              req("FILES_DIR"),
 		Addr:                  opt("ADDR"),
 		GoogleClientID:        opt("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret:    opt("GOOGLE_CLIENT_SECRET"),
