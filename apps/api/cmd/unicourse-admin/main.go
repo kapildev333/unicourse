@@ -29,7 +29,7 @@ commands:
   migrate               apply database migrations
   create-university     create a university and an admin invitation (see create-university -h)
 
-environment: UNICOURSE_DATABASE_URL (all commands), UNICOURSE_BASE_URL (create-university)
+environment: UNICOURSE_OWNER_DATABASE_URL (all commands; the owner role, not the API role), UNICOURSE_BASE_URL (create-university)
 `
 
 const createHelp = `create-university flags:
@@ -210,10 +210,10 @@ func createUniversity(ctx context.Context, args []string, env func(string) strin
 
 func main() {
 	ctx := context.Background()
-	url := os.Getenv("UNICOURSE_DATABASE_URL")
+	url := os.Getenv("UNICOURSE_OWNER_DATABASE_URL")
 	open := func() (*sql.DB, error) {
 		if url == "" {
-			return nil, errors.New("missing environment: UNICOURSE_DATABASE_URL")
+			return nil, errors.New("missing environment: UNICOURSE_OWNER_DATABASE_URL")
 		}
 		return pg.Open(ctx, url)
 	}

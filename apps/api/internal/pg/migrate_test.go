@@ -14,9 +14,9 @@ var tenantTables = []string{"memberships", "department_admins", "departments", "
 	"section_staff", "enrollments", "invitations", "audit_log", "pending_section_staff", "pending_enrollments", "section_meetings"}
 
 func TestMigrate(t *testing.T) {
-	db := testdb.Open(t)
+	api, db := testdb.OpenWithOwner(t)
 	ctx := context.Background()
-	// fresh database: the role owns public, so it can be recreated
+	// fresh database: the owner owns public, so it can be recreated
 	if _, err := db.ExecContext(ctx, `drop schema public cascade; create schema public`); err != nil {
 		t.Fatal(err)
 	}
@@ -74,10 +74,15 @@ func TestMigrate(t *testing.T) {
 			t.Errorf("%s must not have rls", name)
 		}
 	}
+	// 0004 replays the grants on a recreated schema
+	assertGrants(t, api)
+	if err := pg.CheckAPIRole(ctx, api); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestMigrateConcurrent(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	ctx := context.Background()
 	db.ExecContext(ctx, `drop schema public cascade; create schema public`)
 	errs := make(chan error, 4)

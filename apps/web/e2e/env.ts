@@ -12,10 +12,14 @@ export const apiDir = path.resolve(here, '..', '..', 'api')
 
 export const databaseUrl =
   process.env.UNICOURSE_E2E_DATABASE_URL ?? 'postgres://unicourse:unicourse@localhost:5432/unicourse_e2e?sslmode=disable'
+export const ownerDatabaseUrl =
+  process.env.UNICOURSE_E2E_OWNER_DATABASE_URL ??
+  'postgres://unicourse_owner:unicourse_owner@localhost:5432/unicourse_e2e?sslmode=disable'
 
 export const e2eEnv = {
   ...process.env,
   UNICOURSE_DATABASE_URL: databaseUrl,
+  UNICOURSE_OWNER_DATABASE_URL: ownerDatabaseUrl,
   UNICOURSE_ADDR: '127.0.0.1:18180',
   UNICOURSE_BASE_URL: 'http://localhost:18180',
   UNICOURSE_SESSION_SECRET: 'e2e-session-secret-at-least-32-bytes-long',

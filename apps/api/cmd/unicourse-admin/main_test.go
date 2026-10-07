@@ -65,7 +65,7 @@ func create(extra ...string) []string {
 }
 
 func TestCreateUniversityAndAccept(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	code, out, errOut := admin(t, db, create()...)
 	if code != 0 {
 		t.Fatalf("code %d: %s", code, errOut)
@@ -99,7 +99,7 @@ func TestCreateUniversityAndAccept(t *testing.T) {
 }
 
 func TestCreateUniversityRejects(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	for name, tc := range map[string]struct {
 		args []string
 		want string
@@ -128,7 +128,7 @@ func TestCreateUniversityRejects(t *testing.T) {
 }
 
 func TestCreateUniversityDuplicateSlug(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	if code, _, e := admin(t, db, create()...); code != 0 {
 		t.Fatal(e)
 	}
@@ -145,7 +145,7 @@ func TestCreateUniversityDuplicateSlug(t *testing.T) {
 }
 
 func TestMigrateAndUsage(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	if code, _, e := admin(t, db, "migrate"); code != 0 {
 		t.Fatalf("code %d: %s", code, e)
 	}
@@ -156,13 +156,20 @@ func TestMigrateAndUsage(t *testing.T) {
 	}
 }
 
+func TestMigrateAsAPIRoleFails(t *testing.T) {
+	api := testdb.Open(t)
+	if code, _, e := admin(t, api, "migrate"); code != 1 || !strings.Contains(e, "permission denied") {
+		t.Fatalf("code %d, stderr %q, want 1 and permission denied", code, e)
+	}
+}
+
 type failMailer struct{}
 
 func (failMailer) Enqueue(context.Context, *sql.Tx, ...outbox.Mail) error { return errors.New("boom") }
 func (failMailer) URL() string                                            { return "" }
 
 func TestCreateUniversityIsAtomic(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	old := newMailer
 	newMailer = func(string) captor { return failMailer{} }
 	defer func() { newMailer = old }()
@@ -175,7 +182,7 @@ func TestCreateUniversityIsAtomic(t *testing.T) {
 }
 
 func TestDomainsDeduplicated(t *testing.T) {
-	db := testdb.Open(t)
+	_, db := testdb.OpenWithOwner(t)
 	if code, _, e := admin(t, db, create("--domains", "a.edu,A.edu, a.edu")...); code != 0 {
 		t.Fatal(e)
 	}
