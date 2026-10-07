@@ -3,6 +3,7 @@ package course
 import (
 	"context"
 	"database/sql"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -120,4 +121,38 @@ func replaceMeetings(ctx context.Context, tx *sql.Tx, uni, sectionID string, ms 
 		secs[i] = sectionID
 	}
 	return insertMeetings(ctx, tx, uni, secs, ms)
+}
+
+var slotRe = regexp.MustCompile(`^([A-Za-z]+)\s+([0-9:]+)\s*-\s*([0-9:]+)\s*(?:@(.*))?$`)
+var weekdayOf = map[string]int{"mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6, "sun": 7}
+
+// parseSlots parses an import cell ("Mon 10:00-11:15 @ Room 101; Wed ..."); "" or only separators -> nil, "".
+// bad is the row message. Ceiling: a location cannot contain ";".
+func parseSlots(cell string) (ms []MeetingInput, bad string) {
+	var parts []string
+	for _, p := range strings.Split(cell, ";") {
+		if p = strings.TrimSpace(p); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) > maxMeetings {
+		return nil, "at most 20 meetings"
+	}
+	for _, p := range parts {
+		g := slotRe.FindStringSubmatch(p)
+		if g == nil {
+			return nil, `meeting "` + p + `" must look like Mon 10:00-11:15 @ Room 101`
+		}
+		wd, ok := weekdayOf[strings.ToLower(g[1])]
+		if !ok {
+			return nil, `meeting "` + p + `": unknown weekday ` + g[1]
+		}
+		m, errs := checkMeeting(MeetingInput{Weekday: wd, StartsAt: g[2], EndsAt: g[3], Location: g[4]})
+		if len(errs) > 0 {
+			return nil, `meeting "` + p + `": ` + errs[0].Field + " " + errs[0].Message
+		}
+		ms = append(ms, m)
+	}
+	sortMeetings(ms)
+	return ms, ""
 }
