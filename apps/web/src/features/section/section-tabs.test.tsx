@@ -23,20 +23,20 @@ it('shows tabs per role', async () => {
 
 it('shows a student Home and Announcements', async () => {
   await tabs({ mine: mine('student') })
-  await screen.findByRole('navigation', { name: 'Section pages' })
+  await screen.findByRole('link', { name: 'Announcements' }) // the role arrives with My sections
   expect(names()).toEqual(['Home', 'Announcements', 'Materials', 'Participants'])
 })
 
-it('shows no strip to a plain member or another department admin', async () => {
+it('shows a plain member or another department admin only Home and Participants', async () => {
   await tabs({})
-  await new Promise((r) => setTimeout(r, 50))
-  expect(screen.queryByRole('navigation', { name: 'Section pages' })).toBeNull()
+  await screen.findByRole('navigation', { name: 'Section pages' })
+  expect(names()).toEqual(['Home', 'Participants'])
 })
 
-it('hides the strip from a dept_admin of another department', async () => {
+it('shows a dept_admin of another department only Home and Participants', async () => {
   await tabs({ role: 'dept_admin', departmentIds: ['d2'] })
-  await new Promise((r) => setTimeout(r, 50))
-  expect(screen.queryByRole('navigation', { name: 'Section pages' })).toBeNull()
+  await screen.findByRole('navigation', { name: 'Section pages' })
+  expect(names()).toEqual(['Home', 'Participants'])
 })
 
 it('marks the current tab', async () => {

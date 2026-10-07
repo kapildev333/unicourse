@@ -248,11 +248,11 @@ test('capture every screen', async ({ browser, page }) => {
     await page.goto(`/${slug}/sections/${sec.CS101}`)
     await snap(page, '45-section-detail-admin', 'Section Home CS101 (title band, description, meeting times), admin')
     await stu.goto(`/${slug}/sections/${sec.CS101}`)
-    await snap(stu, '48-section-home-student', 'Section Home CS101 as student Amara Okafor')
+    await snap(stu, '45a-section-home-student', 'Section Home CS101 as student Amara Okafor')
     await stu.goto(`/${slug}/sections/${sec.CS101}/materials`)
-    await snap(stu, '49-section-materials-student', 'Section Materials CS101 (weeks and files) as student Amara Okafor')
+    await snap(stu, '45b-section-materials-student', 'Section Materials CS101 (weeks and files) as student Amara Okafor')
     await page.goto(`/${slug}/sections/${sec.CS101}/participants`)
-    await snap(page, '48b-section-participants-admin', 'Section Participants CS101 (staff, roster), admin')
+    await snap(page, '45c-section-participants-admin', 'Section Participants CS101 (staff, roster), admin')
     await page.getByRole('button', { name: 'Import roster' }).first().click()
     await page.getByRole('dialog').getByLabel('CSV file').setInputFiles({
       name: 'roster.csv', mimeType: 'text/csv',

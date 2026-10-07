@@ -222,7 +222,7 @@ test('section content: description, announcements, materials, access', async ({ 
     const m = await as(member)
     await m.goto(sectionUrl)
     await expect(m.getByText('We meet on Mondays.')).toBeVisible()
-    await expect(m.getByRole('navigation', { name: 'Section pages' })).toHaveCount(0)
+    await expect(m.getByRole('navigation', { name: 'Section pages' }).getByRole('link')).toHaveText(['Home', 'Participants'])
     for (const tab of ['announcements', 'materials']) {
       await m.goto(`${sectionUrl}/${tab}`)
       await expect(m.getByText('No access').first()).toBeVisible()
