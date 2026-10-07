@@ -198,7 +198,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
               <tr key={d.id}>
                 <td data-label="Name">{d.name}</td>
                 <td data-label="Code">{d.code}</td>
-                <td data-label="Actions" className="text-right whitespace-nowrap">
+                <td className="text-right whitespace-nowrap">
                   <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
                     Edit
                   </Button>

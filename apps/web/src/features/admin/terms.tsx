@@ -199,7 +199,7 @@ export function TermsPage({ slug }: { slug: string }) {
                 <td data-label="Status">
                   <Badge tone="neutral">{termState(d)}</Badge>
                 </td>
-                <td data-label="Actions" className="text-right whitespace-nowrap">
+                <td className="text-right whitespace-nowrap">
                   <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
                     Edit
                   </Button>

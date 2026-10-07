@@ -205,7 +205,7 @@ export function MembersPage({ slug }: { slug: string }) {
                     {x.status === 'active' ? 'Active' : 'Invited'}
                   </Badge>
                 </td>
-                <td data-label="Actions" className="text-right whitespace-nowrap">
+                <td className="text-right whitespace-nowrap">
                   <Button
                     variant="ghost"
                     size="sm"

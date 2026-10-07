@@ -226,7 +226,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
                   <td data-label="Expires">
                     {status === 'accepted' ? <span className="text-ink-muted">—</span> : formatDate(i.expiresAt)}
                   </td>
-                  <td data-label="Actions" className="text-right whitespace-nowrap">
+                  <td className="text-right whitespace-nowrap">
                     {status === 'pending' && (
                       <Button
                         variant="ghost-danger"
