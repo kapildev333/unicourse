@@ -58,3 +58,16 @@ Rules that span these files:
 - `ci` (`.github/workflows/ci.yml`): `api` job runs gofmt, `go vet`, `go test` against a Postgres service; `web` job runs lint, typecheck, tests, build. Both no-op until the app is scaffolded, so the required checks stay green on an empty tree.
 - Dependabot updates Go modules, npm and Actions weekly; its PRs go through the same `ci`.
 - Not used on purpose: GitHub Projects and Issues for planning (`PLAN.md` is the single plan; mirroring it is double bookkeeping), Releases (nothing deploys yet), Wiki and Discussions.
+
+## UI conventions (Spec 3, binding for every web change)
+
+The web app follows `docs/specs/2026-10-06-visual-design-system.md` and the design `docs/design/P6-L1.md`; read both before touching `apps/web`. The look is Udemy-like, chosen by the owner (D57): white top bar with a catalog search, bold DM Sans headings, 4 px radius, cards for Catalog and My sections, tables for admin.
+
+- Colours come only from the semantic tokens in `apps/web/src/index.css` (`canvas`, `surface`, `line`, `line-strong`, `ink`, `ink-muted`, `accent`, `accent-hover`, `accent-soft`, `on-accent`, `focus`, `danger`, `success`, `warning` and their `-soft` backgrounds). Dark mode is the same tokens redefined under `html[data-theme="dark"]` and `prefers-color-scheme`, so feature code never uses `dark:` variants, hex colours, `bg-white`/`text-white`, Tailwind palette utilities or colour functions. `apps/web/src/no-literal-colors.test.ts` fails the web gate on any of them.
+- Purple is the single accent and sits only on actions, links, the current location and the card cover band. Status colours (danger, success, warning) mean error, success, caution and nothing else.
+- Type is DM Sans alone (bundled through `@fontsource-variable/dm-sans`; no runtime request to Google): `h1` is 32 px bold by base rule, so pages set no size or weight on it; section headings are `text-xl font-bold`; no serif, no mono, no `font-semibold`.
+- Icons are Lucide (`lucide-react`), 16 px by the provider in `routes/__root.tsx`, always `aria-hidden` next to visible text; icon-only controls carry `aria-label` and `title`.
+- Pages compose the shared components in `apps/web/src/components/` (`Button` with `primary`/`secondary`/`ghost`/`ghost-danger`, `Badge`, `Card`, `Dialog` + `DialogFooter` with Cancel first, `EmptyState`, `ErrorBanner`, `FormField` + `inputClass`/`fileInputClass`, `Loading` skeleton, `PageHeader`, `StatusMessage`, `Table`, `TabNav` + `tabLink`, `EntryLayout`, `ThemeSwitch`) and never define a one-off recipe. A new pattern goes into `components/` with a test and a line in the design document.
+- Default Tailwind colours and shadows are switched off; `rounded-md`/`rounded-lg` are 4 px; the only shadows are `shadow-card` on card hover and `shadow-dialog`.
+- Every page is checked in light and dark before a PR (the theme switch is in the header; `localStorage` key `unicourse:theme`), and every text pair stays at or above 4.5:1 and borders at 3:1 (the design's §1.3 script measures them).
+- The e2e suite is the regression arbiter for copy and roles; only the Catalog and My sections selectors were allowed to change when those pages became cards (D60).
