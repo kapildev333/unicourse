@@ -127,7 +127,7 @@ export function MeetingsEditor(props: {
             <Button
               variant="ghost"
               size="sm"
-              className="mt-7"
+              className="mt-7.5"
               aria-label={`Remove meeting ${i + 1}`}
               onClick={() => onChange(rows.filter((_, k) => k !== i))}
             >

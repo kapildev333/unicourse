@@ -60,6 +60,9 @@ it('lets an instructor add and remove TAs only', async () => {
   expect(screen.queryByRole('button', { name: 'Add instructor' })).toBeNull()
   expect(screen.getByRole('button', { name: 'Remove Tia Ta as TA' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Remove Ida Ins/ })).toBeNull()
+  // title band instructor line, outside the Staff region
+  const band = screen.getByRole('heading', { name: /CS101/ }).parentElement!.parentElement!
+  expect(within(band).getByText('Ida Ins')).toBeInTheDocument()
 })
 
 it('adds a TA and shows the chip after refetch', async () => {
