@@ -28,7 +28,7 @@ export function FormField(props: {
         name,
         'aria-invalid': error ? true : undefined,
         'aria-describedby':
-          [children.props['aria-describedby'], hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined,
+          [(children.props as { 'aria-describedby'?: string })['aria-describedby'], hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined,
       } as React.HTMLAttributes<HTMLElement>)}
       {hint && (
         <p id={hintId} className="text-xs text-ink-muted">
