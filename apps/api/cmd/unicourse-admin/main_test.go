@@ -303,7 +303,16 @@ func TestPruneFiles(t *testing.T) {
 	if err := os.Chtimes(filepath.Join(root, uni, oldID), twoHours, twoHours); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := files.Put(uni, strings.NewReader("x")); err != nil { // a .tmp file
+	if _, err := files.Put(uni, strings.NewReader("x")); err != nil { // a young .tmp file
+		t.Fatal(err)
+	}
+	const oldTmpName = "up-crashed"
+	tmpDir := filepath.Join(root, uni, ".tmp")
+	twoDays := time.Now().Add(-48 * time.Hour)
+	if err := os.WriteFile(filepath.Join(tmpDir, oldTmpName), []byte("x"), 0o600); err != nil { // a crashed upload from two days ago
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(filepath.Join(tmpDir, oldTmpName), twoDays, twoDays); err != nil {
 		t.Fatal(err)
 	}
 	run := func(args ...string) (int, string, string) {
@@ -320,19 +329,19 @@ func TestPruneFiles(t *testing.T) {
 	exists := func(id string) bool { _, err := os.Stat(filepath.Join(root, uni, id)); return err == nil }
 
 	code, out, errOut := run("prune-files")
-	want := "orphan " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n1 orphan file, 1 missing file\n"
+	want := "orphan " + uni + "/.tmp/" + oldTmpName + "\norphan " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n2 orphan files, 1 missing file\n"
 	if code != 0 || out != want || errOut != "" || !exists(oldID) {
 		t.Fatalf("list: %d %q %q", code, out, errOut)
 	}
 	code, out, errOut = run("prune-files", "--delete")
-	want = "removed " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n1 orphan file removed, 1 missing file\n"
+	want = "removed " + uni + "/.tmp/" + oldTmpName + "\nremoved " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n2 orphan files removed, 1 missing file\n"
 	if code != 0 || out != want || errOut != "" {
 		t.Fatalf("delete: %d %q %q", code, out, errOut)
 	}
 	if exists(oldID) || !exists(newID) || !exists(good) {
 		t.Fatalf("old %v new %v good %v", exists(oldID), exists(newID), exists(good))
 	}
-	if ents, _ := os.ReadDir(filepath.Join(root, uni, ".tmp")); len(ents) != 1 {
+	if ents, _ := os.ReadDir(tmpDir); len(ents) != 1 {
 		t.Fatalf(".tmp = %v", ents)
 	}
 	if n := count(t, db, `select count(*) from materials`); n != 2 {

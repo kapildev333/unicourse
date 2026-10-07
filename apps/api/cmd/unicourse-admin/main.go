@@ -304,7 +304,8 @@ func seedDemo(ctx context.Context, args []string, env func(string) string, open 
 }
 
 // pruneFiles lists, or with --delete removes, committed blobs no materials row references (skipping
-// blobs under an hour old: an upload between rename and commit looks orphaned), and lists materials
+// blobs under an hour old: an upload between rename and commit looks orphaned, and .tmp/ files under
+// a day old), and lists materials
 // whose file is missing. Missing files are only reported; the rows stay.
 func pruneFiles(ctx context.Context, args []string, env func(string) string, open func() (*sql.DB, error), stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("prune-files", flag.ContinueOnError)
@@ -384,6 +385,15 @@ func pruneFiles(ctx context.Context, args []string, env func(string) string, ope
 		}
 		return nil
 	})
+	if err == nil {
+		// a crashed upload leaves its temp file; a day is far longer than any upload takes
+		err = dir.WalkTemp(func(uni, name string, mod time.Time) error {
+			if time.Since(mod) >= 24*time.Hour {
+				orphans = append(orphans, uni+"/.tmp/"+name)
+			}
+			return nil
+		})
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "prune-files:", err)
 		return 1
@@ -403,7 +413,13 @@ func pruneFiles(ctx context.Context, args []string, env func(string) string, ope
 			continue
 		}
 		uni, id, _ := strings.Cut(k, "/")
-		if err := dir.Remove(uni, id); err != nil {
+		var err error
+		if name, ok := strings.CutPrefix(id, ".tmp/"); ok {
+			err = dir.RemoveTemp(uni, name)
+		} else {
+			err = dir.Remove(uni, id)
+		}
+		if err != nil {
 			fmt.Fprintf(stderr, "prune-files: remove %s: %v\n", k, err)
 			code = 1
 			continue
