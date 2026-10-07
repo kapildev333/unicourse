@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
@@ -209,6 +209,18 @@ it('phone: the schedule is an agenda of weekday lists, one link per meeting, no 
   expect(document.querySelector('.overflow-x-auto')).toBeNull()
 })
 
+it("phone: the agenda marks today's heading", async () => {
+  vi.setSystemTime(new Date(2026, 9, 7, 10, 30))
+  media(false)
+  ok()
+  renderPage('member', { view: 'schedule' })
+  const wed = await screen.findByRole('region', { name: 'Wednesday' })
+  const head = within(wed).getByRole('heading')
+  expect(head).toHaveAttribute('aria-current', 'date')
+  expect(head).toHaveTextContent('Today')
+  expect(document.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
+})
+
 it('from 768 px the grid sits in a scroll wrapper, with a narrow track for an empty Saturday and Sunday', async () => {
   media(true)
   ok()
@@ -244,6 +256,24 @@ it("grid marks today's column and draws the time line only there", async () => {
   expect(document.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
   expect(document.querySelectorAll('[data-now-line]')).toHaveLength(1)
   expect(document.querySelector('[data-now-label]')).toHaveTextContent('10:30')
+})
+
+it('time line draws over the blocks and its label hides the nearby hour label', async () => {
+  vi.setSystemTime(new Date(2026, 9, 6, 13, 55))
+  ok()
+  renderPage('member', { view: 'schedule' })
+  await screen.findByRole('region', { name: 'Tuesday' })
+  expect(document.querySelector('[data-now-line]')).toHaveClass('z-10', 'border-t-2')
+  const hour = (t: string) => screen.getByText(t)
+  expect(hour('14:00')).toHaveClass('invisible')
+  expect(hour('13:00')).not.toHaveClass('invisible')
+  expect(hour('15:00')).not.toHaveClass('invisible')
+  cleanup()
+  vi.setSystemTime(new Date(2026, 9, 6, 7, 55))
+  renderPage('member', { view: 'schedule' })
+  await screen.findByRole('region', { name: 'Tuesday' })
+  expect(document.querySelector('[data-now-line]')).toBeNull()
+  expect(screen.getByText('08:00')).not.toHaveClass('invisible')
 })
 
 it('own instructor entry reads You', async () => {

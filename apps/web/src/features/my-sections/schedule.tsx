@@ -45,7 +45,7 @@ const byTime = (a: { s: MySection; m: Meeting }, b: { s: MySection; m: Meeting }
 const linkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 /** Phone view: one region per weekday that has meetings, one link per meeting. */
-function Agenda({ slug, id, sections }: { slug: string; id: string; sections: MySection[] }) {
+function Agenda({ slug, id, sections, todayDay }: { slug: string; id: string; sections: MySection[]; todayDay?: number }) {
   return (
     <div className="flex flex-col gap-6">
       {days.map((d) => {
@@ -53,8 +53,12 @@ function Agenda({ slug, id, sections }: { slug: string; id: string; sections: My
         if (items.length === 0) return null
         return (
           <section key={d} aria-labelledby={`${id}-a${d}`}>
-            <h3 id={`${id}-a${d}`} className="mb-2 text-base font-bold">
-              {dayLong[d - 1]}
+            <h3
+              aria-current={d === todayDay ? 'date' : undefined}
+              className="mb-2 flex items-center gap-2 text-base font-bold"
+            >
+              <span id={`${id}-a${d}`}>{dayLong[d - 1]}</span>
+              {d === todayDay && <Badge tone="accent">Today</Badge>}
             </h3>
             <ol className="flex flex-col gap-2">
               {items.map(({ s, m }) => {
@@ -108,6 +112,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
   const start = Math.min(480, Math.floor(Math.min(...all.map((m) => toMinutes(m.startsAt))) / 60) * 60)
   const end = Math.max(1080, Math.ceil(Math.max(...all.map((m) => toMinutes(m.endsAt))) / 60) * 60)
   const rows = end - start
+  const showNow = inTerm && nowMin >= start && nowMin < end
   const dayItems = Object.fromEntries(
     days.map((d) => [d, timed.flatMap((s) => s.meetings.filter((m) => m.weekday === d).map((m) => ({ s, m }))).sort(byTime)]),
   )
@@ -120,7 +125,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
       {timed.length === 0 ? (
         <p className="mb-4 text-sm text-ink-muted">None of your sections in {term.name} has meeting times yet.</p>
       ) : !wide ? (
-        <Agenda slug={slug} id={id} sections={timed} />
+        <Agenda slug={slug} id={id} sections={timed} todayDay={inTerm ? todayDay : undefined} />
       ) : (
         <div className="overflow-x-auto rounded border border-line bg-surface">
           <div
@@ -131,7 +136,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
           >
             <div aria-hidden="true" className="relative">
               <div className="h-8 border-b border-line bg-canvas" />
-              {inTerm && nowMin >= start && nowMin < end && (
+              {showNow && (
                 <span
                   data-now-label
                   className="absolute right-0 z-10 -translate-y-1/2 bg-surface pr-2 text-xs text-ink-muted"
@@ -141,7 +146,12 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                 </span>
               )}
               {hours.map((h) => (
-                <div key={h} className="h-24 pr-2 text-right text-xs text-ink-muted">
+                <div
+                  key={h}
+                  className={`h-24 pr-2 text-right text-xs text-ink-muted ${
+                    showNow && nowMin >= h * 60 - 10 && nowMin < h * 60 + 15 ? 'invisible' : ''
+                  }`}
+                >
                   {hh(h)}:00
                 </div>
               ))}
@@ -171,11 +181,11 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                       backgroundImage: 'repeating-linear-gradient(to bottom, var(--color-line) 0 1px, transparent 1px 6rem)',
                     }}
                   >
-                    {today && nowMin >= start && nowMin < end && (
+                    {today && showNow && (
                       <li
                         aria-hidden="true"
                         data-now-line
-                        className="pointer-events-none absolute inset-x-0 border-t border-line-strong"
+                        className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-line-strong"
                         style={{ top: `${(nowMin - start) * 0.1}rem` }}
                       ></li>
                     )}

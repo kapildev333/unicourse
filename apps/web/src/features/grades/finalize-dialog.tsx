@@ -145,7 +145,7 @@ export function FinalizeDialog(props: {
           {tally.map(([l, n]) => `${l} ${n}`).join(' · ') || '—'}
         </p>
         <div className="max-h-[55vh] overflow-y-auto rounded border-b border-line">
-          <Table caption="Preview of final grades">
+          <Table stack caption="Preview of final grades">
             <thead>
               <tr>
                 <th scope="col" className={capName}>
@@ -165,10 +165,10 @@ export function FinalizeDialog(props: {
                 const name = personName(s)
                 return (
                   <tr key={s.userId}>
-                    <th scope="row" title={name} className={`font-bold ${capName}`}>
+                    <th scope="row" data-label="Student" title={name} className="font-bold max-sm:bg-surface">
                       {name}
                     </th>
-                    <td className="text-right">
+                    <td data-label="Percent" className="sm:text-right">
                       {fmt2(percent)}%
                       {missing > 0 && (
                         <>
@@ -177,7 +177,7 @@ export function FinalizeDialog(props: {
                         </>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Grade">
                       <select
                         aria-label={`Grade for ${name}`}
                         className={`${inputSizedClass} min-w-28`}
@@ -188,7 +188,7 @@ export function FinalizeDialog(props: {
                         <GradeOptions scale={scale} />
                       </select>
                     </td>
-                    <td>
+                    <td data-label={pick?.value ? 'Reason' : undefined}>
                       {pick?.value && (
                         <>
                           <input

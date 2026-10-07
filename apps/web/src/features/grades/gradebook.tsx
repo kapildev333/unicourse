@@ -548,7 +548,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 </td>
                 <td>{s.letter ?? '—'}</td>
                 {finalized && (
-                  <td>
+                  <td className="whitespace-nowrap">
                     <FinalCell s={s} />
                     {access.finalize && s.final && (
                       <Button
