@@ -1,6 +1,7 @@
 package grade
 
 import (
+	"database/sql"
 	"encoding/json"
 	"math/big"
 	"strings"
@@ -129,5 +130,47 @@ func TestGradebookAuthz(t *testing.T) {
 	}
 	if st, _ := e.raw(e.Admin, "GET", "/sections/"+e.Fx.UniversityB+"/gradebook", nil); st != 404 {
 		t.Errorf("foreign id: %d", st)
+	}
+}
+
+func TestGradebookCSV(t *testing.T) {
+	e := newEnv(t)
+	mid, fin := e.assessment("Midterm", "100", "40"), e.assessment("Final", "100", "60")
+	e.score(mid, "stud@a.edu", "87.5")
+	e.score(mid, "stud2@a.edu", "80")
+	e.score(fin, "stud2@a.edu", "90")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update users set display_name = '=HYPERLINK("x")' where email = 'stud@a.edu'`)
+		return err
+	})
+	path := "/sections/" + e.SectionA + "/gradebook"
+	st, h, b := e.callAccept(e.Inst, path, "text/csv")
+	want := "\ufeffemail,displayName,Midterm,Final,percent,letter,final\n" +
+		"stud2@a.edu,N stud2@a.edu,80.00,90.00,86.00,B,\n" +
+		"stud@a.edu,'=HYPERLINK(\"\"x\"\"),87.50,,87.50,B+,\n"
+	got := string(b)
+	if st != 200 || h.Get("Content-Type") != "text/csv; charset=utf-8" || h.Get("Content-Disposition") != `attachment; filename="gradebook.csv"` {
+		t.Fatalf("%d %v %s", st, h, got)
+	}
+	if got != want {
+		t.Fatalf("csv:\n%q\nwant:\n%q", got, want)
+	}
+	if st, h, b := e.callAccept(e.Inst, path, "application/json"); st != 200 || !strings.HasPrefix(h.Get("Content-Type"), "application/json") || !strings.HasPrefix(string(b), "{") {
+		t.Errorf("json: %d %v", st, h)
+	}
+	if st, h, _ := e.callAccept(e.Inst, path, ""); st != 200 || !strings.HasPrefix(h.Get("Content-Type"), "application/json") {
+		t.Errorf("no accept: %d %v", st, h)
+	}
+	if st, h, b := e.callAccept(e.Stud, path, "text/csv"); st != 403 || !strings.HasPrefix(h.Get("Content-Type"), "application/json") || !strings.Contains(string(b), "forbidden") {
+		t.Errorf("student: %d %v %s", st, h, b)
+	}
+	// finalize: B column, and an override to withdrawn
+	if st, body := e.raw(e.Admin, "POST", path[:len(path)-len("gradebook")]+"final-grades", map[string]any{
+		"overrides": []map[string]any{{"userId": e.UserID["stud@a.edu"], "status": "withdrawn", "reason": "left"}}}); st != 201 {
+		t.Fatal(st, body)
+	}
+	_, _, b = e.callAccept(e.Admin, path, "text/csv")
+	if !strings.Contains(string(b), ",86.00,B,B\n") || !strings.Contains(string(b), ",withdrawn\n") {
+		t.Errorf("final column:\n%s", b)
 	}
 }

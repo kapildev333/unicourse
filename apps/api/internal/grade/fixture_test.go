@@ -233,3 +233,20 @@ func (e *env) bulk(n int) error {
 	})
 	return nil
 }
+
+// callAccept is a GET with an Accept header.
+func (e *env) callAccept(c *http.Cookie, path, accept string) (int, http.Header, []byte) {
+	e.T.Helper()
+	req, _ := http.NewRequest("GET", e.Srv.URL+root+path, nil)
+	req.Header.Set("Accept", accept)
+	if c != nil {
+		req.AddCookie(c)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	return res.StatusCode, res.Header, raw
+}

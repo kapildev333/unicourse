@@ -24,6 +24,12 @@ type Deps struct {
 // The status must be non-zero: a zero status commits and then fails the response with a 500.
 type Handler func(r *http.Request, tx *sql.Tx, s authz.Scope) (status int, body any, err error)
 
+// Raw is a handler body written verbatim instead of JSON (the gradebook CSV).
+type Raw struct {
+	ContentType, Filename string
+	Body                  []byte
+}
+
 // UniversityID is the request's university, "" outside Wrap.
 func UniversityID(ctx context.Context) string {
 	s, _ := authz.ScopeFromContext(ctx)
@@ -81,6 +87,15 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 		if body == nil {
 			w.WriteHeader(status)
 			return nil
+		}
+		if raw, ok := body.(Raw); ok {
+			w.Header().Set("Content-Type", raw.ContentType)
+			if raw.Filename != "" {
+				w.Header().Set("Content-Disposition", `attachment; filename="`+raw.Filename+`"`)
+			}
+			w.WriteHeader(status)
+			_, err := w.Write(raw.Body)
+			return err
 		}
 		httpx.WriteJSON(w, status, body)
 		return nil

@@ -1,14 +1,18 @@
 package grade
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"math/big"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
 
 type GradebookStudent struct {
@@ -190,6 +194,9 @@ func getGradebook(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 			}
 		}
 	}
+	if strings.Contains(r.Header.Get("Accept"), "text/csv") { // ponytail: substring match, no q-values
+		return http.StatusOK, tenant.Raw{ContentType: "text/csv; charset=utf-8", Filename: "gradebook.csv", Body: gradebookCSV(m)}, nil
+	}
 	return http.StatusOK, Gradebook{Assessments: m.assessments, Students: m.students, Stats: stats(m.students, m.scale)}, nil
 }
 
@@ -213,3 +220,38 @@ func percentOf(parts []part) (*big.Rat, bool) {
 
 // round2 rounds half away from zero, which is half up for the non-negative values used here.
 func round2(r *big.Rat) json.Number { return json.Number(r.FloatString(2)) }
+
+// safeCell stops spreadsheets from reading a text cell as a formula.
+func safeCell(s string) string {
+	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
+		return "'" + s
+	}
+	return s
+}
+
+// gradebookCSV is the export: BOM, then email, displayName, one column per assessment, percent, letter, final.
+func gradebookCSV(m matrix) []byte {
+	var buf bytes.Buffer
+	buf.WriteString("\ufeff")
+	w := csv.NewWriter(&buf)
+	head := []string{"email", "displayName"}
+	for _, a := range m.assessments {
+		head = append(head, safeCell(a.Name))
+	}
+	w.Write(append(head, "percent", "letter", "final"))
+	for _, st := range m.students {
+		row := []string{safeCell(st.Email), safeCell(st.DisplayName)}
+		for _, a := range m.assessments {
+			row = append(row, string(st.Scores[a.ID]))
+		}
+		fin := ""
+		if st.Final != nil {
+			if fin = st.Final.Status; fin == "graded" {
+				fin = st.Final.Letter
+			}
+		}
+		w.Write(append(row, string(st.Percent), st.Letter, fin))
+	}
+	w.Flush()
+	return buf.Bytes()
+}

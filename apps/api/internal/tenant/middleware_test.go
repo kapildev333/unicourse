@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -191,5 +192,26 @@ func TestWrapResponseOnlyAfterCommit(t *testing.T) {
 	}
 	if n := e.deptCount("PRB"); n != 0 {
 		t.Fatalf("aborted tx left %d rows", n)
+	}
+}
+
+func TestWrapRaw(t *testing.T) {
+	e := newServer(t, func(r *httpx.Router, d Deps) {
+		r.Handle("GET", "/api/v1/universities/{slug}/raw", Wrap(d, func(*http.Request, *sql.Tx, authz.Scope) (int, any, error) {
+			return 200, Raw{ContentType: "text/csv; charset=utf-8", Filename: "gradebook.csv", Body: []byte("a,b\n1,2\n")}, nil
+		}))
+	})
+	_, c := e.user(e.Fx.UniversityA, "m@a.edu", "member", "active")
+	req, _ := http.NewRequest("GET", e.Srv.URL+"/api/v1/universities/a/raw", nil)
+	req.AddCookie(c)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	if res.StatusCode != 200 || string(b) != "a,b\n1,2\n" || res.Header.Get("Content-Type") != "text/csv; charset=utf-8" ||
+		res.Header.Get("Content-Disposition") != `attachment; filename="gradebook.csv"` {
+		t.Fatalf("%d %q %v", res.StatusCode, b, res.Header)
 	}
 }
