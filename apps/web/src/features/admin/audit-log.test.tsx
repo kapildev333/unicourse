@@ -86,3 +86,23 @@ it('sends local-day bounds for the date filters', async () => {
     expect(last.get('to')).toBe(new Date(2026, 9, 2).toISOString())
   })
 })
+
+it('words every API action in the past tense and keeps the table scrolling', async () => {
+  const actions: [string, string, string][] = [
+    ['membership.update', 'membership', 'Member role changed'],
+    ['invitation.accept', 'invitation', 'Invitation accepted'],
+    ['invitation.delete', 'invitation', 'Invitation revoked'],
+    ['final_grade.finalize', 'section', 'Grades finalized'],
+    ['score.set', 'assessment', 'Score set'],
+    ['course.create', 'course', 'Course created'],
+  ]
+  mockApi({
+    ...members,
+    [L]: () => ({ body: { items: actions.map(([action, entityType], i) => entry(`e${i}`, { action, entityType })) } }),
+  })
+  renderWithQuery(<AuditLogPage slug="x" />)
+  for (const [, , label] of actions) expect(await screen.findByText(label)).toBeInTheDocument()
+  expect(screen.getByRole('table')).not.toHaveClass('ui-table-stack')
+  expect(screen.getByRole('columnheader', { name: 'When' })).toHaveClass('sticky')
+  expect(screen.getAllByText('Show changes')).toHaveLength(actions.length)
+})

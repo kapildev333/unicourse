@@ -113,3 +113,15 @@ it('revokes through a confirmation dialog', async () => {
     ),
   ).toBe(true)
 })
+
+it('shows a muted dash in Expires on accepted rows and stacks the table', async () => {
+  mockApi({ ...depts, [L]: () => ({ body: { items: [inv('acc', { acceptedAt: past }), inv('pen')] } }) })
+  renderWithQuery(<InvitationsPage slug="x" userRole="admin" />)
+  const rows = (await screen.findAllByRole('row')).slice(1)
+  const expires = (r: HTMLElement) => r.querySelector('[data-label="Expires"]')!
+  expect(within(expires(rows[0]) as HTMLElement).getByText('—')).toHaveClass('text-ink-muted')
+  expect(rows[0]).toHaveTextContent('acc@a.edu')
+  expect(rows[1]).toHaveTextContent('pen@a.edu')
+  expect(expires(rows[1])).not.toHaveTextContent('—')
+  expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+})

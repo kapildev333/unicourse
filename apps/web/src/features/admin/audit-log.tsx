@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
+import { Disclosure } from '../../components/disclosure'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
+import { ListCount } from './list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { Table } from '../../components/table'
@@ -35,6 +37,25 @@ const verbs: Record<string, string> = {
   create: 'created',
   update: 'updated',
   delete: 'deleted',
+}
+// Past-tense wording for each action the API emits (apps/api audit.Write calls); anything else falls back to "<Entity> <verb>".
+const actionLabels: Record<string, string> = {
+  'membership.create': 'Member joined',
+  'membership.update': 'Member role changed',
+  'membership.delete': 'Member removed',
+  'invitation.create': 'Invitation sent',
+  'invitation.accept': 'Invitation accepted',
+  'invitation.delete': 'Invitation revoked',
+  'staff.create': 'Staff added',
+  'staff.delete': 'Staff removed',
+  'pending_staff.delete': 'Pending staff removed',
+  'enrollment.create': 'Student enrolled',
+  'enrollment.delete': 'Student unenrolled',
+  'final_grade.finalize': 'Grades finalized',
+  'final_grade.override': 'Final grade overridden',
+  'final_grade.reopen': 'Grades reopened',
+  'grade_scale.update': 'Grade scale updated',
+  'score.set': 'Score set',
 }
 const listCopy = {
   validation_failed: "Those filters aren't valid. Clear them and try again.",
@@ -116,8 +137,8 @@ export function AuditLogPage({ slug }: { slug: string }) {
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['When', 'Who', 'Action', 'Changes']} />
+  else if (list.error) body = <ErrorBanner title="Couldn't load the audit log" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = filtered ? (
       <EmptyState
@@ -132,10 +153,13 @@ export function AuditLogPage({ slug }: { slug: string }) {
   else
     body = (
       <>
+        <ListCount shown={list.items.length} />
         <Table caption="Audit log">
           <thead>
             <tr>
-              <th scope="col">When</th>
+              <th scope="col" className="sticky left-0 bg-canvas">
+                When
+              </th>
               <th scope="col">Who</th>
               <th scope="col">Action</th>
               <th scope="col">Changes</th>
@@ -146,21 +170,20 @@ export function AuditLogPage({ slug }: { slug: string }) {
               const verb = e.action.split('.').pop() ?? e.action
               return (
                 <tr key={e.id}>
-                  <td className="whitespace-nowrap text-ink-muted">
+                  <td className="sticky left-0 bg-surface whitespace-nowrap text-ink-muted">
                     <time dateTime={e.at}>{formatDateTime(e.at)}</time>
                   </td>
                   <td>{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>
                   <td>
-                    {entityLabels[e.entityType]} {verbs[verb] ?? verb}
+                    {actionLabels[e.action] ?? `${entityLabels[e.entityType]} ${verbs[verb] ?? verb}`}
                   </td>
                   <td>
-                    <details>
-                      <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">Show changes</summary>
+                    <Disclosure summary="Show changes">
                       <div className="mt-2 grid grid-cols-2 gap-4">
                         <Side title="Before" data={e.before} other={e.after} />
                         <Side title="After" data={e.after} other={e.before} />
                       </div>
-                    </details>
+                    </Disclosure>
                   </td>
                 </tr>
               )
@@ -172,6 +195,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )
