@@ -25,12 +25,13 @@ export function ScoreCell(props: {
   value: string
   status: CellStatus
   message?: string
+  missing?: boolean
   onChange: (text: string) => void
   onCommit: () => void
   onRevert: () => void
   onPasteLines: (lines: string[]) => void
 }) {
-  const { label, row, col, value, status, message, onChange, onCommit, onRevert, onPasteLines } = props
+  const { label, row, col, value, status, message, missing, onChange, onCommit, onRevert, onPasteLines } = props
   const msgId = useId()
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -76,6 +77,7 @@ export function ScoreCell(props: {
         onKeyDown={onKeyDown}
         onPaste={onPaste}
       />
+      {missing && status === 'idle' && !value && <p className="mt-1 text-xs text-ink-muted">Missing</p>}
       {status === 'pending' && <p className="mt-1 text-xs text-ink-muted">Saving…</p>}
       {status === 'saved' && <p className="mt-1 text-xs text-success">Saved</p>}
       {status === 'error' && (

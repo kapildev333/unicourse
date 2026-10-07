@@ -43,6 +43,7 @@ const sectionCopy = {
   not_found: "This section doesn't exist or was deleted.",
   forbidden: "You aren't staff on this section.",
 }
+const capName = 'max-w-48 truncate sm:max-w-none sm:overflow-visible sm:whitespace-normal'
 const key = (s: Student, a: Assessment) => `${s.userId}:${a.id}`
 const serverText = (s: Student, a: Assessment) => (s.scores[a.id] === undefined ? '' : fmtNum(s.scores[a.id]))
 
@@ -171,7 +172,10 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
     return (
       <>
         {back('Section')}
-        <ErrorBanner title={title} onRetry={title ? undefined : () => void sq.refetch()}>
+        <ErrorBanner
+          title={title ?? "Couldn't load the section"}
+          onRetry={title ? undefined : () => void sq.refetch()}
+        >
           {errorMessage(sq.error, sectionCopy)}
         </ErrorBanner>
       </>
@@ -195,7 +199,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
     return (
       <>
         {back(`${sec.course.code} section ${sec.number}`)}
-        <Loading />
+        <Loading variant="table" columns={['Student', 'Percent', 'Letter']} label="Loading the gradebook…" />
       </>
     )
   if (gq.error)
@@ -205,7 +209,9 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         {gq.error.status === 403 ? (
           noAccess
         ) : (
-          <ErrorBanner onRetry={() => void gq.refetch()}>{errorMessage(gq.error)}</ErrorBanner>
+          <ErrorBanner title="Couldn't load the gradebook" onRetry={() => void gq.refetch()}>
+            {errorMessage(gq.error)}
+          </ErrorBanner>
         )}
       </>
     )
@@ -333,11 +339,14 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
     )
   }
 
-  const letters = Object.entries(stats.letters).sort(([a], [b]) => {
+  const letters = Object.entries(stats.letters)
+    .filter(([, n]) => n > 0)
+    .sort(([a], [b]) => {
     const pos = (l: string) => scale?.rows.find((r) => r.letter === l)?.minPercent ?? -1
     return pos(b) - pos(a)
   })
   const editing = access.assessments
+  const missingCount = (s: Student) => assessments.filter((a) => a.published && s.scores[a.id] === undefined).length
   const scoredCount = (a: Assessment) => students.filter((s) => s.scores[a.id] !== undefined).length
   const newButton = (
     <Button variant="secondary" onClick={() => setDialog('new')}>
@@ -373,7 +382,19 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
             </div>
           ))
         }
-        description={`${sec.course.code} · Section ${sec.number} — ${sec.course.title}, ${sec.term.name}`}
+        description={
+          <>
+            {`${sec.course.code} · Section ${sec.number} — ${sec.course.title}, ${sec.term.name}`}
+            {finalized && (
+              <>
+                {' '}
+                <Badge tone="success" className="align-middle">
+                  Finalized
+                </Badge>
+              </>
+            )}
+          </>
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <span className="text-sm">Weights total {fmtNum(total)}%</span>
@@ -396,7 +417,9 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
       </div>
       <p className="mb-4 text-sm text-ink-muted">
         {finalized
-          ? 'Final grades are recorded. Changing a score now does not change them; reopen grades to recompute.'
+          ? access.finalize
+            ? 'Final grades are recorded. Changing a score now does not change them; reopen grades to recompute.'
+            : 'Final grades are recorded. Score changes do not change them until an instructor reopens grades.'
           : 'Percent counts only assessments with a score. Missing scores count as 0 when you finalize.'}
       </p>
       <StatusMessage message={message} />
@@ -433,7 +456,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         <Table caption={`Gradebook for ${code}`}>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-canvas">
+              <th scope="col" title="Student" className={`sticky left-0 z-10 w-auto bg-canvas ${capName}`}>
                 Student
               </th>
               {assessments.map((a) => (
@@ -466,18 +489,22 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 </th>
               ))}
               <th scope="col" className="text-right">
-                Percent
+                {finalized ? 'Running %' : 'Percent'}
               </th>
-              <th scope="col">Letter</th>
+              <th scope="col">{finalized ? 'Running letter' : 'Letter'}</th>
               {finalized && <th scope="col">Final</th>}
             </tr>
           </thead>
           <tbody>
             {students.map((s, row) => (
               <tr key={s.userId}>
-                <th scope="row" className="sticky left-0 z-10 bg-surface font-bold">
+                <th
+                  scope="row"
+                  title={personName(s)}
+                  className={`sticky left-0 z-10 bg-surface font-bold ${capName}`}
+                >
                   {personName(s)}
-                  <span className="block text-xs font-normal text-ink-muted">{s.email}</span>
+                  {s.displayName && <span className="block text-xs font-normal text-ink-muted">{s.email}</span>}
                 </th>
                 {assessments.map((a, col) => {
                   const k = key(s, a)
@@ -486,9 +513,13 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                     return (
                       <td key={a.id} className="text-right">
                         {s.scores[a.id] === undefined ? (
-                          <>
-                            —<span className="sr-only">No score</span>
-                          </>
+                          a.published ? (
+                            <span className="text-xs text-ink-muted">Missing</span>
+                          ) : (
+                            <>
+                              —<span className="sr-only">No score</span>
+                            </>
+                          )
                         ) : (
                           fmtNum(s.scores[a.id])
                         )}
@@ -503,6 +534,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                       value={c ? c.draft : serverText(s, a)}
                       status={c?.status ?? 'idle'}
                       message={c?.message}
+                      missing={a.published && !c && s.scores[a.id] === undefined}
                       onChange={(t) => setDraft(k, t)}
                       onCommit={() => commit(s, a)}
                       onRevert={() => cellsRef.current[k]?.status !== 'pending' && drop(k)}
@@ -510,7 +542,10 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                     />
                   )
                 })}
-                <td className="text-right">{s.percent === undefined ? '—' : `${fmt2(s.percent)}%`}</td>
+                <td className="text-right">
+                  {s.percent === undefined ? '—' : `${fmt2(s.percent)}%`}
+                  {missingCount(s) > 0 && <span className="text-ink-muted"> ({missingCount(s)} missing)</span>}
+                </td>
                 <td>{s.letter ?? '—'}</td>
                 {finalized && (
                   <td>
@@ -532,7 +567,9 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row">Mean</th>
+              <th scope="row" className="sticky left-0 z-10 bg-surface">
+                Mean
+              </th>
               <td colSpan={assessments.length} className="text-ink-muted">
                 {letters.length > 0 && `Letters: ${letters.map(([l, n]) => `${l} ${n}`).join(' · ')}`}
               </td>
@@ -541,7 +578,9 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
               {finalized && <td />}
             </tr>
             <tr>
-              <th scope="row">Median</th>
+              <th scope="row" className="sticky left-0 z-10 bg-surface">
+                Median
+              </th>
               <td colSpan={assessments.length}>
                 {(membership.role === 'admin' || membership.role === 'dept_admin') && (
                   <Link to="/$slug/grade-scale" params={{ slug }} className="text-accent underline">
