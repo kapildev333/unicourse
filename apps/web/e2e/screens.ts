@@ -179,6 +179,9 @@ test('capture every screen', async ({ browser, page }) => {
     await snap(stu, '21-my-sections-schedule-student', 'My sections as student, weekly schedule view')
     await profPage.goto(`/${slug}/me`)
     await snap(profPage, '22-my-sections-list-instructor', 'My sections as instructor Elena Marsh')
+    await profPage.getByRole('button', { name: 'Schedule' }).click()
+    await expect(profPage.getByRole('region', { name: 'Monday' })).toBeVisible()
+    await snap(profPage, '23-my-sections-schedule-instructor', 'My sections as instructor, weekly schedule view')
     await stu.goto(`/${slug}/catalog`)
     await snap(stu, '30-catalog-results-student', 'Catalog with section cards, student signed in')
     await stu.goto(`/${slug}/catalog?departmentId=${dep.CS}`)
@@ -267,11 +270,8 @@ test('capture every screen', async ({ browser, page }) => {
 
   await test.step('loading skeleton and error banner', async () => {
     const delayed = '**/api/v1/universities/*/courses?*'
-    await page.route(delayed, async (r) => {
-      await new Promise((ok) => setTimeout(ok, 8000))
-      await r.continue().catch(() => {})
-    })
-    void page.goto(`/${slug}/courses`)
+    await page.route(delayed, () => {}) // never answers: the skeleton stays up until the next goto drops the request
+    void page.goto(`/${slug}/courses`).catch(() => {})
     await page.waitForTimeout(500)
     await expect(page.locator('.ui-skeleton').first()).toBeVisible()
     await snap(page, '70-states-loading-skeleton-admin', 'Courses list while its data loads (skeleton), admin', { noSettle: true })
@@ -293,7 +293,7 @@ test('capture every screen', async ({ browser, page }) => {
     await signIn(p, `dean@harbor-${runId}.edu`, slugB)
     await p.goto(`/${slug}/me`)
     await expect(p.getByRole('heading', { name: "You don't have access to this university" })).toBeVisible()
-    await snap(p, '04-auth-no-access-other-university', "Signed-in user of another university opening Northfield's address")
+    await snap(p, '04-auth-no-access-admin', "Harbor admin (another university) opening Northfield's address")
     await c.close()
   })
 
