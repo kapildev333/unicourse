@@ -213,6 +213,7 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if in.Position.Set {
 		after.Position = in.Position.V
 	}
+	// ponytail: a changed maxPoints does not re-check existing scores against 2 x max; validate on PATCH if it matters
 	v, d := assessmentFields(after.Name, after.MaxPoints, after.Weight, after.DueOn, &after.Position)
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)

@@ -67,6 +67,8 @@ func putScale(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	}
 	var d []httpx.FieldError
 	var ls, ms, ps []string
+	// ponytail: letters are compared byte-exact, so "a" and "A" differ; normalise on PUT if that bites.
+	// "At least one row" is enforced here and by the seeds, not by the database (a constraint trigger would).
 	letters, mins := map[string]bool{}, map[string]bool{}
 	for i, x := range in.Rows {
 		f := func(name string) string { return "rows[" + strconv.Itoa(i) + "]." + name }
