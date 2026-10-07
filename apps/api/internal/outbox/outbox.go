@@ -11,7 +11,8 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
-// Mail is one plain-text message. Urgent mail (sign-in links) is sent before other mail.
+// Mail is one plain-text message. Urgent mail is a sign-in link: sent before other mail, and given up unsent 15 minutes after creation
+// (the link TTL in auth/magic.go). Do not mark other mail urgent.
 type Mail struct {
 	To, Subject, Text string
 	Urgent            bool
@@ -113,7 +114,7 @@ limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts, &exp
 		}
 		claimed = true
 		if expired {
-			// Urgent mail is the sign-in link, valid 15 minutes from creation (same transaction as the link).
+			// Urgent mail is a sign-in link, expired 15 minutes after creation (TTL in auth/magic.go).
 			s.Log.Warn("mail gave up: magic link expired", "id", id)
 			_, err = tx.ExecContext(ctx, `update outbox_mails set failed_at = now(), body = '', last_error = 'magic link expired' where id = $1`, id)
 			return err

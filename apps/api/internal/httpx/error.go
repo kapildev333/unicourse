@@ -74,7 +74,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	case r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, sql.ErrTxDone)):
 		// Client closed the request (a commit then fails with ErrTxDone: database/sql rolled the tx back).
 		// Not a server fault: info log, no body, nobody to read it.
-		slog.Info("client aborted", "path", r.URL.Path, "requestId", RequestID(r.Context()))
+		slog.Info("client aborted", "requestId", RequestID(r.Context()))
 		w.WriteHeader(499)
 		return
 	case errors.As(err, &e) && e != nil:

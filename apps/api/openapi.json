@@ -4683,10 +4683,17 @@
           "nextCursor": {
             "type": "string",
             "example": "eyJhIjoxfQ"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Entries matching the current filters, ignoring the cursor and limit.",
+            "example": 42
           }
         },
         "required": [
-          "items"
+          "items",
+          "total"
         ]
       },
       "GradeScaleRow": {

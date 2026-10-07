@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ func TestAuditLogRoute(t *testing.T) {
 		var l struct {
 			Items      []audit.Row
 			NextCursor string
+			Total      int
 		}
 		json.Unmarshal(raw, &l)
 		if st == 200 && l.Items == nil {
@@ -61,7 +63,16 @@ func TestAuditLogRoute(t *testing.T) {
 		}
 	}
 	// pagination
+	if tot := total(t, e, adm, "?entityId="+id+"&limit=1"); tot != 3 {
+		t.Fatalf("total with limit: %d", tot)
+	}
+	if tot := total(t, e, adm, "?entityType=term"); tot != 0 {
+		t.Fatalf("total entityType=term: %d", tot)
+	}
 	_, rows, next := get("?entityId=" + id + "&limit=2")
+	if tot := total(t, e, adm, "?entityId="+id+"&limit=2&cursor="+next); tot != 3 {
+		t.Fatalf("total ignores cursor: %d", tot)
+	}
 	_, rest, next2 := get("?entityId=" + id + "&limit=2&cursor=" + next)
 	if len(rows) != 2 || next == "" || len(rest) != 1 || next2 != "" || rest[0].ID == rows[0].ID || rest[0].ID == rows[1].ID {
 		t.Fatalf("paging: %d %d", len(rows), len(rest))
@@ -78,4 +89,14 @@ func TestAuditLogRoute(t *testing.T) {
 	if st, _ := e.do(nil, "GET", pathA+"/audit-log", nil); st != 401 {
 		t.Fatalf("anonymous: %d", st)
 	}
+}
+
+func total(t *testing.T, e *env, cookie *http.Cookie, q string) int {
+	t.Helper()
+	_, raw := e.do(cookie, "GET", pathA+"/audit-log"+q, nil)
+	var l struct{ Total *int }
+	if err := json.Unmarshal(raw, &l); err != nil || l.Total == nil {
+		t.Fatalf("total missing: %s", raw)
+	}
+	return *l.Total
 }

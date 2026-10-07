@@ -357,3 +357,15 @@ func TestLandingSanitisesNextFromState(t *testing.T) {
 	w := x.do("GET", "/api/v1/auth/oidc/google/callback?code=x&state="+nonce, "", &http.Cookie{Name: oidcCookie, Value: signState(testSecret, st)})
 	wantRedirect(t, w, "/a/me")
 }
+
+func TestFailRedirectClientAbortIsReturnedUnchanged(t *testing.T) {
+	x := newHX(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for _, in := range []error{context.Canceled, sql.ErrTxDone} {
+		err := x.d.failRedirect(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil).WithContext(ctx), in)
+		if err != in {
+			t.Errorf("%v -> %v", in, err)
+		}
+	}
+}

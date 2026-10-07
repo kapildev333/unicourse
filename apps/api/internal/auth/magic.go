@@ -42,6 +42,7 @@ func (m *MagicLinks) Send(ctx context.Context, email, next string) error {
 		if ok, err = allowed(ctx, tx, email); err != nil || !ok {
 			return err
 		}
+		// 15 minutes: outbox.sendOne gives up urgent (sign-in link) mail after the same TTL.
 		_, err = tx.ExecContext(ctx, `insert into magic_links (email, token_hash, expires_at) values ($1, $2, now() + interval '15 minutes')`, email, hash)
 		if err != nil {
 			return err

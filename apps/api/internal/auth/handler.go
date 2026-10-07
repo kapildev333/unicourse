@@ -69,6 +69,8 @@ func (d Deps) signInError(w http.ResponseWriter, r *http.Request, code string) {
 func (d Deps) failRedirect(w http.ResponseWriter, r *http.Request, err error) error {
 	var he *httpx.Error
 	switch {
+	case r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, sql.ErrTxDone)):
+		return err // client gone: WriteError logs the abort, not a sign-in failure
 	case errors.Is(err, errOIDC):
 		d.signInError(w, r, "unauthenticated")
 	case errors.Is(err, ErrNotAllowed):
