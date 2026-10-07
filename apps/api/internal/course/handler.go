@@ -21,7 +21,7 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("POST", base+"/sections", tenant.Wrap(d, createSection))
 	r.Handle("GET", base+"/sections/{id}", tenant.Wrap(d, getSection))
 	r.Handle("PATCH", base+"/sections/{id}", tenant.Wrap(d, updateSection))
-	r.Handle("DELETE", base+"/sections/{id}", tenant.Wrap(d, deleteSection))
+	r.Handle("DELETE", base+"/sections/{id}", tenant.Wrap(d, deleteSection(d.Files)))
 	r.Handle("GET", base+"/sections/{id}/staff", tenant.Wrap(d, listStaff))
 	r.Handle("POST", base+"/sections/{id}/staff", tenant.Wrap(d, createStaff(d)))
 	r.Handle("DELETE", base+"/sections/{id}/staff/{userId}", tenant.Wrap(d, deleteStaff))

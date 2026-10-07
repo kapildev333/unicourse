@@ -23,6 +23,14 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("POST", base+"/sections/{id}/announcements", tenant.Wrap(d, createAnnouncement(d.BaseURL)))
 	r.Handle("PATCH", base+"/sections/{id}/announcements/{announcementId}", tenant.Wrap(d, updateAnnouncement))
 	r.Handle("DELETE", base+"/sections/{id}/announcements/{announcementId}", tenant.Wrap(d, deleteAnnouncement))
+	r.Handle("GET", base+"/sections/{id}/weeks", tenant.Wrap(d, listWeeks))
+	r.Handle("POST", base+"/sections/{id}/weeks", tenant.Wrap(d, createWeek))
+	r.Handle("PATCH", base+"/sections/{id}/weeks/{weekId}", tenant.Wrap(d, updateWeek))
+	r.Handle("DELETE", base+"/sections/{id}/weeks/{weekId}", tenant.Wrap(d, deleteWeek(d.Files)))
+	r.Handle("POST", base+"/sections/{id}/weeks/{weekId}/materials", tenant.Wrap(d, uploadMaterial(d)))
+	r.Handle("PATCH", base+"/sections/{id}/materials/{materialId}", tenant.Wrap(d, updateMaterial))
+	r.Handle("DELETE", base+"/sections/{id}/materials/{materialId}", tenant.Wrap(d, deleteMaterial(d.Files)))
+	r.Handle("GET", base+"/sections/{id}/materials/{materialId}/download", tenant.Wrap(d, downloadMaterial(d.Files)))
 }
 
 // sectionExists is the 404 of the check order; lock takes the per-section write lock (design decision 8).

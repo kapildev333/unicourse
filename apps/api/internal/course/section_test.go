@@ -419,3 +419,67 @@ func TestSectionDescriptionField(t *testing.T) {
 		}
 	}
 }
+
+// putBlobs inserts a week and two materials of SectionA by SQL, with committed blobs, and returns the material ids.
+func (e *env) putBlobs() (ids []string) {
+	e.T.Helper()
+	var wk string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into weeks (university_id, section_id, title, position) values ($1, $2, 'W', 1) returning id`, e.Fx.UniversityA, e.SectionA).Scan(&wk)
+	})
+	for i := 1; i <= 2; i++ {
+		var id string
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			return tx.QueryRow(`insert into materials (university_id, section_id, week_id, title, file_name, content_type, size_bytes, sha256, position, uploaded_by_user_id)
+				values ($1, $2, $3, 'T', 't.pdf', 'application/pdf', 1, repeat('a', 64), $4, $5) returning id`,
+				e.Fx.UniversityA, e.SectionA, wk, i, e.UserID["inst@a.edu"]).Scan(&id)
+		})
+		tmp, err := e.D.Files.Put(e.Fx.UniversityA, strings.NewReader("x"))
+		if err == nil {
+			err = e.D.Files.Commit(tmp, e.Fx.UniversityA, id)
+		}
+		if err != nil {
+			e.T.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (e *env) blobCount(ids []string) (n int) {
+	for _, id := range ids {
+		if f, err := e.D.Files.Open(e.Fx.UniversityA, id); err == nil {
+			f.Close()
+			n++
+		}
+	}
+	return n
+}
+
+func TestSectionDeleteRemovesBlobs(t *testing.T) {
+	e := newEnv(t)
+	ids := e.putBlobs()
+	// rolled back (final grade -> 409): rows and blobs stay
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ($1,$2,$3,'incomplete',3,$3)`,
+			e.Fx.UniversityA, e.SectionA, e.UserID["stud@a.edu"])
+		return err
+	})
+	if st, raw := e.call(e.DaIn, "DELETE", "/sections/"+e.SectionA, nil); st != 409 || e.blobCount(ids) != 2 {
+		t.Fatalf("409: %d %s, blobs %d", st, raw, e.blobCount(ids))
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`delete from final_grades where section_id = $1`, e.SectionA)
+		return err
+	})
+	if st, raw := e.call(e.DaIn, "DELETE", "/sections/"+e.SectionA, nil); st != 204 || len(raw) != 0 {
+		t.Fatalf("delete: %d %s", st, raw)
+	}
+	var n int
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select count(*) from materials`).Scan(&n)
+	})
+	if n != 0 || e.blobCount(ids) != 0 {
+		t.Fatalf("rows %d, blobs %d after delete", n, e.blobCount(ids))
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
@@ -38,7 +39,7 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	db := testdb.Open(t)
 	fx := testdb.Seed(t, db)
-	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, BaseURL: "http://localhost"}
+	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, BaseURL: "http://localhost", Files: blob.Dir{Root: t.TempDir()}}
 	r := httpx.NewRouter()
 	Register(r, d)
 	srv := httptest.NewServer(httpx.RequestIDMiddleware(httpx.Recover(r)))
