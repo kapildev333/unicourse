@@ -155,6 +155,7 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if len(details) > 0 {
 		return 0, nil, httpx.Validation(details...)
 	}
+	// ponytail: cursor names the last row; a deleted or re-keyed row ends or shifts the next page; encode the sort key in the cursor if that bites
 	rows, err := tx.QueryContext(r.Context(), `select `+sectionCols+sectionFrom+`
 		where ($3::uuid is null or s.term_id = $3) and ($4::uuid is null or s.course_id = $4)
 		and ($5::uuid is null or c.department_id = $5) and ($6::text is null or c.code ilike $6 or c.title ilike $6)

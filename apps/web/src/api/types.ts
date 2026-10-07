@@ -453,7 +453,7 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND. Ordered by course code, then section number, then term start, then id; the cursor is opaque and keeps that order stable.
+         * @description Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND. Ordered by course code, then section number, then term start, then id.
          */
         get: operations["listSections"];
         put?: never;
@@ -875,7 +875,7 @@ export interface paths {
         head?: never;
         /**
          * Override final grade
-         * @description Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field "" ("no fields to update").
+         * @description Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field "" ("no fields to update"); an unchanged letter keeps its recorded points.
          */
         patch: operations["updateFinalGrade"];
         trace?: never;
@@ -1931,6 +1931,7 @@ export interface components {
             /** @description Omitted means none. */
             overrides?: components["schemas"]["FinalGradeOverride"][];
         };
+        /** @description Set status, letter or both; an unchanged letter keeps its recorded points. */
         FinalGradeUpdate: {
             /**
              * @example graded

@@ -114,7 +114,7 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if len(details) > 0 {
 		return 0, nil, httpx.Validation(details...)
 	}
-	// ponytail: cursor names the last row; if it is deleted between pages the next page is empty
+	// ponytail: cursor names the last row; a deleted or re-keyed row ends or shifts the next page; encode the sort key in the cursor if that bites
 	rows, err := tx.QueryContext(r.Context(), `select id, department_id, code, title, credits::text, created_at from courses
 		where ($3::uuid is null or department_id = $3) and ($4::text is null or code ilike $4 or title ilike $4)
 		and ($1::uuid is null or (code, id) > (select code, id from courses where id = $1))
