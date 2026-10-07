@@ -154,3 +154,10 @@ it('edit: no change closes without a request', async () => {
   expect(onClose).toHaveBeenCalled()
   expect(fetchFn.mock.calls.some((c) => c[0].method === 'PATCH')).toBe(false)
 })
+
+it('edit: never fetches /courses', async () => {
+  const { fetchFn } = setup({}, existing)
+  expect(await screen.findByText('Edit CS101-001')).toBeInTheDocument()
+  await new Promise((r) => setTimeout(r, 50))
+  expect(fetchFn.mock.calls.some((c) => new URL(c[0].url).pathname.endsWith('/courses'))).toBe(false)
+})

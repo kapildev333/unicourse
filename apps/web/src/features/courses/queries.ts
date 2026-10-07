@@ -3,8 +3,9 @@ import { api, unwrap } from '../../api/client'
 import { currentTerm } from '../../lib/schedule'
 
 /** First 200 courses for pickers (ceiling: a search endpoint past 200). */
-export function useAllCourses(slug: string, departmentId?: string) {
+export function useAllCourses(slug: string, departmentId?: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [slug, 'courses', 'all', { departmentId }],
     queryFn: () =>
       unwrap(

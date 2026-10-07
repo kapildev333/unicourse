@@ -46,7 +46,12 @@ const S = 'GET /universities/a/sections'
 
 function Wrapper({ initial }: { initial: { termId?: string; departmentId?: string; q?: string } }) {
   const [p, setP] = useState(initial)
-  return <CatalogPage slug="a" {...p} onSearchChange={(n) => setP((o) => ({ ...o, ...n }))} />
+  return (
+    <>
+      <button onClick={() => setP({})}>outside-clear</button>
+      <CatalogPage slug="a" {...p} onSearchChange={(n) => setP((o) => ({ ...o, ...n }))} />
+    </>
+  )
 }
 
 function setup(sections: unknown[] = items, terms: unknown[] = [fall], initial = {}) {
@@ -104,6 +109,17 @@ it('debounces search into one request with q and the term', async () => {
   const u = sectionUrls(fn).at(-1)!
   expect(u.searchParams.get('q')).toBe('cs2')
   expect(u.searchParams.get('termId')).toBe('t2')
+})
+
+it('clears the input when q is removed from outside and does not write it back', async () => {
+  const fn = setup(items, [fall], { q: 'cs2' })
+  const input = await screen.findByLabelText('Search')
+  expect(input).toHaveValue('cs2')
+  fireEvent.click(screen.getByText('outside-clear'))
+  await waitFor(() => expect(input).toHaveValue(''))
+  await new Promise((r) => setTimeout(r, 450))
+  expect(input).toHaveValue('')
+  expect(sectionUrls(fn).at(-1)!.searchParams.has('q')).toBe(false)
 })
 
 it('choosing a department sends departmentId', async () => {
