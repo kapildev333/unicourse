@@ -6,7 +6,7 @@ import { ApiError } from '../../api/errors'
 import { Button } from '../../components/button'
 import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFocusFirstError } from '../../components/form-errors'
-import { inputClass } from '../../components/form-field'
+import { inputSizedClass } from '../../components/form-field'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -164,7 +164,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
         <input
           type="text"
           inputMode={decimals ? 'decimal' : undefined}
-          className={`${inputClass} ${width}`}
+          className={`${inputSizedClass} ${width}`}
           aria-label={`${label}, row ${i + 1}`}
           aria-invalid={err ? true : undefined}
           aria-describedby={err ? id : undefined}
@@ -245,7 +245,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
             Unsaved changes
           </p>
         )}
-        <Table caption="Grade scale" className="relative">
+        <Table caption="Grade scale">
           <thead>
             <tr>
               <th scope="col">Letter</th>
@@ -264,13 +264,13 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key}>
-                {cell(r, i, 'letter', 'Letter', false, 'w-20!')}
-                {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28! text-right')}
-                {cell(r, i, 'points', 'Grade points', true, 'w-28! text-right')}
+                {cell(r, i, 'letter', 'Letter', false, 'w-20')}
+                {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28 text-right')}
+                {cell(r, i, 'points', 'Grade points', true, 'w-28 text-right')}
                 <td className="text-ink-muted">{range(rows, r)}</td>
                 <td className="text-right">
                   <Button
-                    variant="ghost"
+                    variant="ghost-neutral"
                     size="sm"
                     aria-label={`Remove row ${i + 1}`}
                     onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}

@@ -43,7 +43,7 @@ const sectionCopy = {
   not_found: "This section doesn't exist or was deleted.",
   forbidden: "You aren't staff on this section.",
 }
-const capName = 'max-w-48 truncate sm:max-w-none sm:overflow-visible sm:whitespace-normal'
+const capName = 'max-w-48 truncate sm:w-px sm:max-w-none sm:overflow-visible sm:whitespace-nowrap'
 const key = (s: Student, a: Assessment) => `${s.userId}:${a.id}`
 const serverText = (s: Student, a: Assessment) => (s.scores[a.id] === undefined ? '' : fmtNum(s.scores[a.id]))
 
@@ -453,7 +453,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
           action={editing ? newButton : undefined}
         />
       ) : (
-        <Table caption={`Gradebook for ${code}`} className="relative">
+        <Table caption={`Gradebook for ${code}`}>
           <thead>
             <tr>
               <th scope="col" className={`sticky left-0 z-10 bg-canvas ${capName}`}>

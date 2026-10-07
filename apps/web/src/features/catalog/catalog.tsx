@@ -1,10 +1,11 @@
 import { CalendarRange, Info, Library, SearchX } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Badge, roleLabel } from '../../components/badge'
 import { Button } from '../../components/button'
+import { ButtonLink } from '../../components/button-link'
+import { ListCount } from '../../components/list-count'
 import { Card } from '../../components/card'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
@@ -79,9 +80,9 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
         body="The catalog appears here once your university sets up its terms."
         action={
           isAdmin ? (
-            <Link to="/$slug/admin/terms" params={{ slug }} className="text-accent underline hover:text-accent-hover">
+            <ButtonLink variant="secondary" to="/$slug/admin/terms" params={{ slug }}>
               Set up terms
-            </Link>
+            </ButtonLink>
           ) : undefined
         }
       />
@@ -115,9 +116,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   else
     body = (
       <>
-        <p role="status" className="mb-4 text-sm text-ink-muted">
-          Showing {list.items.length} {list.items.length === 1 ? 'section' : 'sections'}
-        </p>
+        <ListCount shown={list.items.length} noun="section" className="mb-4" />
         <ul aria-label={`Sections in ${term.name}`} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {list.items.map((s) => {
             const names = s.staff.filter((x) => x.role === 'instructor').map(personName)

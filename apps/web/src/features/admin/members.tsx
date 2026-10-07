@@ -12,7 +12,8 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
-import { ListCount } from './list-count'
+import { personName } from '../courses/access'
+import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -59,7 +60,7 @@ function RoleForm(props: {
       ),
     onSuccess: async (_, body) => {
       await (isMe ? refresh(['me']) : refresh())
-      onDone(`${member.email} is now ${roleLabel(body.role)}.`)
+      onDone(`${personName(member)} is now ${roleLabel(body.role)}.`)
       if (isMe && body.role !== 'admin') navigate({ to: '/$slug/admin', params: { slug }, replace: true })
     },
   })
@@ -166,7 +167,7 @@ export function MembersPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <ListCount shown={list.items.length} />
+        <ListCount shown={list.items.length} className="mb-2 text-right" />
         <Table caption="Members" stack>
           <thead>
             <tr>
@@ -256,7 +257,7 @@ export function MembersPage({ slug }: { slug: string }) {
       <Dialog
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={`Change role for ${editing?.email ?? ''}`}
+        title={`Change role for ${editing ? personName(editing) : ''}`}
       >
         {editing && (
           <RoleForm key={editing.id} slug={slug} member={editing} onDone={done} onCancel={() => setEditing(null)} />

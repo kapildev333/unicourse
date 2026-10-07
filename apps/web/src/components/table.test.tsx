@@ -20,6 +20,6 @@ it('without stack there is no stack class; the scroll wrapper sits in a min-w-0 
   render(<Table caption="People">{body}</Table>)
   const table = screen.getByRole('table')
   expect(table).not.toHaveClass('ui-table-stack')
-  expect(table.parentElement).toHaveClass('overflow-x-auto')
+  expect(table.parentElement).toHaveClass('overflow-x-auto', 'relative')
   expect(table.parentElement!.parentElement).toHaveClass('min-w-0')
 })

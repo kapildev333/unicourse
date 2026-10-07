@@ -67,7 +67,7 @@ it('previews percent, missing count, letter and summary', () => {
   expect(screen.getByRole('option', { name: 'Keep F' })).toBeInTheDocument()
   expect(screen.queryByRole('columnheader', { name: 'Letter' })).not.toBeInTheDocument()
   expect(screen.getByText(/Showing 2 of 2/)).toBeInTheDocument()
-  expect(screen.getByLabelText('Grade for Sam Lee').className).toContain('min-w-28!')
+  expect(screen.getByLabelText('Grade for Sam Lee').className).toContain('min-w-28')
   // the student with a missing score sorts first, and the name cells are capped
   const rows = screen.getAllByRole('rowheader')
   expect(rows[0]).toHaveTextContent('Sam Lee')

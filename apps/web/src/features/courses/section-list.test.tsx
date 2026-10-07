@@ -225,14 +225,14 @@ it('without terms: New section disabled with its reason, no Import or Term, Set 
   expect(screen.getByText('Add a term first')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Import sections' })).toBeNull()
   expect(screen.queryByLabelText('Term')).toBeNull()
-  expect(screen.getByRole('button', { name: 'Set up terms' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Set up terms' })).toHaveAttribute('href', '/a/admin/terms')
 })
 
 it('without terms a dept_admin gets no Set up terms action', async () => {
   mockApi({ [T]: () => ({ body: { items: [] } }) })
   renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
   await screen.findByText('No terms yet')
-  expect(screen.queryByRole('button', { name: 'Set up terms' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Set up terms' })).toBeNull()
 })
 
 it('names the failure', async () => {

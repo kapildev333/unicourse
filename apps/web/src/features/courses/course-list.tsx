@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
+import { ListCount } from '../../components/list-count'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
@@ -192,9 +193,7 @@ export function CourseListPage(props: {
             </select>
           </FormField>
           {!list.isPending && !list.error && list.items.length > 0 && (
-            <p role="status" className="ml-auto text-sm text-ink-muted">
-              Showing {list.items.length}
-            </p>
+            <ListCount shown={list.items.length} className="ml-auto" />
           )}
         </div>
       )}

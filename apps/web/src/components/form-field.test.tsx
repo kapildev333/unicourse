@@ -42,3 +42,10 @@ it('wires a textarea like an input and has no fixed height', () => {
   expect(t).toHaveAccessibleDescription(/Plain.*bad/)
   expect(textareaClass).not.toMatch(/\bh-10\b/)
 })
+
+it('inputSizedClass is inputClass without w-full', async () => {
+  const { inputClass, inputSizedClass } = await import('./form-field')
+  expect(inputClass.split(' ')).toContain('w-full')
+  expect(inputSizedClass.split(' ')).not.toContain('w-full')
+  expect(inputClass.replace('w-full ', '')).toBe(inputSizedClass)
+})

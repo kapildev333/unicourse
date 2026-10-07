@@ -4,7 +4,7 @@ import { api, unwrap } from '../../api/client'
 import { Button } from '../../components/button'
 import { Dialog } from '../../components/dialog'
 import { FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
-import { FormField, inputClass } from '../../components/form-field'
+import { FormField, inputClass, inputSizedClass } from '../../components/form-field'
 import { fmtNum, parseDecimal } from './grade'
 import { useGradesRefresh, type Assessment } from './queries'
 import type { components } from '../../api/types'
@@ -141,7 +141,7 @@ export function AssessmentDialog(props: {
           <input
             type="text"
             inputMode="decimal"
-            className={`${inputClass} w-32!`}
+            className={`${inputSizedClass} w-32`}
             value={maxPoints}
             onChange={(e) => setMax(e.target.value)}
           />
@@ -155,7 +155,7 @@ export function AssessmentDialog(props: {
           <input
             type="text"
             inputMode="decimal"
-            className={`${inputClass} w-32!`}
+            className={`${inputSizedClass} w-32`}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
           />
@@ -163,7 +163,7 @@ export function AssessmentDialog(props: {
         <FormField label="Due date" name="dueOn" hint="Optional." error={fields.dueOn}>
           <input
             type="date"
-            className={`${inputClass} w-48!`}
+            className={`${inputSizedClass} w-48`}
             value={dueOn}
             onChange={(e) => setDueOn(e.target.value)}
           />
