@@ -53,23 +53,26 @@ var (
 // reserved slugs collide with top-level web routes, which win over /{slug}/...
 var reserved = []string{"api", "assets", "invite", "sign-in", "healthz", "readyz", "index.html", "favicon.ico"}
 
-// captor is a mailer that remembers the invitation URL instead of sending anything.
+// captor stands in for outbox.Enqueue: it remembers the invitation URL and neither sends nor
+// queues anything (D28: a running API process would otherwise mail the admin).
 type captor interface {
-	outbox.Mailer
+	Enqueue(context.Context, *sql.Tx, ...outbox.Mail) error
 	URL() string
 }
 
-// newMailer is a variable so tests can inject a failing mailer.
-var newMailer = func(prefix string) captor { return &captureMailer{prefix: prefix} }
+// newMailer is a variable so tests can inject a failing enqueuer.
+var newMailer = func(prefix string) captor { return &capture{prefix: prefix} }
 
-type captureMailer struct{ prefix, url string }
+type capture struct{ prefix, url string }
 
-func (m *captureMailer) URL() string { return m.url }
+func (m *capture) URL() string { return m.url }
 
-func (m *captureMailer) Send(_ context.Context, _, _, text string) error {
-	for _, l := range strings.Split(text, "\n") {
-		if strings.HasPrefix(l, m.prefix) {
-			m.url = l
+func (m *capture) Enqueue(_ context.Context, _ *sql.Tx, mails ...outbox.Mail) error {
+	for _, mail := range mails {
+		for _, l := range strings.Split(mail.Text, "\n") {
+			if strings.HasPrefix(l, m.prefix) {
+				m.url = l
+			}
 		}
 	}
 	return nil
@@ -188,7 +191,7 @@ func createUniversity(ctx context.Context, args []string, env func(string) strin
 		if err := pg.SetUniversity(ctx, tx, id); err != nil {
 			return err
 		}
-		_, err := tenant.CreateInvitation(ctx, tx, tenant.NewInvitation{UniversityID: id, Email: email, Role: authz.Admin}, m, base)
+		_, err := tenant.CreateInvitation(ctx, tx, tenant.NewInvitation{UniversityID: id, Email: email, Role: authz.Admin}, m.Enqueue, base)
 		return err
 	})
 	switch {

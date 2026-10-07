@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
@@ -72,6 +73,9 @@ func TestCreateUniversityAndAccept(t *testing.T) {
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	if !strings.HasPrefix(lines[len(lines)-1], baseURL+"/invite/") {
 		t.Fatalf("last line is not the invitation url: %q", out)
+	}
+	if n := count(t, db, `select count(*) from outbox_mails`); n != 0 {
+		t.Fatalf("CLI queued %d mails (D28)", n)
 	}
 	var tz, loc, doms string
 	if err := db.QueryRow(`select timezone, locale, array_to_string(allowed_email_domains, ',') from universities where slug = 'example'`).Scan(&tz, &loc, &doms); err != nil {
@@ -154,8 +158,8 @@ func TestMigrateAndUsage(t *testing.T) {
 
 type failMailer struct{}
 
-func (failMailer) Send(context.Context, string, string, string) error { return errors.New("boom") }
-func (failMailer) URL() string                                        { return "" }
+func (failMailer) Enqueue(context.Context, *sql.Tx, ...outbox.Mail) error { return errors.New("boom") }
+func (failMailer) URL() string                                            { return "" }
 
 func TestCreateUniversityIsAtomic(t *testing.T) {
 	db := testdb.Open(t)

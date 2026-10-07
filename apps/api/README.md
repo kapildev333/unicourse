@@ -43,7 +43,7 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_ADDR` | no | listen address, default `:8080` |
 | `UNICOURSE_GOOGLE_CLIENT_ID`, `UNICOURSE_GOOGLE_CLIENT_SECRET` | no | Google sign-in |
 | `UNICOURSE_MICROSOFT_CLIENT_ID`, `UNICOURSE_MICROSOFT_CLIENT_SECRET` | no | Microsoft sign-in |
-| `UNICOURSE_SMTP_URL` | no | mail server; empty means the stdout mailer |
+| `UNICOURSE_SMTP_URL` | no | mail server; empty means the stdout mailer. Mail is queued in `outbox_mails` and sent by every API process |
 | `UNICOURSE_WEB_ORIGIN` | no | CORS origin, development only (production serves the web app from the API binary) |
 | `UNICOURSE_WEB_DIR` | no | built web app (`apps/web/dist`) to serve at `/`; empty means API only |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests |
