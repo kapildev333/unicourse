@@ -29,8 +29,18 @@ function BackLink({ slug, termId }: { slug: string; termId?: string }) {
   )
 }
 
-/** The title band of section-detail.tsx without its edit action. */
-export function SectionBand({ slug, section, ownRole }: { slug: string; section: Section; ownRole?: string }) {
+/** The title band every section page renders; Home passes its edit action. */
+export function SectionBand({
+  slug,
+  section,
+  ownRole,
+  action,
+}: {
+  slug: string
+  section: Section
+  ownRole?: string
+  action?: React.ReactNode
+}) {
   const names = section.staff.filter((s) => s.role === 'instructor').map(personName)
   return (
     <div className="mb-8 rounded border border-line bg-surface px-6 pt-6">
@@ -49,11 +59,16 @@ export function SectionBand({ slug, section, ownRole }: { slug: string; section:
           </>
         }
         action={
-          ownRole && (
-            <span>
-              <span className="sr-only">You are: </span>
-              <RoleBadge role={ownRole} />
-            </span>
+          (ownRole || action) && (
+            <div className="flex items-center gap-3">
+              {ownRole && (
+                <span>
+                  <span className="sr-only">You are: </span>
+                  <RoleBadge role={ownRole} />
+                </span>
+              )}
+              {action}
+            </div>
           )
         }
       />
@@ -65,12 +80,13 @@ function Loaded(props: {
   slug: string
   section: Section
   children: (section: Section, access: ContentAccess) => React.ReactNode
+  bandAction?: (section: Section) => React.ReactNode
 }) {
-  const { slug, section, children } = props
+  const { slug, section, children, bandAction } = props
   const access = useContentAccess(slug, section)
   return (
     <>
-      <SectionBand slug={slug} section={section} ownRole={access.ownRole} />
+      <SectionBand slug={slug} section={section} ownRole={access.ownRole} action={bandAction?.(section)} />
       <SectionTabs slug={slug} section={section} />
       {children(section, access)}
     </>
@@ -82,8 +98,9 @@ export function SectionFrame(props: {
   slug: string
   sectionId: string
   children: (section: Section, access: ContentAccess) => React.ReactNode
+  bandAction?: (section: Section) => React.ReactNode
 }) {
-  const { slug, sectionId, children } = props
+  const { slug, sectionId, children, bandAction } = props
   const q = useSection(slug, sectionId)
   const me = useMe().data
   if (q.isPending || !me) return <Loading />
@@ -96,14 +113,14 @@ export function SectionFrame(props: {
     return (
       <>
         <BackLink slug={slug} />
-        <ErrorBanner title={title} onRetry={title ? undefined : () => void q.refetch()}>
+        <ErrorBanner title={title ?? "Couldn't load section"} onRetry={title ? undefined : () => void q.refetch()}>
           {errorMessage(q.error, copy)}
         </ErrorBanner>
       </>
     )
   }
   return (
-    <Loaded slug={slug} section={q.data}>
+    <Loaded slug={slug} section={q.data} bandAction={bandAction}>
       {children}
     </Loaded>
   )

@@ -3,7 +3,7 @@ import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, crea
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
-import { SectionDetailPage } from './section-detail'
+import { ParticipantsPage } from '../section/participants'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -37,7 +37,7 @@ function renderPage(userId: string, role = 'member', departmentIds: string[] = [
   const slug = createRoute({
     getParentRoute: () => root,
     path: '$slug',
-    component: () => <SectionDetailPage slug="a" sectionId="s1" />,
+    component: () => <ParticipantsPage slug="a" sectionId="s1" />,
   })
   const others = ['$slug/courses/sections', '$slug/me'].map((path) =>
     createRoute({ getParentRoute: () => root, path, component: () => null }),
@@ -287,20 +287,11 @@ it('wraps the add row and keeps the helper outside the flex row', async () => {
   expect(input).toHaveAccessibleDescription(/invitation/)
 })
 
-it('Edit section opens the dialog for editors only; headings carry counts', async () => {
+it('headings carry counts', async () => {
   mockApi({ [S]: () => ({ body: mk([ins], [{ invitationId: 'i1', email: 'p@a.edu', role: 'ta' }]) }), [E]: () => ({ body: { items: [] } }) })
   renderPage('u-x', 'admin')
   expect(await screen.findByRole('heading', { name: 'Staff 2' })).toBeInTheDocument()
   expect(await screen.findByRole('heading', { name: 'Roster 0' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Edit section' }))
-  expect(await screen.findByRole('dialog', { name: 'Edit CS101-001' })).toBeInTheDocument()
-})
-
-it('Edit section is absent for staff who cannot manage the section', async () => {
-  mockApi({ [S]: () => ({ body: mk([ins]) }), [E]: () => ({ body: { items: [] } }) })
-  renderPage('u-ins')
-  await screen.findByRole('heading', { name: /^Staff/ })
-  expect(screen.queryByRole('button', { name: 'Edit section' })).toBeNull()
 })
 
 it('names the failure', async () => {

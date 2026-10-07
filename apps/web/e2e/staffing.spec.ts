@@ -9,7 +9,7 @@ const adminA = `root@${dA}`
 const instr = `prof@${dA}`
 const ta = `ta@${dA}`
 const students = [1, 2, 3].map((i) => `s${i}@${dA}`)
-const year = String(new Date().getUTCFullYear())
+const year = String(new Date().getFullYear()) // the app picks the term by local date
 
 const csv = (rows: string[]) => ({ name: 'roster.csv', mimeType: 'text/csv', buffer: Buffer.from(['email,displayName', ...rows].join('\n') + '\n') })
 
@@ -84,6 +84,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
 
     await openSection(page)
     sectionUrl.v = page.url()
+    await page.getByRole('link', { name: 'Participants' }).click()
     await page.getByLabel('Add by email').fill(instr)
     await page.getByRole('button', { name: 'Add instructor' }).click()
     await expect(page.getByText(`${instr} Invited`)).toBeVisible()
@@ -102,7 +103,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
   })
 
   await test.step('roster import: duplicate line blocks, clean file imports', async () => {
-    await page.goto(sectionUrl.v)
+    await page.goto(`${sectionUrl.v}/participants`)
     await page.getByRole('button', { name: 'Import roster' }).first().click()
     const dlg = page.getByRole('dialog')
     await dlg.getByLabel('CSV file').setInputFiles(csv([...students.map((s) => `${s},Student`), `${students[0]},Student`]))
@@ -123,7 +124,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
       await expect(p.getByRole('listitem').filter({ hasText: 'CS101' })).toContainText('Student')
       await ctx.close()
     }
-    await page.goto(sectionUrl.v)
+    await page.goto(`${sectionUrl.v}/participants`)
     for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
   })
 
@@ -173,6 +174,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
 
   await test.step('admin: roster CSV puts the student in CS102, the professor teaches MA201', async () => {
     await page.getByRole('link', { name: 'CS102' }).click()
+    await page.getByRole('link', { name: 'Participants' }).click()
     await page.getByRole('button', { name: 'Import roster' }).first().click()
     const dlg = page.getByRole('dialog')
     await dlg.getByLabel('CSV file').setInputFiles(csv([`${students[0]},Student`]))
@@ -186,6 +188,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
 
     await page.goto(`/${slugA}/courses/sections`)
     await page.getByRole('link', { name: 'MA201' }).click()
+    await page.getByRole('link', { name: 'Participants' }).click()
     await page.getByLabel('Add by email').fill(instr)
     await page.getByRole('button', { name: 'Add instructor' }).click()
     await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toBeVisible()
@@ -220,6 +223,10 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await row.getByRole('link', { name: 'MA201-001' }).click()
     await expect(p.getByRole('heading', { name: 'Meeting times' })).toBeVisible()
     await expect(p.getByText('Monday 11:00–12:00 · Room 303')).toBeVisible()
+    const strip = p.getByRole('navigation', { name: 'Section pages' })
+    await expect(strip.getByRole('link')).toHaveText(['Home', 'Participants'])
+    await strip.getByRole('link', { name: 'Participants' }).click()
+    await expect(p.getByRole('heading', { name: /^Staff/ })).toBeVisible()
     await expect(p.getByRole('heading', { name: 'Roster' })).toHaveCount(0)
     await ctx.close()
   })
@@ -229,6 +236,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await signIn(page, ta, slugA)
     await expect(page.getByRole('listitem').filter({ hasText: 'CS101' })).toContainText('TA')
     await page.getByRole('link', { name: 'CS101' }).click()
+    await page.getByRole('link', { name: 'Participants' }).click()
     for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add instructor' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toHaveCount(0)
@@ -287,6 +295,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await p.goto(`/${slugA}/courses/sections`)
     await p.getByRole('link', { name: 'MA201' }).click()
     ids.ma201 = new URL(p.url()).pathname.split('/').filter(Boolean).pop()!
+    await p.getByRole('link', { name: 'Participants' }).click()
     await p.getByRole('button', { name: 'Import roster' }).first().click()
     const dlg = p.getByRole('dialog')
     await dlg.getByLabel('CSV file').setInputFiles(csv([`${s1},Student`]))

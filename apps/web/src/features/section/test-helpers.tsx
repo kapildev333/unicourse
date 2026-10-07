@@ -50,6 +50,7 @@ export function renderSection(opts: {
         at('sections/$id'),
         at('sections/$id/announcements'),
         at('sections/$id/materials'),
+        at('sections/$id/participants'),
         at('sections/$id/grades'),
       ]),
     ]),

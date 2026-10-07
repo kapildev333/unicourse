@@ -11,7 +11,7 @@ const instr = `prof@${domain}`
 const ta = `ta@${domain}`
 const member = `member@${domain}`
 const students = [1, 2].map((i) => `s${i}@${domain}`)
-const year = String(new Date().getUTCFullYear())
+const year = String(new Date().getFullYear()) // the app picks the term by local date
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url))
 const pdf = fixture('syllabus.pdf')
@@ -114,6 +114,7 @@ test('section content: description, announcements, materials, access', async ({ 
     await page.goto(`/${slug}/courses/sections`)
     await page.getByRole('link', { name: 'CS101' }).click()
     sectionUrl = page.url()
+    await page.getByRole('link', { name: 'Participants' }).click()
     await page.getByLabel('Add by email').fill(instr)
     await page.getByRole('button', { name: 'Add instructor' }).click()
     await expect(page.getByText(`${instr} Invited`)).toBeVisible()
@@ -221,7 +222,7 @@ test('section content: description, announcements, materials, access', async ({ 
     const m = await as(member)
     await m.goto(sectionUrl)
     await expect(m.getByText('We meet on Mondays.')).toBeVisible()
-    await expect(m.getByRole('navigation', { name: 'Section pages' })).toHaveCount(0)
+    await expect(m.getByRole('navigation', { name: 'Section pages' }).getByRole('link')).toHaveText(['Home', 'Participants'])
     for (const tab of ['announcements', 'materials']) {
       await m.goto(`${sectionUrl}/${tab}`)
       await expect(m.getByText('No access').first()).toBeVisible()
