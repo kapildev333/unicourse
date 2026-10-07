@@ -13,7 +13,7 @@ import (
 
 type MagicLinks struct {
 	DB      *sql.DB
-	Mailer  outbox.Mailer
+	Wake    func() // nudges the outbox sender after commit; may be nil
 	BaseURL string
 }
 
@@ -21,8 +21,8 @@ func linkErr(msg string) error {
 	return &httpx.Error{Status: 400, Code: "validation_failed", Message: msg}
 }
 
-// Send mails a 15 minute sign-in link. Emails that are not allowed (no matching domain, no pending
-// invitation) return nil with no row and no mail, so callers cannot enumerate. next must already be
+// Send queues a 15 minute sign-in link in the outbox (sent after commit, never in the request). Emails
+// that are not allowed (no matching domain, no pending invitation) return nil with no row and no mail, so callers cannot enumerate. next must already be
 // validated by the caller; it is not stored.
 func (m *MagicLinks) Send(ctx context.Context, email, next string) error {
 	email, err := NormalizeEmail(email)
@@ -33,22 +33,26 @@ func (m *MagicLinks) Send(ctx context.Context, email, next string) error {
 	if err != nil {
 		return err
 	}
+	link := m.BaseURL + "/api/v1/auth/magic-link/" + tok
+	if next != "" {
+		link += "?next=" + url.QueryEscape(next)
+	}
 	ok := false
 	err = pg.WithUserTx(ctx, m.DB, "", email, func(tx *sql.Tx) error {
 		if ok, err = allowed(ctx, tx, email); err != nil || !ok {
 			return err
 		}
 		_, err = tx.ExecContext(ctx, `insert into magic_links (email, token_hash, expires_at) values ($1, $2, now() + interval '15 minutes')`, email, hash)
-		return err
+		if err != nil {
+			return err
+		}
+		return outbox.Enqueue(ctx, tx, outbox.Mail{To: email, Subject: "Your UniCourse sign-in link",
+			Text: "Use this link to sign in (valid for 15 minutes):\n" + link + "\n", Urgent: true})
 	})
-	if err != nil || !ok {
-		return err
+	if err == nil && ok && m.Wake != nil {
+		m.Wake()
 	}
-	link := m.BaseURL + "/api/v1/auth/magic-link/" + tok
-	if next != "" {
-		link += "?next=" + url.QueryEscape(next)
-	}
-	return m.Mailer.Send(ctx, email, "Your UniCourse sign-in link", "Use this link to sign in (valid for 15 minutes):\n"+link+"\n")
+	return err
 }
 
 // Consume marks the link used and returns its email. The single UPDATE enforces single use and
