@@ -365,7 +365,7 @@ export interface paths {
         };
         /**
          * List Courses
-         * @description Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND.
+         * @description Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND. Ordered by code, then id.
          */
         get: operations["listCourses"];
         put?: never;
@@ -453,7 +453,7 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.
+         * @description Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND. Ordered by course code, then section number, then term start, then id; the cursor is opaque and keeps that order stable.
          */
         get: operations["listSections"];
         put?: never;
