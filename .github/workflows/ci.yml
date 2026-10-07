@@ -49,6 +49,8 @@ jobs:
           npm ci
           npm run generate
           git diff --exit-code src/api/types.ts
+          npm run postman
+          git diff --exit-code ../../docs/postman/unicourse.postman_collection.json
           npm run lint
           npm run typecheck
           npm test -- --run
