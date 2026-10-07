@@ -124,3 +124,10 @@ it('fits a 390 px phone: margins and a height cap', () => {
   const d = document.querySelector('dialog')!
   expect(d).toHaveClass('w-[calc(100%-2rem)]', 'max-h-[calc(100dvh-2rem)]')
 })
+
+it('keeps the viewport height cap at every width so the body scrolls on desktop', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T">a</Dialog>)
+  const d = document.querySelector('dialog')!
+  expect(d.className).not.toMatch(/max-h-none/)
+  expect(d).toHaveClass('max-h-[calc(100dvh-2rem)]')
+})

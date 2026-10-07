@@ -41,7 +41,7 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className={`m-auto w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:w-full sm:max-h-none ${wide ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
+      className={`m-auto w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:w-full ${wide ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
     >
       <h2 id={titleId} className="pr-8 text-xl font-bold">
         {title}
@@ -61,5 +61,5 @@ export function Dialog(props: {
 }
 
 export function DialogFooter({ children }: { children: React.ReactNode }) {
-  return <div className="sticky bottom-0 mt-2 flex items-center justify-end gap-2 border-t border-line bg-surface pt-4">{children}</div>
+  return <div className="sticky -bottom-6 -mb-6 pb-6 mt-2 flex items-center justify-end gap-2 border-t border-line bg-surface pt-4">{children}</div>
 }

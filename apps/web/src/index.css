@@ -69,7 +69,7 @@ html[data-theme='dark'] {
     --color-surface: #2d2f31;
     --color-line: #555759;
     --color-line-strong: #888a8b;
-  --color-line-control: #888a8b;
+    --color-line-control: #888a8b;
     --color-ink: #f7f9fa;
     --color-ink-muted: #a6a8aa;
     --color-accent: #c47cf5;
@@ -112,17 +112,17 @@ html[data-theme='dark'] {
   .ui-table td { height: 3rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: middle; }
   .ui-table tbody tr:last-child td { border-bottom: 0; }
   .ui-table tbody tr:hover td { background: var(--color-canvas); transition: background-color 150ms; }
-  /* stack: below 640 px each row is a block; td data-label comes first, first cell bold, last cell (actions) full width */
+  /* stack: below 640 px each row is a block; td/th data-label comes first, first cell bold, last cell (actions) full width */
   @media (max-width: 639px) {
     .ui-table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-    .ui-table-stack, .ui-table-stack tbody, .ui-table-stack tr, .ui-table-stack td { display: block; }
+    .ui-table-stack, .ui-table-stack tbody, .ui-table-stack tr, .ui-table-stack td, .ui-table-stack tbody th { display: block; }
     .ui-table-stack tr { padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-line); }
     .ui-table-stack tbody tr:last-child { border-bottom: 0; }
-    .ui-table-stack td { height: auto; padding: 0.25rem 0; border-bottom: 0; }
-    .ui-table-stack td::before { content: attr(data-label); display: block; font-size: 0.8125rem; color: var(--color-ink-muted); }
-    .ui-table-stack td:first-child { font-weight: 700; }
-    .ui-table-stack td:last-child { width: 100%; padding-top: 0.5rem; }
-    .ui-table-stack td:not([data-label])::before { content: none; }
+    .ui-table-stack td, .ui-table-stack tbody th { height: auto; padding: 0.25rem 0; border-bottom: 0; }
+    .ui-table-stack td::before, .ui-table-stack tbody th::before { content: attr(data-label); display: block; font-size: 0.8125rem; font-weight: 400; color: var(--color-ink-muted); }
+    .ui-table-stack td:first-child, .ui-table-stack tbody th:first-child { font-weight: 700; }
+    .ui-table-stack td:last-child { padding-top: 0.5rem; }
+    .ui-table-stack td:not([data-label])::before, .ui-table-stack tbody th:not([data-label])::before { content: none; }
   }
   .ui-skeleton { display: block; height: 1rem; border-radius: 4px;
                  background: color-mix(in srgb, var(--color-ink-muted) 20%, transparent); }

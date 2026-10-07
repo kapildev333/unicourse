@@ -1,6 +1,5 @@
-import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { Link, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
-import { Link } from '@tanstack/react-router'
 import { expect, it } from 'vitest'
 import { RoleBadge } from './badge'
 import { Card } from './card'

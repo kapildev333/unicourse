@@ -1,4 +1,4 @@
-/** `stack`: below 640 px each row becomes a block; give every td a `data-label` (CSS in index.css). */
+/** `stack`: below 640 px each row becomes a block; give every td and tbody th (row header) a `data-label` (CSS in index.css). */
 export function Table(props: React.TableHTMLAttributes<HTMLTableElement> & { caption: string; stack?: boolean }) {
   const { caption, stack, children, className = '', ...rest } = props
   return (
