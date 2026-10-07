@@ -74,8 +74,12 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	if err := pg.Migrate(ctx, db); err != nil {
-		logger.Error("migrate", "err", err)
+	if err := pg.CheckAPIRole(ctx, db); err != nil {
+		logger.Error("database role", "err", err)
+		os.Exit(1)
+	}
+	if err := pg.CheckMigrated(ctx, db); err != nil {
+		logger.Error("database not migrated", "err", err)
 		os.Exit(1)
 	}
 
@@ -105,7 +109,7 @@ func main() {
 		}
 	}
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, cfg.TrustedProxies, db.PingContext, api, web), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, cfg.TrustedProxies, func(ctx context.Context) error { return pg.CheckMigrated(ctx, db) }, api, web), ReadHeaderTimeout: 5 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)
