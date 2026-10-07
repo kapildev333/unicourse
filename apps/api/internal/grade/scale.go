@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"net/http"
 	"strconv"
 
@@ -121,4 +122,14 @@ func putScale(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, err
 	}
 	return http.StatusOK, Scale{after}, nil
+}
+
+// letterFor returns the row with the greatest MinPercent <= pct (scale sorted highest first); false when none.
+func letterFor(scale []ScaleRow, pct *big.Rat) (ScaleRow, bool) {
+	for _, r := range scale {
+		if rat(r.MinPercent).Cmp(pct) <= 0 {
+			return r, true
+		}
+	}
+	return ScaleRow{}, false
 }
