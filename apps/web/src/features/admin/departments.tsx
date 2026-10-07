@@ -12,11 +12,11 @@ import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useRefresh } from './queries'
+import { TabHeader } from './tab-header'
 
 type Department = components['schemas']['Department']
 
@@ -164,7 +164,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
     </Button>
   )
   const header = (
-    <PageHeader title="Departments" description="Departments group courses and department admins." action={create} />
+    <TabHeader title="Departments" description="Departments group courses and department admins." action={create} />
   )
 
   let body: React.ReactNode

@@ -11,11 +11,11 @@ import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { Table } from '../../components/table'
 import { formatDateTime } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useAllMembers } from './queries'
+import { TabHeader } from './tab-header'
 
 type Entry = components['schemas']['AuditEntry']
 type EntityType = Entry['entityType']
@@ -157,10 +157,10 @@ export function AuditLogPage({ slug }: { slug: string }) {
     body = (
       <>
         <ListCount shown={list.items.length} className="mb-2 text-right" />
-        <Table caption="Audit log">
+        <Table caption="Audit log" stack>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 bg-canvas">
+              <th scope="col" className="sm:sticky sm:left-0">
                 When
               </th>
               <th scope="col">Who</th>
@@ -173,14 +173,14 @@ export function AuditLogPage({ slug }: { slug: string }) {
               const verb = e.action.split('.').pop() ?? e.action
               return (
                 <tr key={e.id}>
-                  <td className="sticky left-0 bg-surface whitespace-nowrap text-ink-muted [tr:hover>&]:bg-canvas">
+                  <td data-label="When" className="sm:sticky sm:left-0 bg-surface whitespace-nowrap text-ink-muted [tr:hover>&]:bg-canvas">
                     <time dateTime={e.at}>{formatDateTime(e.at)}</time>
                   </td>
-                  <td>{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>
-                  <td>
+                  <td data-label="Who">{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>
+                  <td data-label="Action">
                     {actionLabels[e.action] ?? `${entityLabels[e.entityType]} ${verbs[verb] ?? verb}`}
                   </td>
-                  <td>
+                  <td data-label="Changes">
                     <Disclosure summary="Show changes">
                       <div className="mt-2 grid grid-cols-2 gap-4">
                         <Side title="Before" data={e.before} other={e.after} />
@@ -205,7 +205,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <PageHeader title="Audit log" description="Every change made in this university, newest first." />
+      <TabHeader title="Audit log" description="Every change made in this university, newest first." />
       <form
         role="search"
         aria-label="Filter audit log"

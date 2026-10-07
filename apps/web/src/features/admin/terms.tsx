@@ -12,13 +12,13 @@ import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { Badge } from '../../components/badge'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useRefresh } from './queries'
+import { TabHeader } from './tab-header'
 
 type Term = components['schemas']['Term']
 
@@ -160,7 +160,7 @@ export function TermsPage({ slug }: { slug: string }) {
       New term
     </Button>
   )
-  const header = <PageHeader title="Terms" description="Academic terms that sections belong to." action={create} />
+  const header = <TabHeader title="Terms" description="Academic terms that sections belong to." action={create} />
 
   let body: React.ReactNode
   if (list.isPending) body = <Loading variant="table" columns={['Name', 'Starts', 'Ends', 'Status', '']} />

@@ -41,7 +41,7 @@ export function RoleBadge({ role }: { role: string }) {
 const actions = {
   add: { label: 'Add', tone: 'accent' },
   exists: { label: 'Exists', tone: 'neutral' },
-  invite: { label: 'Invite', tone: 'warning' },
+  invite: { label: 'Invite', tone: 'neutral' },
   error: { label: 'Error', tone: 'danger' },
 } as const
 

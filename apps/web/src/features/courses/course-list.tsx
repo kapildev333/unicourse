@@ -135,7 +135,7 @@ export function CourseListPage(props: {
                   {c.code}
                 </td>
                 <td data-label="Title">{c.title}</td>
-                <td data-label="Department">{deptCode.get(c.departmentId) ?? '—'}</td>
+                <td data-label="Department" data-empty={!deptCode.has(c.departmentId) || undefined}>{deptCode.get(c.departmentId) ?? '—'}</td>
                 <td className="text-right whitespace-nowrap">
                   {canManageDepartment(membership, c.departmentId) && (
                     <>
@@ -173,7 +173,7 @@ export function CourseListPage(props: {
   return (
     <>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <p className="text-base text-ink-muted">Catalog courses by department.</p>
+        <p className="text-base text-ink-muted">Courses in the catalog, by department.</p>
         {actions}
       </div>
       {(!empty || departmentId) && (

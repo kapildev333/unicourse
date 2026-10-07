@@ -125,7 +125,7 @@ export function MeetingsEditor(props: {
               </FormField>
             </div>
             <Button
-              variant="ghost"
+              variant="ghost-danger"
               size="sm"
               className="col-span-2 justify-self-start sm:col-span-1 sm:mt-7.5"
               aria-label={`Remove meeting ${i + 1}`}
