@@ -48,6 +48,11 @@ async function snap(page: Page, base: string, desc: string, o: { dialog?: boolea
       const file = `${base}-${scheme}-${w}.png`
       await page.screenshot({ path: path.join(out, file), fullPage: true })
       index.push(`${file} - ${desc}`)
+      if (w === 390) {
+        const width = await page.evaluate(() => document.documentElement.scrollWidth)
+        expect.soft(width, file).toBeLessThanOrEqual(390)
+        if (width > 390) index.push(`WIDE ${file} ${width}`)
+      }
     }
   await page.setViewportSize({ width: 1440, height: 900 }) // leave the page desktop-sized for the next action
   await page.emulateMedia({ colorScheme: 'light' })
@@ -283,6 +288,18 @@ test('capture every screen', async ({ browser, page }) => {
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 30_000 })
     await snap(page, '71-states-error-banner-admin', 'Sections list when the API answers 500 (error banner), admin')
     await page.unroute(failed)
+  })
+
+  await test.step('success and warning states', async () => {
+    await page.goto(`/${slug}/grade-scale`)
+    await page.getByRole('button', { name: 'Save scale' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Grade scale saved' })).toBeVisible()
+    await snap(page, '72-states-success-admin', 'Grade scale saved (success StatusMessage), admin')
+    // CS210 has weights 40 + 60; a third assessment makes 110, which shows the "Must total 100%" warning badge
+    await api(profPage, 'post', `${A}/sections/${sec.CS210}/assessments`, { name: 'Extra Credit', maxPoints: 10, weight: 10, published: true })
+    await profPage.goto(`/${slug}/sections/${sec.CS210}/grades`)
+    await expect(profPage.getByText('Must total 100% to finalize')).toBeVisible()
+    await snap(profPage, '73-states-weight-warning-instructor', 'Gradebook CS210 with weights totalling 110 (warning badge), instructor')
   })
 
   await test.step('no access page', async () => {
