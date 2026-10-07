@@ -17,6 +17,7 @@ import { Route as SlugAdminRouteImport } from './routes/$slug/admin'
 import { Route as SlugCatalogRouteImport } from './routes/$slug/catalog'
 import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugGradeScaleRouteImport } from './routes/$slug/grade-scale'
+import { Route as SlugGradesRouteImport } from './routes/$slug/grades'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as SlugAdminIndexRouteImport } from './routes/$slug/admin/index'
@@ -28,6 +29,7 @@ import { Route as SlugAdminTermsRouteImport } from './routes/$slug/admin/terms'
 import { Route as SlugCoursesIndexRouteImport } from './routes/$slug/courses/index'
 import { Route as SlugCoursesSectionsRouteImport } from './routes/$slug/courses/sections'
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
+import { Route as SlugSectionsIdGradesRouteImport } from './routes/$slug/sections_.$id.grades'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -67,6 +69,11 @@ const SlugCoursesRoute = SlugCoursesRouteImport.update({
 const SlugGradeScaleRoute = SlugGradeScaleRouteImport.update({
   id: '/grade-scale',
   path: '/grade-scale',
+  getParentRoute: () => SlugRouteRoute,
+} as any)
+const SlugGradesRoute = SlugGradesRouteImport.update({
+  id: '/grades',
+  path: '/grades',
   getParentRoute: () => SlugRouteRoute,
 } as any)
 const SlugMeRoute = SlugMeRouteImport.update({
@@ -124,6 +131,11 @@ const SlugSectionsIdRoute = SlugSectionsIdRouteImport.update({
   path: '/sections/$id',
   getParentRoute: () => SlugRouteRoute,
 } as any)
+const SlugSectionsIdGradesRoute = SlugSectionsIdGradesRouteImport.update({
+  id: '/sections_/$id/grades',
+  path: '/sections/$id/grades',
+  getParentRoute: () => SlugRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -133,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
+  '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
@@ -145,12 +158,14 @@ export interface FileRoutesByFullPath {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
   '/$slug/courses/': typeof SlugCoursesIndexRoute
+  '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
   '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
+  '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug': typeof SlugIndexRoute
@@ -163,6 +178,7 @@ export interface FileRoutesByTo {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin': typeof SlugAdminIndexRoute
   '/$slug/courses': typeof SlugCoursesIndexRoute
+  '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -173,6 +189,7 @@ export interface FileRoutesById {
   '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
+  '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
@@ -185,6 +202,7 @@ export interface FileRoutesById {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
   '/$slug/courses/': typeof SlugCoursesIndexRoute
+  '/$slug/sections_/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -196,6 +214,7 @@ export interface FileRouteTypes {
     | '/$slug/catalog'
     | '/$slug/courses'
     | '/$slug/grade-scale'
+    | '/$slug/grades'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/'
@@ -208,12 +227,14 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin/'
     | '/$slug/courses/'
+    | '/$slug/sections/$id/grades'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sign-in'
     | '/$slug/catalog'
     | '/$slug/grade-scale'
+    | '/$slug/grades'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug'
@@ -226,6 +247,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin'
     | '/$slug/courses'
+    | '/$slug/sections/$id/grades'
   id:
     | '__root__'
     | '/'
@@ -235,6 +257,7 @@ export interface FileRouteTypes {
     | '/$slug/catalog'
     | '/$slug/courses'
     | '/$slug/grade-scale'
+    | '/$slug/grades'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug/'
@@ -247,6 +270,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin/'
     | '/$slug/courses/'
+    | '/$slug/sections_/$id/grades'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -312,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: '/grade-scale'
       fullPath: '/$slug/grade-scale'
       preLoaderRoute: typeof SlugGradeScaleRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
+    '/$slug/grades': {
+      id: '/$slug/grades'
+      path: '/grades'
+      fullPath: '/$slug/grades'
+      preLoaderRoute: typeof SlugGradesRouteImport
       parentRoute: typeof SlugRouteRoute
     }
     '/$slug/me': {
@@ -391,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugSectionsIdRouteImport
       parentRoute: typeof SlugRouteRoute
     }
+    '/$slug/sections_/$id/grades': {
+      id: '/$slug/sections_/$id/grades'
+      path: '/sections/$id/grades'
+      fullPath: '/$slug/sections/$id/grades'
+      preLoaderRoute: typeof SlugSectionsIdGradesRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
   }
 }
 
@@ -435,9 +473,11 @@ interface SlugRouteRouteChildren {
   SlugCatalogRoute: typeof SlugCatalogRoute
   SlugCoursesRoute: typeof SlugCoursesRouteWithChildren
   SlugGradeScaleRoute: typeof SlugGradeScaleRoute
+  SlugGradesRoute: typeof SlugGradesRoute
   SlugMeRoute: typeof SlugMeRoute
   SlugIndexRoute: typeof SlugIndexRoute
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
+  SlugSectionsIdGradesRoute: typeof SlugSectionsIdGradesRoute
 }
 
 const SlugRouteRouteChildren: SlugRouteRouteChildren = {
@@ -445,9 +485,11 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugCatalogRoute: SlugCatalogRoute,
   SlugCoursesRoute: SlugCoursesRouteWithChildren,
   SlugGradeScaleRoute: SlugGradeScaleRoute,
+  SlugGradesRoute: SlugGradesRoute,
   SlugMeRoute: SlugMeRoute,
   SlugIndexRoute: SlugIndexRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,
+  SlugSectionsIdGradesRoute: SlugSectionsIdGradesRoute,
 }
 
 const SlugRouteRouteWithChildren = SlugRouteRoute._addFileChildren(
