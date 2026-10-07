@@ -188,3 +188,111 @@ it('shows an error with retry', async () => {
   fireEvent.click(retry)
   expect(await screen.findByText('CS101-001')).toBeInTheDocument()
 })
+
+const media = (wide: boolean) =>
+  vi.stubGlobal('matchMedia', () => ({ matches: wide, addEventListener: () => {}, removeEventListener: () => {} }))
+
+it('phone: the schedule is an agenda of weekday lists, one link per meeting, no grid', async () => {
+  media(false)
+  ok()
+  renderPage('member', { view: 'schedule' })
+  const mon = await screen.findByRole('region', { name: 'Monday' })
+  expect(within(mon).getAllByRole('link')).toHaveLength(2)
+  const cs101 = within(mon).getByRole('link', { name: /^CS101-001/ })
+  expect(cs101).toHaveAttribute('href', '/a/sections/s1')
+  expect(cs101).toHaveTextContent('Clashes with CS102-001')
+  expect(cs101).not.toHaveTextContent('Dana Poe')
+  expect(within(mon).getAllByRole('listitem')).toHaveLength(2)
+  expect(screen.getByRole('region', { name: 'Wednesday' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Tuesday' })).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Sunday' })).toBeNull()
+  expect(document.querySelector('.overflow-x-auto')).toBeNull()
+})
+
+it('from 768 px the grid sits in a scroll wrapper, with a narrow track for an empty Saturday and Sunday', async () => {
+  media(true)
+  ok()
+  renderPage('member', { view: 'schedule' })
+  await screen.findByRole('region', { name: 'Monday' })
+  const grid = document.querySelector('.overflow-x-auto > div') as HTMLElement
+  expect(grid.style.gridTemplateColumns).toBe(
+    '3.5rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr)',
+  )
+  expect(screen.getByRole('region', { name: 'Sunday' })).toBeInTheDocument()
+})
+
+it('grid block: instructor is screen-reader text only; untimed list separates with a middle dot', async () => {
+  ok()
+  renderPage('member', { view: 'schedule' })
+  const mon = await screen.findByRole('region', { name: 'Monday' })
+  const link = within(mon).getByRole('link', { name: /^CS101-001/ })
+  expect(link).toHaveAccessibleName(/Dana Poe/)
+  expect(within(link).getByText('Dana Poe')).toHaveClass('sr-only')
+  const none = screen.getByRole('region', { name: 'No meeting times' })
+  expect(none).toHaveTextContent('CS300-001 · CS300 title')
+  expect(none).not.toHaveTextContent('—')
+})
+
+it("grid marks today's column and draws the time line only there", async () => {
+  vi.setSystemTime(new Date(2026, 9, 6, 10, 30))
+  ok()
+  renderPage('member', { view: 'schedule' })
+  const tue = await screen.findByRole('region', { name: 'Tuesday' })
+  const head = within(tue).getByRole('heading')
+  expect(head).toHaveAttribute('aria-current', 'date')
+  expect(head).toHaveTextContent('Today')
+  expect(document.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
+  expect(document.querySelectorAll('[data-now-line]')).toHaveLength(1)
+  expect(document.querySelector('[data-now-label]')).toHaveTextContent('10:30')
+})
+
+it('own instructor entry reads You', async () => {
+  const mine = { userId: 'u0', email: 'x@a.edu', displayName: 'X', role: 'instructor' }
+  mockApi({
+    [U]: () => ({ body: { terms: [{ term: fall, sections: [sec('s9', 'CS900', fall, 'instructor', [mine])] }] } }),
+    [T]: () => termsBody([fall]),
+  })
+  renderPage()
+  const card = (await screen.findByText('CS900-001')).closest('li')!
+  expect(within(card).getByText('You')).toBeInTheDocument()
+  expect(within(card).queryByText('X')).toBeNull()
+})
+
+it('instructor and TA cards link to the gradebook; students get none', async () => {
+  ok()
+  renderPage()
+  const ta = (await screen.findByText('CS101-001')).closest('li')!
+  expect(within(ta).getByRole('link', { name: 'Gradebook' })).toHaveAttribute('href', '/a/sections/s1/grades')
+  expect(within(screen.getByText('CS102-001').closest('li')!).getByRole('link', { name: 'Gradebook' })).toBeInTheDocument()
+  expect(within(screen.getByText('CS300-001').closest('li')!).queryByRole('link', { name: /Gradebook/ })).toBeNull()
+})
+
+it('term options show the name only; meetings with the same time and room merge', async () => {
+  mockApi({
+    [U]: () => ({
+      body: { terms: [{ term: fall, sections: [sec('s7', 'CS700', fall, 'student', [], [mt(1, '10:00', '11:00', 'H1'), mt(3, '10:00', '11:00', 'H1')])] }] },
+    }),
+    [T]: () => termsBody([fall]),
+  })
+  renderPage()
+  expect(await screen.findByText('Mon, Wed 10:00–11:00 · H1')).toBeInTheDocument()
+  expect(screen.getByRole('option', { name: 'Fall 2026' })).toBeInTheDocument()
+})
+
+it.each([
+  ['admin', true],
+  ['member', false],
+])('%s on "No terms yet": Set up terms link is %s', async (role, shown) => {
+  mockApi({ [U]: () => ({ body: { terms: [] } }), [T]: () => termsBody([]) })
+  renderPage(role)
+  await screen.findByText('No terms yet')
+  const link = screen.queryByRole('link', { name: 'Set up terms' })
+  if (shown) expect(link).toHaveAttribute('href', '/a/admin/terms')
+  else expect(link).toBeNull()
+})
+
+it('a failed load names what failed', async () => {
+  mockApi({ [T]: () => termsBody([fall]), [U]: () => ({ status: 500, body: { error: { code: 'internal', message: 'boom', details: [] } } }) })
+  renderPage()
+  expect(await screen.findByText("Couldn't load your sections")).toBeInTheDocument()
+})

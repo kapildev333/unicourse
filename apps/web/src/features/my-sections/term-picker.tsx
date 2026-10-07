@@ -1,6 +1,5 @@
 import type { components } from '../../api/types'
 import { FormField, inputClass } from '../../components/form-field'
-import { formatDate } from '../../lib/format'
 import { defaultTermId, todayIso, useAllTerms } from '../courses/queries'
 
 type Term = components['schemas']['Term']
@@ -18,10 +17,10 @@ export function useTermChoice(slug: string, termId?: string) {
 export function TermPicker({ terms, value, onChange }: { terms: Term[]; value?: string; onChange: (id: string) => void }) {
   return (
     <FormField label="Term" name="termId">
-      <select className={`${inputClass} w-64`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+      <select className={`${inputClass} w-full md:w-64`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
         {terms.map((t) => (
           <option key={t.id} value={t.id}>
-            {t.name} ({formatDate(t.startsOn)} – {formatDate(t.endsOn)})
+            {t.name}
           </option>
         ))}
       </select>
