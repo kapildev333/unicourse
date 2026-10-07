@@ -9,16 +9,19 @@ import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
+import { Button } from '../../components/button'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
 import { useUniversity } from '../auth/use-me'
 import { canManageCourses, personName } from '../courses/access'
+import { Schedule } from './schedule'
+import { TermPicker, useTermChoice } from './term-picker'
 
-type TermGroup = components['schemas']['MySections']['terms'][number]
+type Term = components['schemas']['Term']
+type MySection = components['schemas']['MySection']
 
-function TermTable({ slug, group }: { slug: string; group: TermGroup }) {
+function TermTable({ slug, term, sections }: { slug: string; term: Term; sections: MySection[] }) {
   const id = useId()
-  const { term, sections } = group
   return (
     <section aria-labelledby={id} className="mb-8">
       <h2 id={id} className="mb-2 text-base font-semibold">
@@ -65,34 +68,79 @@ function TermTable({ slug, group }: { slug: string; group: TermGroup }) {
   )
 }
 
-export function MySectionsPage({ slug }: { slug: string }) {
-  const q = useQuery({
+export function useMySections(slug: string) {
+  return useQuery({
     queryKey: [slug, 'my-sections'],
     queryFn: () => unwrap(api.GET('/universities/{slug}/me/sections', { params: { path: { slug } } })),
   })
+}
+
+export function MySectionsPage(props: {
+  slug: string
+  termId?: string
+  view?: 'schedule'
+  onSearchChange: (p: { termId?: string; view?: 'schedule' }) => void
+}) {
+  const { slug, termId, view, onSearchChange } = props
   const { membership } = useUniversity()
-  const groups = q.data?.terms.filter((g) => g.sections.length > 0) ?? []
+  const { query: termsQuery, terms, term, notInSession } = useTermChoice(slug, termId)
+  const q = useMySections(slug)
   let body: React.ReactNode
-  if (q.isPending) body = <Loading />
-  else if (q.error) body = <ErrorBanner onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
-  else if (groups.length === 0)
+  if (termsQuery.isPending) body = <Loading />
+  else if (termsQuery.error)
+    body = <ErrorBanner onRetry={() => void termsQuery.refetch()}>{errorMessage(termsQuery.error)}</ErrorBanner>
+  else if (!term)
     body = (
-      <EmptyState
-        title="No sections yet"
-        body="Sections you teach, assist or take will appear here."
-        action={
-          canManageCourses(membership) ? (
-            <Link to="/$slug/courses" params={{ slug }} className="text-accent underline">
-              Go to Courses
-            </Link>
-          ) : undefined
-        }
-      />
+      <EmptyState title="No terms yet" body="Your schedule appears here once your university sets up its terms." />
     )
-  else body = groups.map((g) => <TermTable key={g.term.id} slug={slug} group={g} />)
+  else if (q.isPending) body = <Loading />
+  else if (q.error) body = <ErrorBanner onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
+  else {
+    const sections = q.data.terms.find((g) => g.term.id === term.id)?.sections ?? []
+    if (sections.length === 0)
+      body = (
+        <EmptyState
+          title={`No sections in ${term.name}`}
+          body="Sections you teach, assist or take in this term appear here."
+          action={
+            <div className="flex justify-center gap-4">
+              {/* ponytail: cast until the catalog route exists (P5-L2b); drop the cast then */}
+              <Link {...({ to: '/$slug/catalog', params: { slug }, search: { termId: term.id } } as unknown as { to: '/' })} className="text-accent underline">
+                Browse the catalog
+              </Link>
+              {canManageCourses(membership) && (
+                <Link to="/$slug/courses" params={{ slug }} className="text-accent underline">
+                  Go to Courses
+                </Link>
+              )}
+            </div>
+          }
+        />
+      )
+    else if (view === 'schedule') body = <Schedule slug={slug} term={term} sections={sections} />
+    else body = <TermTable slug={slug} term={term} sections={sections} />
+  }
   return (
     <>
       <PageHeader title="My sections" description="Sections you teach, assist or take." />
+      {terms.length > 0 && (
+        <>
+          <div role="search" className="mb-4 flex items-end gap-4">
+            <TermPicker terms={terms} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
+            <div role="group" aria-label="View" className="flex">
+              <Button size="sm" variant={view ? 'secondary' : 'primary'} aria-pressed={!view} onClick={() => onSearchChange({ view: undefined })}>
+                List
+              </Button>
+              <Button size="sm" variant={view ? 'primary' : 'secondary'} aria-pressed={!!view} onClick={() => onSearchChange({ view: 'schedule' })}>
+                Schedule
+              </Button>
+            </div>
+          </div>
+          {notInSession && term && (
+            <p className="mb-4 text-sm text-ink-muted">No term is in session today. Showing {term.name}.</p>
+          )}
+        </>
+      )}
       {body}
     </>
   )
