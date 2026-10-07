@@ -74,7 +74,7 @@ func getMyGrades(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			union select section_id from final_grades where user_id = $1)
 		select s.id, s.number, c.id, c.department_id, c.code, c.title, c.credits::text,
 		  t.id, t.name, to_char(t.starts_on, 'YYYY-MM-DD'), to_char(t.ends_on, 'YYYY-MM-DD'),
-		  fg.status, fg.percent::text, fg.letter, fg.points::text
+		  fg.status, fg.percent::text, fg.letter, fg.points::text, fg.credits::text
 		from mine join sections s on s.id = mine.section_id join courses c on c.id = s.course_id join terms t on t.id = s.term_id
 		left join final_grades fg on fg.section_id = s.id and fg.user_id = $1
 		order by t.starts_on desc, t.id, c.code, s.number`, s.UserID)
@@ -87,13 +87,16 @@ func getMyGrades(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	for rows.Next() {
 		var x myGradesSection
 		var t tenant.Term
-		var status, pct, letter, pts sql.NullString
+		var status, pct, letter, pts, frozen sql.NullString
 		if err := rows.Scan(&x.Section.ID, &x.Section.Number, &x.Course.ID, &x.Course.DepartmentID, &x.Course.Code, &x.Course.Title, &x.Course.Credits,
-			&t.ID, &t.Name, &t.StartsOn, &t.EndsOn, &status, &pct, &letter, &pts); err != nil {
+			&t.ID, &t.Name, &t.StartsOn, &t.EndsOn, &status, &pct, &letter, &pts, &frozen); err != nil {
 			rows.Close()
 			return 0, nil, err
 		}
 		x.Credits, x.Assessments = x.Course.Credits, []myAssessment{}
+		if frozen.Valid { // D66: a final grade keeps the credits it was finalized with
+			x.Credits = json.Number(frozen.String)
+		}
 		if status.Valid {
 			x.Final = &finalSummary{Status: status.String, Percent: json.Number(pct.String), Letter: letter.String, Points: json.Number(pts.String)}
 		}

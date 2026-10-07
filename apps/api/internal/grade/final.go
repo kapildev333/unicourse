@@ -373,12 +373,15 @@ func overrideFinal(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, err
 	}
 	all, err := readFinal(ctx, tx, secID)
+	if err != nil {
+		return 0, nil, err
+	}
 	for _, f := range all {
 		if f.id == rowID {
 			return http.StatusOK, f, nil
 		}
 	}
-	return 0, nil, err
+	return 0, nil, httpx.NotFound("final grade")
 }
 
 func reopen(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {

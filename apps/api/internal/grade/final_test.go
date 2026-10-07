@@ -94,7 +94,8 @@ func TestFinalize(t *testing.T) {
 		t.Errorf("published %d", pub)
 	}
 	n, _, after := e.audit("final_grade.finalize", e.SectionA)
-	if n != 1 || !strings.Contains(after.String, mid) || !strings.Contains(after.String, `"grades"`) || !strings.Contains(after.String, e.UserID["stud@a.edu"]) {
+	if n != 1 || !strings.Contains(after.String, mid) || !strings.Contains(after.String, `"grades"`) || !strings.Contains(after.String, e.UserID["stud@a.edu"]) ||
+		!strings.Contains(compact(after), `"letter":"B"`) || !strings.Contains(compact(after), `"letter":"F"`) {
 		t.Errorf("audit %d %s", n, after.String)
 	}
 	if st, _ := e.finalize(map[string]any{}); st != 409 {
@@ -120,6 +121,10 @@ func TestFinalizeBoundaryPin(t *testing.T) {
 func TestFinalizeOverrides(t *testing.T) {
 	e := newEnv(t)
 	e.twoAssessments()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update courses set credits = 4.5 where id = $1`, e.CourseA)
+		return err
+	})
 	stud, stud2 := e.UserID["stud@a.edu"], e.UserID["stud2@a.edu"]
 	fields := func(ov ...map[string]any) []string {
 		st, body := e.finalize(map[string]any{"overrides": ov})
@@ -160,7 +165,12 @@ func TestFinalizeOverrides(t *testing.T) {
 		t.Fatal(st, body)
 	}
 	got := e.finals("")
-	if got[1].Status != "withdrawn" || got[1].Percent != "" || got[1].Letter != "" || got[1].Points != "" || got[1].OverrideReason != "left" || got[1].Credits != "3.0" {
+	for _, f := range got {
+		if f.Credits != "4.5" {
+			t.Errorf("credits %s, want the course's 4.5", f.Credits)
+		}
+	}
+	if got[1].Status != "withdrawn" || got[1].Percent != "" || got[1].Letter != "" || got[1].Points != "" || got[1].OverrideReason != "left" {
 		t.Errorf("withdrawn: %+v", got[1])
 	}
 	if got[0].Letter != "A" || got[0].Points != "4.00" || got[0].Percent != "86.00" || got[0].OverrideReason != "regrade" {
@@ -262,6 +272,19 @@ func TestOverridePatch(t *testing.T) {
 	}
 	if st, _ := e.raw(e.Admin, "PATCH", "/sections/"+e.SectionA+"/final-grades/"+e.UserID["other@a.edu"], map[string]any{"letter": "A", "reason": "x"}); st != 404 {
 		t.Errorf("unknown final: %d", st)
+	}
+}
+
+func TestOverridePatchConflict(t *testing.T) {
+	e := newEnv(t)
+	e.finalized()
+	if st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"status": "withdrawn", "reason": "left"}); st != 200 {
+		t.Fatal(st, body)
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error { _, err := tx.Exec(`update assessments set weight = 0`); return err })
+	st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"status": "graded", "reason": "back"})
+	if code, _ := errDetails([]byte(body)); st != 409 || code != "conflict" || !strings.Contains(body, "weights sum to 0") {
+		t.Errorf("%d %s", st, body)
 	}
 }
 

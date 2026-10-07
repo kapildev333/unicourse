@@ -111,6 +111,14 @@ func TestGradebook(t *testing.T) {
 	}
 }
 
+func TestGradebookLetterUnrounded(t *testing.T) { // 185.99 / 200 = 92.995: shown as 93.00, lettered A- from the unrounded value
+	e := newEnv(t)
+	e.score(e.assessment("Only", "200", "100"), "stud@a.edu", "185.99")
+	if _, body := e.raw(e.Admin, "GET", "/sections/"+e.SectionA+"/gradebook", nil); !strings.Contains(body, `"percent":93.00,"letter":"A-"`) {
+		t.Errorf("%s", body)
+	}
+}
+
 func TestGradebookAuthz(t *testing.T) {
 	e := newEnv(t)
 	want := map[string]int{"admin": 200, "dain": 200, "daout": 403, "inst": 200, "ta": 200, "stud": 403, "other": 403}

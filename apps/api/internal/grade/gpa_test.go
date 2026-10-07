@@ -110,6 +110,25 @@ func TestMyGradesGPA(t *testing.T) {
 	}
 }
 
+func TestMyGradesFrozenCredits(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`delete from sections where id = $1`, e.SectionA)
+		return err
+	})
+	e.section("F1", e.Fx.TermA, "4.0", "graded", "A", "4.00")
+	e.section("F2", e.Fx.TermA, "2.0", "graded", "B", "3.00")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update courses set credits = 9.0 where code = 'F1'`)
+		return err
+	})
+	_, body := e.raw(e.Stud, "GET", "/me/grades", nil)
+	// the sections show 4.0 and 2.0 (frozen), the course itself 9.0 (catalog), and the term total is their sum
+	if !strings.Contains(body, `"credits":4.0,"final"`) || !strings.Contains(body, `"credits":2.0,"final"`) || !strings.Contains(body, `"credits":6.0,"sections"`) {
+		t.Errorf("%s", body)
+	}
+}
+
 func TestMyGradesShape(t *testing.T) {
 	e := newEnv(t)
 	if st, body := e.raw(e.Other, "GET", "/me/grades", nil); st != 200 || strings.TrimSpace(body) != `{"terms":[],"cumulativeCredits":0}` {
