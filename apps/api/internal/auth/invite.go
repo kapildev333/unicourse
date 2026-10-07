@@ -29,7 +29,7 @@ func InvitationURL(baseURL, token, email string) string {
 }
 
 // SignIn finds or creates the user for a verified email and accepts every pending invitation addressed
-// to it, in any university, in one transaction. displayName only fills an empty name.
+// to it, in any university, in one transaction. displayName (then the oldest open invitation's stored name) only fills an empty name.
 func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID string, err error) {
 	if email, err = NormalizeEmail(email); err != nil {
 		return "", err
@@ -50,16 +50,16 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 		}
 		// Read every invitation before the first SetUniversity: invitations_by_email switches off once a
 		// university is set (design section 16.2).
-		type inv struct{ id, uni string }
+		type inv struct{ id, uni, name string }
 		var invs []inv
-		rows, err := tx.QueryContext(ctx, `select id, university_id from invitations
+		rows, err := tx.QueryContext(ctx, `select id, university_id, display_name from invitations
 			where email = $1 and accepted_at is null and expires_at > now() order by created_at, id`, email)
 		if err != nil {
 			return pg.MapError(err)
 		}
 		for rows.Next() {
 			var i inv
-			if err := rows.Scan(&i.id, &i.uni); err != nil {
+			if err := rows.Scan(&i.id, &i.uni, &i.name); err != nil {
 				rows.Close()
 				return err
 			}
@@ -70,6 +70,14 @@ func SignIn(ctx context.Context, db *sql.DB, email, displayName string) (userID 
 		}
 		if err := rows.Err(); err != nil {
 			return err
+		}
+		for _, i := range invs { // the oldest open invitation with a name, only into an empty name
+			if i.name != "" {
+				if _, err := tx.ExecContext(ctx, `update users set display_name = $2 where id = $1 and display_name = ''`, userID, i.name); err != nil {
+					return pg.MapError(err)
+				}
+				break
+			}
 		}
 		for _, i := range invs {
 			if err := pg.SetUniversity(ctx, tx, i.uni); err != nil {

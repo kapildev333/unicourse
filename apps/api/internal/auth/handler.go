@@ -11,7 +11,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
@@ -31,7 +33,7 @@ type Deps struct {
 	EmailLimit, IPLimit *Limiter
 }
 
-// Register adds the seven auth routes.
+// Register adds the eight auth routes.
 func Register(r *httpx.Router, d Deps) {
 	r.Handle("POST", "/api/v1/auth/oidc/{provider}/start", d.oidcStart)
 	r.Handle("GET", "/api/v1/auth/oidc/{provider}/callback", d.oidcCallbackHandler)
@@ -40,6 +42,7 @@ func Register(r *httpx.Router, d Deps) {
 	r.Handle("POST", "/api/v1/auth/magic-link/{token}", d.consumeMagicLink)
 	r.Handle("POST", "/api/v1/auth/sign-out", d.signOut)
 	r.Handle("GET", "/api/v1/me", d.me)
+	r.Handle("PATCH", "/api/v1/me", d.updateMe)
 }
 
 // safeNext returns s when it is a same-site relative path, else "".
@@ -165,24 +168,111 @@ func (d Deps) me(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	return d.writeMe(w, r, a.UserID)
+}
+
+func (d Deps) writeMe(w http.ResponseWriter, r *http.Request, userID string) error {
 	var u struct {
 		ID          string `json:"id"`
 		Email       string `json:"email"`
 		DisplayName string `json:"displayName"`
 	}
-	err = pg.WithUserTx(r.Context(), d.DB, a.UserID, "", func(tx *sql.Tx) error {
-		return tx.QueryRowContext(r.Context(), `select id, email, display_name from users where id = $1`, a.UserID).
+	err := pg.WithUserTx(r.Context(), d.DB, userID, "", func(tx *sql.Tx) error {
+		return tx.QueryRowContext(r.Context(), `select id, email, display_name from users where id = $1`, userID).
 			Scan(&u.ID, &u.Email, &u.DisplayName)
 	})
 	if err != nil {
 		return err
 	}
-	ms, err := d.memberships(r.Context(), a.UserID)
+	ms, err := d.memberships(r.Context(), userID)
 	if err != nil {
 		return err
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": u, "memberships": ms})
 	return nil
+}
+
+// displayName applies tenant.TrimLen's rule with max 100 (auth cannot import tenant).
+func displayName(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	m := ""
+	switch {
+	case s == "":
+		m = "is required"
+	case strings.Contains(s, "\x00"):
+		m = "must not contain NUL"
+	case utf8.RuneCountInString(s) > 100:
+		m = "must be at most 100 characters"
+	}
+	if m != "" {
+		return "", httpx.Validation(httpx.FieldError{Field: "displayName", Message: m})
+	}
+	return s, nil
+}
+
+func (d Deps) updateMe(w http.ResponseWriter, r *http.Request) error {
+	a, err := Authenticate(w, r, d.Sessions)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		DisplayName string `json:"displayName"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil {
+		return err
+	}
+	name, err := displayName(body.DisplayName)
+	if err != nil {
+		return err
+	}
+	ctx := r.Context()
+	err = pg.WithUserTx(ctx, d.DB, a.UserID, "", func(tx *sql.Tx) error {
+		var old string
+		if err := tx.QueryRowContext(ctx, `select display_name from users where id = $1 for update`, a.UserID).Scan(&old); err != nil {
+			return pg.MapError(err)
+		}
+		if old == name {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `update users set display_name = $2 where id = $1`, a.UserID, name); err != nil {
+			return pg.MapError(err)
+		}
+		// All memberships first: memberships_self only applies while app.university_id is unset.
+		rows, err := tx.QueryContext(ctx, `select id, university_id from memberships where user_id = $1 and status = 'active' order by university_id`, a.UserID)
+		if err != nil {
+			return pg.MapError(err)
+		}
+		type mem struct{ id, uni string }
+		var ms []mem
+		for rows.Next() {
+			var m mem
+			if err := rows.Scan(&m.id, &m.uni); err != nil {
+				rows.Close()
+				return err
+			}
+			ms = append(ms, m)
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if err := rows.Err(); err != nil {
+			return pg.MapError(err)
+		}
+		for _, m := range ms {
+			if err := pg.SetUniversity(ctx, tx, m.uni); err != nil {
+				return err
+			}
+			if err := audit.Write(ctx, tx, m.uni, audit.Entry{ActorUserID: a.UserID, Action: "membership.update", EntityType: "membership", EntityID: m.id,
+				Before: map[string]string{"displayName": old}, After: map[string]string{"displayName": name}}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return d.writeMe(w, r, a.UserID)
 }
 
 func (d Deps) signOut(w http.ResponseWriter, r *http.Request) error {

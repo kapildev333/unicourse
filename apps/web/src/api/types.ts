@@ -125,7 +125,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set the current user's display name
+         * @description Who: signed in, for their own name only. displayName is trimmed; 1-100 characters. The name is the person's across every university. Audited as membership.update (before/after displayName) in each university where the user has an active membership; no change, no audit.
+         */
+        patch: operations["updateMe"];
         trace?: never;
     };
     "/universities/{slug}/me/sections": {
@@ -647,7 +651,7 @@ export interface paths {
         put?: never;
         /**
          * Preview enrollments import
-         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: "invalid email", "membership is not active", "domain not allowed".
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: "invalid email", "membership is not active", "domain not allowed", "displayName must be at most 100 characters".
          */
         post: operations["previewEnrollmentImport"];
         delete?: never;
@@ -667,7 +671,7 @@ export interface paths {
         put?: never;
         /**
          * Import enrollments
-         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName is accepted and ignored. Row messages: "invalid email", "membership is not active", "domain not allowed".
+         * @description Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: "invalid email", "membership is not active", "domain not allowed", "displayName must be at most 100 characters".
          */
         post: operations["importEnrollments"];
         delete?: never;
@@ -955,6 +959,10 @@ export interface components {
         Me: {
             user: components["schemas"]["User"];
             memberships: components["schemas"]["MyMembership"][];
+        };
+        MeUpdate: {
+            /** @example Alice Doe */
+            displayName: string;
         };
         Department: {
             /**
@@ -2194,6 +2202,33 @@ export interface operations {
                     "application/json": components["schemas"]["Me"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated; same body as getMe */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             500: components["responses"]["Internal"];
         };
