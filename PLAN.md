@@ -119,6 +119,11 @@ Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-1
 | D109 | Postman collection generated from `apps/api/openapi.json` by `openapi-to-postmanv2` (pinned dev dependency of `apps/web`), committed under `docs/postman/` with a hand-written local environment; the web CI job regenerates it and fails on a difference, like `types.ts`. The spec stays the single source; `apps/api` untouched (Spec 8 §3, design `docs/design/P12-L1.md`) | Orchestrator 2026-10-07, owner to confirm |
 | D110 | The collection signs in by capturing `unicourse_session` from the magic-link consume response into an environment variable and sending it as a `Cookie` header from a collection pre-request script; Postman's cookie jar is not relied on for the `Secure` cookie over plain localhost (Spec 8 §4) | Orchestrator 2026-10-07, owner to confirm |
 | D111 | The generator's normaliser has a Vitest unit test written first (the owner asked for test-driven work; the design proposed the CI diff as the only test). OpenSpec (design `P12-L2`, on the design branch) is not in this phase; the owner decides later (Spec 8 §6) | Orchestrator 2026-10-07, owner to confirm |
+| D112 | GitHub Releases are used from Phase 12 on: SemVer `v0.<phase>.<patch>` while nothing deploys (minor = the phase/spec that completed, patch = a fix-only batch); `v1.0.0` waits for the first real university | Agreed (owner 2026-10-07) |
+| D113 | Baseline release `v0.12.0` at main after Phase 12, highlights covering Specs 1 to 8; no retroactive tags for earlier phases (PLAN.md holds that history) | Agreed (owner 2026-10-07) |
+| D114 | Release notes: `gh release create --generate-notes` plus a Highlights section the orchestrator writes from the spec §1 and the phase outcome; `.github/release.yml` excludes PRs labelled `chore` (PLAN.md and CI chores, labelled at creation and retroactively) and Dependabot from the generated list | Agreed (owner 2026-10-07) |
+| D115 | No build artifacts on releases yet; a `release.yml` workflow building linux/amd64 and darwin/arm64 bundles is added at the first deployment target | Agreed (owner 2026-10-07) |
+| D116 | Phase close = PLAN.md status PR, then tag and release by the orchestrator (never a lane); CLAUDE.md's "Releases: not used" line replaced by this rule; README Status links to the Releases page; `docs/releases.md` holds the template and commands | Agreed (owner 2026-10-07) |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -127,6 +132,7 @@ Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-1
 - Test-driven: every worker step is failing test → implementation → pass → commit, as written in the implementation plan. Reviewer re-runs gates; orchestrator re-runs them again before the PR.
 - Order per lane: designer (kind D) → worker → reviewer → orchestrator verification → PR → green `ci` → squash-merge.
 - Agents escalate only decisions that belong in the table above.
+- Phase close: PLAN.md status PR merged, then the orchestrator tags `v0.<phase>.0` on main and creates the GitHub Release (`docs/releases.md`; D112-D116). Chore PRs carry the `chore` label so the generated notes list feature lanes only.
 
 ## Phase 0 - Foundation
 | Lane | Model | Scope (disjoint) | Status |
@@ -312,6 +318,14 @@ The owner steered the P11-L1 designer agent directly after Phase 11 into two des
 |------|-------|-------|--------|
 | P12-L1 - Generator, collection, environment, CI check, README section (Task 1, W; design by the designer agent) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P12-L1.md`, `apps/web/scripts/**`, `apps/web/package.json`, `apps/web/package-lock.json`, `docs/postman/**`, `.github/workflows/ci.yml` (web job), `README.md` (one section) | **done** - [#116](https://github.com/kapildev333/unicourse/pull/116). Built test-first (failing generator tests committed before the script), review approve with two nits fixed (realpath main check, two more cases; 9 unit tests). Evidence (orchestrator): web gates green (lint, typecheck, 402 tests, build), `npm run postman` byte-identical on rerun, generated file inspected (73 requests, no `id`/`auth` keys, empty responses and variables, pre-request send script), Newman 6 against the dev API with `seed-demo`: magic link 202, consume 302 with the session captured, My sections 200 with Elena's three sections. Owner's import into the Postman app still to be recorded |
 
+## Phase 13 - Releases (process, started 2026-10-07)
+Owner: "make sure we use releases well, to track progress of our features"; D112-D116 proposed and agreed as recommended. One docs lane, then the orchestrator creates the baseline release.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| P13-L1 - `.github/release.yml` (exclude `chore` and Dependabot), CLAUDE.md release rule, README Status link to Releases, `docs/releases.md` (highlights template, exact `gh` commands), `chore` label on past chore PRs (W) | Sonnet 5.5 | `.github/release.yml`, `CLAUDE.md` (one bullet), `README.md` (Status section), `docs/releases.md`; GitHub labels via `gh` | worker launched 2026-10-07 |
+| Baseline release `v0.12.0` (orchestrator, after L1 lands) | - | tag on main, GitHub Release | not started |
+
 ## Backlog
 - Phase 9 leftovers (audit P9-L9): B2 user menu with a name field (the approved follow-up to display names); C5 Target column and C6 total for the Audit log; C7 unpublished count on My grades; Catalog results in code order (API ordering, audit a R11); a shared text-link style; a `PageHeader` heading-level option replacing `TabHeader`; the gradebook hover band skipping the sticky Student cell; middle dots in count lists (audit c question).
 - The gradebook's "(n missing)" counts published assessments only while Finalize counts every unscored assessment (unpublished ones score 0 on finalize); align or label the difference (P9-L5 review). An empty term shows two primary "New section" buttons, header and empty state (P9-L3 review, on main before Phase 9).
@@ -381,3 +395,4 @@ The owner steered the P11-L1 designer agent directly after Phase 11 into two des
 - 2026-10-07: Phase 11 built in one evening: P11-L1 designed, built test-first, reviewed, fixed, verified over SQL, HTTP and a headless browser, landed (#111); P11-L2 drafted in parallel, finished on main, reviewed (captures retaken on the demo data), in PR #112. #105 (`-short`) landed after two `npm ci` hangs and one flaky content test (fixed, #110). Spec 7 §7 and D107 amended to eight captures. #112 and #113 landed; Phase 11 complete on main (root README with eight captures, `seed-demo`). Final check on main: `go build ./...` ok, `seed-demo -h` exits 2 with the documented flags. The 10-minute loop stopped here; D104-D108 await the owner. Open for the owner, unchanged: P4-L4 credentials, Dependabot #25/#26 (React 19) and #32, branch protection, the 59 decisions marked "owner to confirm".
 - 2026-10-07: Owner started a 4-minute loop for the OpenAPI spec, a Postman collection and an environment (TDD, spec-driven). Spec 8 and its plan written from the designer's P12-L1 design; D109-D111 ruled; P12-L1 worker launched. OpenSpec (P12-L2 design) left for the owner's call.
 - 2026-10-07: Phase 12 complete: P12-L1 (#116) landed after review and the orchestrator's gates and Newman run; Spec 8 and D109-D111 in #115. The 4-minute loop stopped here. Open for the owner: the Postman app import (Spec 8 §5), OpenSpec (P12-L2 design on `chore/design-p12-postman-openspec`), D104-D111 and the earlier decisions to confirm, P4-L4, Dependabot #25/#26/#32, branch protection.
+- 2026-10-07: Owner asked for releases to track feature progress; D112-D116 proposed and agreed ("yes for all"); Phase 13 cut into one docs lane plus the orchestrator's baseline release `v0.12.0`; P13-L1 worker launched.
