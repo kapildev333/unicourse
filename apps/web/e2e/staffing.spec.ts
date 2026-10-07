@@ -256,4 +256,139 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     expect((await p.request.get(`${own}/enrollments`)).status()).toBe(404)
     await ctx.close()
   })
+  // Spec 4 (grading). Credits: the course dialog has no credits field on this branch, so they are set
+  // with PATCH /courses/{id} through the admin's session cookie (page.request).
+  const api = `/api/v1/universities/${slugA}`
+  const gradesUrl = (id: string) => `/${slugA}/sections/${id}/grades`
+  const ids = { cs101: new URL(sectionUrl.v).pathname.split('/').filter(Boolean).pop()!, ma201: '' }
+  const [s1, s2, s3] = students
+  const row = (p: Page, email: string) => p.getByRole('row', { name: new RegExp(email) })
+  const newAssessment = async (p: Page, name: string, max: string, weight: string) => {
+    await p.getByRole('button', { name: 'New assessment' }).first().click()
+    const dlg = p.getByRole('dialog')
+    await dlg.getByLabel('Name').fill(name)
+    await dlg.getByLabel('Max points').fill(max)
+    await dlg.getByLabel('Weight (%)').fill(weight)
+    await dlg.getByRole('button', { name: 'Create assessment' }).click()
+    await expect(p.getByRole('button', { name: `Edit ${name}` })).toBeVisible()
+  }
+
+  await test.step('grading: credits 4 on CS101, 2 on MA201, student enrolled in MA201', async () => {
+    const ctx = await browser.newContext()
+    const p = await ctx.newPage()
+    await signIn(p, adminA, slugA)
+    const list = await (await p.request.get(`${api}/courses`)).json()
+    for (const [code, credits] of [['CS101', 4], ['MA201', 2]] as const) {
+      const c = list.items.find((x: { code: string }) => x.code === code)
+      const res = await p.request.patch(`${api}/courses/${c.id}`, { data: { credits } })
+      expect(res.status()).toBe(200)
+    }
+    await p.goto(`/${slugA}/courses/sections`)
+    await p.getByRole('link', { name: 'MA201' }).click()
+    ids.ma201 = new URL(p.url()).pathname.split('/').filter(Boolean).pop()!
+    await p.getByRole('button', { name: 'Import roster' }).first().click()
+    const dlg = p.getByRole('dialog')
+    await dlg.getByLabel('CSV file').setInputFiles(csv([`${s1},Student`]))
+    await dlg.getByRole('button', { name: /^Import 1 row/ }).click()
+    await expect(p.getByText(/Import finished/)).toBeVisible()
+    await ctx.close()
+  })
+
+  const profCtx = await browser.newContext()
+  const prof = await profCtx.newPage()
+  await signIn(prof, instr, slugA)
+
+  await test.step('instructor: CS101 weighted assessments, hand score, CSV scores, publish, finalize', async () => {
+    await prof.goto(gradesUrl(ids.cs101))
+    await newAssessment(prof, 'Midterm', '100', '40')
+    await expect(prof.getByRole('button', { name: 'Finalize grades' })).toBeDisabled() // weights total 40%
+    await newAssessment(prof, 'Final', '200', '60')
+    await expect(prof.getByText('Weights total 100%')).toBeVisible()
+    await expect(prof.getByRole('button', { name: 'Finalize grades' })).toBeEnabled()
+
+    // by hand: s1 Midterm 95
+    const cell = row(prof, s1).getByRole('textbox', { name: /Midterm$/ })
+    await cell.fill('95')
+    await cell.blur()
+    await expect(row(prof, s1).getByText('Saved')).toBeVisible()
+
+    // by CSV: Final scores for all three
+    await prof.getByRole('button', { name: 'Import scores' }).click()
+    const dlg = prof.getByRole('dialog')
+    await dlg.getByLabel('Assessment').selectOption({ label: 'Final' })
+    await dlg.getByLabel('CSV file').setInputFiles({
+      name: 'final.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(`email,points\n${s1},180\n${s2},150\n${s3},120\n`),
+    })
+    await expect(dlg.getByRole('button', { name: 'Import 3 scores' })).toBeEnabled()
+    await dlg.getByRole('button', { name: 'Import 3 scores' }).click()
+    await expect(prof.getByRole('dialog')).toHaveCount(0)
+    await expect(row(prof, s1).getByRole('textbox', { name: /Final$/ })).toHaveValue('180')
+    await expect(row(prof, s3).getByRole('textbox', { name: /Final$/ })).toHaveValue('120')
+
+    // publish both
+    for (const n of ['Midterm', 'Final']) {
+      const box = prof.getByRole('checkbox', { name: `Published ${n}` })
+      await box.click()
+      await expect(box).toBeChecked()
+    }
+
+    // s1: 0.4 * 95 + 0.6 * 90 = 92 -> A-; s2: 0.6 * 75 = 45 and s3: 0.6 * 60 = 36 (missing Midterm = 0) -> F
+    await prof.getByRole('button', { name: 'Finalize grades' }).click()
+    const fin = prof.getByRole('dialog')
+    await expect(fin.getByText(/3 students · 2 with missing scores · Preview: A- 1 · F 2/)).toBeVisible()
+    await fin.getByRole('button', { name: 'Finalize 3 grades' }).click()
+    await expect(prof.getByRole('dialog')).toHaveCount(0)
+    await expect(prof.getByRole('columnheader', { name: 'Final', exact: true })).toBeVisible()
+    await expect(row(prof, s1)).toContainText('A- 3.70')
+    await expect(row(prof, s2)).toContainText('F 0.00')
+    await expect(prof.getByRole('button', { name: 'Reopen grades' })).toBeVisible()
+  })
+
+  await test.step('instructor: MA201 one assessment at 100%, score, finalize', async () => {
+    await prof.goto(gradesUrl(ids.ma201))
+    await newAssessment(prof, 'Exam', '100', '100')
+    const cell = prof.getByRole('textbox', { name: /Exam$/ })
+    await cell.fill('83')
+    await cell.blur()
+    await expect(prof.getByText('Saved', { exact: true })).toBeVisible()
+    await prof.getByRole('button', { name: 'Finalize grades' }).click()
+    await prof.getByRole('dialog').getByRole('button', { name: 'Finalize 1 grades' }).click()
+    await expect(prof.getByRole('dialog')).toHaveCount(0)
+    await expect(row(prof, s1)).toContainText('B 3.00') // 83% is exactly the B cut
+  })
+
+  await test.step('instructor: CSV export has the header and the student row', async () => {
+    const res = await prof.request.get(`${api}/sections/${ids.cs101}/gradebook`, { headers: { Accept: 'text/csv' } })
+    expect(res.status()).toBe(200)
+    expect(res.headers()['content-type']).toContain('text/csv')
+    const lines = (await res.text()).replace(/^﻿/, '').trim().split(/\r?\n/)
+    expect(lines[0]).toBe('email,displayName,Midterm,Final,percent,letter,final')
+    expect(lines.find((l) => l.startsWith(`${s1},`))).toBe(`${s1},,95.00,180.00,92.00,A-,A-`)
+    await profCtx.close()
+  })
+
+  await test.step('student: final letters, term and cumulative GPA, published scores, no gradebook', async () => {
+    const ctx = await browser.newContext()
+    const p = await ctx.newPage()
+    await signIn(p, s1, slugA)
+    await p.goto(`/${slugA}/grades`)
+    // CS101 A- 3.7 x 4 credits + MA201 B 3.0 x 2 credits: (14.8 + 6) / 6 = 3.4667 -> 3.47; CS102 has no final grade
+    await expect(p.getByText('Term GPA 3.47 · 6.0 credits')).toBeVisible()
+    await expect(p.getByText('Cumulative GPA').locator('..')).toContainText('3.47')
+    const cs = p.getByRole('listitem').filter({ has: p.getByRole('link', { name: /^CS101-001/ }) })
+    await expect(cs).toContainText('4.0 credits')
+    await expect(cs).toContainText('A-')
+    await cs.getByText(/Published scores/).click()
+    await expect(cs).toContainText('Midterm — 95 / 100 · 40%')
+    await expect(cs).toContainText('Final — 180 / 200 · 60%')
+    const ma = p.getByRole('listitem').filter({ has: p.getByRole('link', { name: /^MA201-001/ }) })
+    await expect(ma).toContainText('2.0 credits')
+    await expect(ma).toContainText('B')
+    await p.goto(gradesUrl(ids.cs101))
+    await expect(p.getByText('No access').first()).toBeVisible()
+    await expect(p.getByRole('button', { name: 'New assessment' })).toHaveCount(0)
+    await ctx.close()
+  })
 })
