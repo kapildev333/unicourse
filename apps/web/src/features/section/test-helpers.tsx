@@ -49,6 +49,7 @@ export function renderSection(opts: {
         createRoute({ getParentRoute: () => slug, path: 'courses/sections', component: () => null }),
         at('sections/$id'),
         at('sections/$id/announcements'),
+        at('sections/$id/materials'),
         at('sections/$id/grades'),
       ]),
     ]),

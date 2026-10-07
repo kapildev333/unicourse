@@ -31,6 +31,7 @@ import { Route as SlugCoursesSectionsRouteImport } from './routes/$slug/courses/
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
 import { Route as SlugSectionsIdAnnouncementsRouteImport } from './routes/$slug/sections_.$id.announcements'
 import { Route as SlugSectionsIdGradesRouteImport } from './routes/$slug/sections_.$id.grades'
+import { Route as SlugSectionsIdMaterialsRouteImport } from './routes/$slug/sections_.$id.materials'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -143,6 +144,11 @@ const SlugSectionsIdGradesRoute = SlugSectionsIdGradesRouteImport.update({
   path: '/sections/$id/grades',
   getParentRoute: () => SlugRouteRoute,
 } as any)
+const SlugSectionsIdMaterialsRoute = SlugSectionsIdMaterialsRouteImport.update({
+  id: '/sections_/$id/materials',
+  path: '/sections/$id/materials',
+  getParentRoute: () => SlugRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/$slug/courses/': typeof SlugCoursesIndexRoute
   '/$slug/sections/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
+  '/$slug/sections/$id/materials': typeof SlugSectionsIdMaterialsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/$slug/courses': typeof SlugCoursesIndexRoute
   '/$slug/sections/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
+  '/$slug/sections/$id/materials': typeof SlugSectionsIdMaterialsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/$slug/courses/': typeof SlugCoursesIndexRoute
   '/$slug/sections_/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections_/$id/grades': typeof SlugSectionsIdGradesRoute
+  '/$slug/sections_/$id/materials': typeof SlugSectionsIdMaterialsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/$slug/courses/'
     | '/$slug/sections/$id/announcements'
     | '/$slug/sections/$id/grades'
+    | '/$slug/sections/$id/materials'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/$slug/courses'
     | '/$slug/sections/$id/announcements'
     | '/$slug/sections/$id/grades'
+    | '/$slug/sections/$id/materials'
   id:
     | '__root__'
     | '/'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/$slug/courses/'
     | '/$slug/sections_/$id/announcements'
     | '/$slug/sections_/$id/grades'
+    | '/$slug/sections_/$id/materials'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -449,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugSectionsIdGradesRouteImport
       parentRoute: typeof SlugRouteRoute
     }
+    '/$slug/sections_/$id/materials': {
+      id: '/$slug/sections_/$id/materials'
+      path: '/sections/$id/materials'
+      fullPath: '/$slug/sections/$id/materials'
+      preLoaderRoute: typeof SlugSectionsIdMaterialsRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
   }
 }
 
@@ -499,6 +518,7 @@ interface SlugRouteRouteChildren {
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
   SlugSectionsIdAnnouncementsRoute: typeof SlugSectionsIdAnnouncementsRoute
   SlugSectionsIdGradesRoute: typeof SlugSectionsIdGradesRoute
+  SlugSectionsIdMaterialsRoute: typeof SlugSectionsIdMaterialsRoute
 }
 
 const SlugRouteRouteChildren: SlugRouteRouteChildren = {
@@ -512,6 +532,7 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugSectionsIdRoute: SlugSectionsIdRoute,
   SlugSectionsIdAnnouncementsRoute: SlugSectionsIdAnnouncementsRoute,
   SlugSectionsIdGradesRoute: SlugSectionsIdGradesRoute,
+  SlugSectionsIdMaterialsRoute: SlugSectionsIdMaterialsRoute,
 }
 
 const SlugRouteRouteWithChildren = SlugRouteRoute._addFileChildren(

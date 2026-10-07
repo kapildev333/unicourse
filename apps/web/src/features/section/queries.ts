@@ -1,14 +1,18 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '../../api/client'
+import type { ApiError } from '../../api/errors'
 import type { components } from '../../api/types'
 import { useCursorList } from '../../lib/use-cursor-list'
 
 type S = components['schemas']
 export type Section = S['Section']
 export type Announcement = S['Announcement']
+export type Week = S['Week']
+export type Material = S['Material']
 
 export const sectionKey = (slug: string, id: string) => [slug, 'sections', 'detail', id] as const
 export const announcementsKey = (slug: string, id: string) => [slug, 'sections', id, 'announcements'] as const
+export const weeksKey = (slug: string, id: string) => [slug, 'sections', id, 'weeks'] as const
 
 export function useAnnouncements(slug: string, sectionId: string) {
   return useCursorList<Announcement>(announcementsKey(slug, sectionId), (cursor) =>
@@ -25,4 +29,24 @@ export function useContentRefresh(slug: string) {
   const qc = useQueryClient()
   return (key: readonly unknown[]) =>
     Promise.all([key, [slug, 'audit-log']].map((queryKey) => qc.invalidateQueries({ queryKey })))
+}
+
+export function useWeeks(slug: string, sectionId: string) {
+  return useQuery<S['WeekList'], ApiError>({
+    queryKey: weeksKey(slug, sectionId),
+    queryFn: () => unwrap(api.GET('/universities/{slug}/sections/{id}/weeks', { params: { path: { slug, id: sectionId } } })),
+  })
+}
+
+// fetch sets the multipart boundary itself, so no Content-Type (same as api/upload.ts)
+export function uploadMaterial(slug: string, sectionId: string, weekId: string, file: File): Promise<Material> {
+  const form = new FormData()
+  form.append('file', file)
+  return unwrap(
+    api.POST('/universities/{slug}/sections/{id}/weeks/{weekId}/materials', {
+      params: { path: { slug, id: sectionId, weekId } },
+      body: form as never,
+      bodySerializer: (b: unknown) => b as FormData,
+    }),
+  )
 }

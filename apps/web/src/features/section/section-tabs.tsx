@@ -15,6 +15,9 @@ export function SectionTabs({ slug, section }: { slug: string; section: Section 
       <Link to="/$slug/sections/$id/announcements" params={params} {...tabLink}>
         Announcements
       </Link>
+      <Link to="/$slug/sections/$id/materials" params={params} {...tabLink}>
+        Materials
+      </Link>
       {a.canGrades && (
         <Link to="/$slug/sections/$id/grades" params={params} {...tabLink}>
           Grades
