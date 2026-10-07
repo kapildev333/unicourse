@@ -18,13 +18,13 @@ const names = () =>
 it('shows tabs per role', async () => {
   await tabs({ userId: 'u-ins' })
   await screen.findByRole('navigation', { name: 'Section pages' })
-  expect(names()).toEqual(['Home', 'Announcements', 'Materials', 'Grades'])
+  expect(names()).toEqual(['Home', 'Announcements', 'Materials', 'Participants', 'Grades'])
 })
 
 it('shows a student Home and Announcements', async () => {
   await tabs({ mine: mine('student') })
   await screen.findByRole('navigation', { name: 'Section pages' })
-  expect(names()).toEqual(['Home', 'Announcements', 'Materials'])
+  expect(names()).toEqual(['Home', 'Announcements', 'Materials', 'Participants'])
 })
 
 it('shows no strip to a plain member or another department admin', async () => {

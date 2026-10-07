@@ -2,6 +2,7 @@
 // Output: e2e/.tmp/screens/*.png and index.md. Dark/light via emulated prefers-color-scheme (theme stays "System").
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { tmpDir } from './env'
 import { createUniversity, runId, signIn } from './helpers'
@@ -227,8 +228,31 @@ test('capture every screen', async ({ browser, page }) => {
     await snap(page, '44-sections-section-dialog-admin', 'New section dialog with one meeting row added, admin', { dialog: true })
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
 
+    // CS101 content for the Home and Materials captures (admin may edit content)
+    const sc = `${A}/sections/${sec.CS101}`
+    await api(page, 'put', `${sc}/description`, {
+      description: 'An introduction to programming and computational thinking.\nWe meet Monday and Wednesday in Hall B 204.',
+    })
+    const fix = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url))
+    for (const [title, files] of [['Week 1: Getting started', ['syllabus.pdf', 'slides.pptx']], ['Week 2: Variables and types', ['code-samples.zip']]] as const) {
+      const w = await api(page, 'post', `${sc}/weeks`, { title, notes: 'Read the chapter before class.' })
+      for (const f of files) {
+        const res = await page.request.post(`${sc}/weeks/${w.id}/materials`, {
+          headers: H,
+          multipart: { file: { name: f, mimeType: 'application/octet-stream', buffer: fs.readFileSync(fix(f)) } },
+        })
+        expect(res.ok(), await res.text()).toBeTruthy()
+      }
+    }
+
     await page.goto(`/${slug}/sections/${sec.CS101}`)
-    await snap(page, '45-section-detail-admin', 'Section detail CS101 (staff, meeting times, roster), admin')
+    await snap(page, '45-section-detail-admin', 'Section Home CS101 (title band, description, meeting times), admin')
+    await stu.goto(`/${slug}/sections/${sec.CS101}`)
+    await snap(stu, '48-section-home-student', 'Section Home CS101 as student Amara Okafor')
+    await stu.goto(`/${slug}/sections/${sec.CS101}/materials`)
+    await snap(stu, '49-section-materials-student', 'Section Materials CS101 (weeks and files) as student Amara Okafor')
+    await page.goto(`/${slug}/sections/${sec.CS101}/participants`)
+    await snap(page, '48b-section-participants-admin', 'Section Participants CS101 (staff, roster), admin')
     await page.getByRole('button', { name: 'Import roster' }).first().click()
     await page.getByRole('dialog').getByLabel('CSV file').setInputFiles({
       name: 'roster.csv', mimeType: 'text/csv',

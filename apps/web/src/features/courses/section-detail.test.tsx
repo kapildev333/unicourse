@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
 import { SectionDetailPage } from './section-detail'
@@ -20,7 +20,7 @@ const section = (meetings: unknown[]) => ({
   meetings,
 })
 
-function renderPage(meetings: unknown[], mine: unknown[]) {
+function renderPage(meetings: unknown[], mine: unknown[], role = 'member') {
   mockApi({
     'GET /universities/a/sections/s1': () => ({ body: section(meetings) }),
     'GET /universities/a/me/sections': () => ({ body: { terms: [{ term, sections: mine }] } }),
@@ -28,7 +28,7 @@ function renderPage(meetings: unknown[], mine: unknown[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   client.setQueryData(['me'], {
     user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
-    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role: 'member', departmentIds: [] }],
+    memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role, departmentIds: [] }],
   })
   const root = createRootRoute()
   const r = createRoute({
@@ -61,4 +61,23 @@ it('says so without meetings, and a non-enrolled member gets no badge', async ()
   renderPage([], [])
   expect(await screen.findByText('No meeting times yet.')).toBeInTheDocument()
   expect(screen.queryByText('Student')).not.toBeInTheDocument()
+})
+
+it('keeps staff and roster off Home', async () => {
+  renderPage([], [{ id: 's1', myRole: 'student' }])
+  await screen.findByText('No meeting times yet.')
+  expect(screen.queryByRole('heading', { name: /^Staff/ })).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'Roster' })).toBeNull()
+})
+
+it('Edit section opens the dialog for managers only', async () => {
+  renderPage([], [], 'admin')
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit section' }))
+  expect(await screen.findByRole('dialog', { name: 'Edit CS101-001' })).toBeInTheDocument()
+})
+
+it('has no Edit section for a student', async () => {
+  renderPage([], [{ id: 's1', myRole: 'student' }])
+  await screen.findByText('Student')
+  expect(screen.queryByRole('button', { name: 'Edit section' })).toBeNull()
 })
