@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
@@ -28,7 +31,6 @@ type hx struct {
 	fx   testdb.Fixture
 	d    Deps
 	h    http.Handler
-	mail *bytes.Buffer // LogMailer output
 	logs *bytes.Buffer // request log
 	iss  *fakeIssuer
 }
@@ -38,14 +40,14 @@ func newHX(t *testing.T) *hx { return newHXLimit(t, 100) }
 func newHXLimit(t *testing.T, perEmail int) *hx {
 	t.Helper()
 	db := testdb.Open(t)
-	x := &hx{t: t, db: db, fx: testdb.Seed(t, db), mail: &bytes.Buffer{}, logs: &bytes.Buffer{}, iss: newFakeIssuer(t)}
+	x := &hx{t: t, db: db, fx: testdb.Seed(t, db), logs: &bytes.Buffer{}, iss: newFakeIssuer(t)}
 	p, err := newProvider(context.Background(), "google", x.iss.URL, "client", "secret", "http://api.test/api/v1/auth/oidc/google/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
 	x.d = Deps{
 		DB: db, Sessions: &SessionStore{DB: db}, Providers: map[string]Provider{"google": p}, Secret: testSecret, WebBase: webBase,
-		Magic:      &MagicLinks{DB: db, Mailer: LogMailer{L: slog.New(slog.NewJSONHandler(x.mail, nil))}, BaseURL: "http://api.test"},
+		Magic:      &MagicLinks{DB: db, BaseURL: "http://api.test"},
 		EmailLimit: NewLimiter(perEmail, time.Hour), IPLimit: NewLimiter(300, time.Hour),
 	}
 	rt := httpx.NewRouter()
@@ -97,12 +99,12 @@ func cookieNamed(w *httptest.ResponseRecorder, name string) *http.Cookie {
 // link requests a magic link for email and returns the path (plus query) of the mailed URL.
 func (x *hx) link(email, next string) string {
 	x.t.Helper()
-	x.mail.Reset()
+	sqlExec(x.t, x.db, `delete from outbox_mails`)
 	b, _ := json.Marshal(map[string]string{"email": email, "next": next})
 	if w := x.do("POST", "/api/v1/auth/magic-link", string(b)); w.Code != 202 || w.Body.Len() != 0 {
 		x.t.Fatalf("request link: %d %s", w.Code, w.Body)
 	}
-	u, err := url.Parse(lastURL(x.t, x.mail))
+	u, err := url.Parse(lastURL(x.t, x.db))
 	if err != nil {
 		x.t.Fatal(err)
 	}
@@ -128,8 +130,8 @@ func TestSafeNext(t *testing.T) {
 func TestMagicLinkUnknownEmailGets202AndNoMail(t *testing.T) {
 	x := newHX(t)
 	w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"stranger@nowhere.com"}`)
-	if w.Code != 202 || w.Body.Len() != 0 || x.mail.Len() != 0 {
-		t.Fatalf("%d %q mail=%q", w.Code, w.Body, x.mail)
+	if w.Code != 202 || w.Body.Len() != 0 || sqlCount(t, x.db, `select count(*) from outbox_mails`) != 0 {
+		t.Fatalf("%d %q", w.Code, w.Body)
 	}
 	if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"nope"}`); w.Code != 400 {
 		t.Fatalf("bad email: %d", w.Code)
@@ -355,8 +357,12 @@ func TestConfirmPageDropsInvalidNext(t *testing.T) {
 func TestRequestMagicLinkDropsInvalidNext(t *testing.T) {
 	x := newHX(t)
 	x.link("admin@a.edu", "//evil.com")
-	if strings.Contains(x.mail.String(), "next=") || strings.Contains(x.mail.String(), "evil") {
-		t.Fatalf("mailed link carries next: %s", x.mail)
+	var body string
+	if err := x.db.QueryRow(`select body from outbox_mails order by created_at desc, id desc limit 1`).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(body, "next=") || strings.Contains(body, "evil") {
+		t.Fatalf("mailed link carries next: %s", body)
 	}
 }
 
@@ -456,4 +462,44 @@ func TestRejectionLogsCarryRequestID(t *testing.T) {
 			t.Errorf("no %q log line in %s", msg, buf.String())
 		}
 	}
+}
+
+// blockMailer signals entered, then blocks until ctx is done; or always fails when fail is set.
+type blockMailer struct {
+	entered chan struct{}
+	fail    bool
+}
+
+func (m *blockMailer) Send(ctx context.Context, _, _, _ string) error {
+	if m.fail {
+		return errors.New("smtp down")
+	}
+	select {
+	case m.entered <- struct{}{}:
+	default:
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestMagicLinkDoesNotWaitForMailer(t *testing.T) {
+	x := newHX(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	t.Cleanup(func() { cancel(); <-done })
+	bm := &blockMailer{entered: make(chan struct{}, 1)}
+	s := outbox.NewSender(x.db, bm, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	x.d.Magic.Wake = s.Wake
+	go func() { s.Run(ctx); close(done) }()
+
+	start := time.Now()
+	if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"admin@a.edu"}`); w.Code != 202 || time.Since(start) > time.Second {
+		t.Fatalf("%d after %v", w.Code, time.Since(start))
+	}
+	select {
+	case <-bm.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sender was not woken")
+	}
+
 }

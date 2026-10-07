@@ -5,19 +5,27 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 )
 
-// mails returns the logged mail records (to, text).
+// mails returns the queued mail (recipient, body) in creation order.
 func (e *env) mails() (out []struct{ To, Text string }) {
-	for _, l := range strings.Split(e.Log.String(), "\n") {
-		var r struct{ Msg, To, Text string }
-		if json.Unmarshal([]byte(l), &r) == nil && r.Msg == "mail" {
-			out = append(out, struct{ To, Text string }{r.To, r.Text})
+	rows, err := e.DB.Query(`select recipient, body from outbox_mails order by created_at, id`)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m struct{ To, Text string }
+		if err := rows.Scan(&m.To, &m.Text); err != nil {
+			e.T.Fatal(err)
 		}
+		out = append(out, m)
 	}
 	return
 }
@@ -181,7 +189,7 @@ func TestCreateInvitationCLI(t *testing.T) {
 	e := newServer(t, regTenant)
 	uni := e.Fx.UniversityA
 	e.tx(uni, func(tx *sql.Tx) error {
-		inv, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "cli@a.edu", Role: "member"}, e.Deps.Mailer, "http://localhost")
+		inv, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "cli@a.edu", Role: "member"}, outbox.Enqueue, "http://localhost")
 		if err != nil || inv.ID == "" {
 			t.Fatalf("%v", err)
 		}
@@ -190,7 +198,7 @@ func TestCreateInvitationCLI(t *testing.T) {
 		if actors != 1 {
 			t.Fatalf("audit without actor: %d", actors)
 		}
-		if _, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "cli@a.edu", Role: "member"}, e.Deps.Mailer, "http://localhost"); err != ErrInvitationPending {
+		if _, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "cli@a.edu", Role: "member"}, outbox.Enqueue, "http://localhost"); err != ErrInvitationPending {
 			t.Fatalf("want ErrInvitationPending, got %v", err)
 		}
 		return nil
@@ -201,7 +209,7 @@ func TestCreateInvitationsBatch(t *testing.T) {
 	e := newServer(t, regTenant)
 	uni := e.Fx.UniversityA
 	e.tx(uni, func(tx *sql.Tx) error {
-		inv, err := CreateInvitations(context.Background(), tx, uni, e.Fx.AdminA, []string{"b1@a.edu", "b2@a.edu", "b3@a.edu"}, "member", e.Deps.Mailer, "http://localhost")
+		inv, err := CreateInvitations(context.Background(), tx, uni, e.Fx.AdminA, []string{"b1@a.edu", "b2@a.edu", "b3@a.edu"}, "member", "http://localhost")
 		if err != nil || len(inv) != 3 {
 			t.Fatalf("%v %v", inv, err)
 		}
@@ -211,7 +219,7 @@ func TestCreateInvitationsBatch(t *testing.T) {
 		if n != 3 || withActor != 3 {
 			t.Fatalf("audit rows %d, with actor %d", n, withActor)
 		}
-		if out, err := CreateInvitations(context.Background(), tx, uni, "", nil, "member", e.Deps.Mailer, ""); err != nil || len(out) != 0 {
+		if out, err := CreateInvitations(context.Background(), tx, uni, "", nil, "member", ""); err != nil || len(out) != 0 {
 			t.Fatalf("empty: %v %v", out, err)
 		}
 		return nil
@@ -219,4 +227,28 @@ func TestCreateInvitationsBatch(t *testing.T) {
 	if ms := e.mails(); len(ms) != 3 || !strings.Contains(ms[0].Text, "http://localhost/invite/") {
 		t.Fatalf("mails: %+v", ms)
 	}
+}
+
+func TestCreateInvitationQueuesMailInTx(t *testing.T) {
+	e := newServer(t, regTenant)
+	uni := e.Fx.UniversityA
+	e.tx(uni, func(tx *sql.Tx) error {
+		_, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "q@a.edu", Role: "member"}, outbox.Enqueue, "http://localhost")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return nil
+	})
+	if ms := e.mails(); len(ms) != 1 || ms[0].To != "q@a.edu" || !strings.Contains(ms[0].Text, "/invite/") {
+		t.Fatalf("mails: %+v", ms)
+	}
+	boom := errors.New("boom")
+	e.tx(uni, func(tx *sql.Tx) error {
+		_, err := CreateInvitation(context.Background(), tx, NewInvitation{UniversityID: uni, Email: "r@a.edu", Role: "member"},
+			func(context.Context, *sql.Tx, ...outbox.Mail) error { return boom }, "http://localhost")
+		if !errors.Is(err, boom) {
+			t.Fatalf("want boom, got %v", err)
+		}
+		return nil
+	})
 }

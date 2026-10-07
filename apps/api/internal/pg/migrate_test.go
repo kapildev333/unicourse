@@ -2,10 +2,12 @@ package pg_test
 
 import (
 	"context"
+	"io/fs"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
+	"github.com/kapildev333/unicourse/apps/api/migrations"
 )
 
 var tenantTables = []string{"memberships", "department_admins", "departments", "terms", "courses", "sections",
@@ -18,20 +20,24 @@ func TestMigrate(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `drop schema public cascade; create schema public`); err != nil {
 		t.Fatal(err)
 	}
+	files, err := fs.Glob(migrations.FS, "*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := range 2 { // second call must apply nothing
 		if err := pg.Migrate(ctx, db); err != nil {
 			t.Fatal(err)
 		}
 		var n int
 		db.QueryRow(`select count(*) from schema_migrations`).Scan(&n)
-		if n != 2 {
-			t.Fatalf("run %d: %d schema_migrations rows", i, n)
+		if n != len(files) {
+			t.Fatalf("run %d: %d schema_migrations rows, want %d", i, n, len(files))
 		}
 	}
 	var tables int
 	db.QueryRow(`select count(*) from pg_tables where schemaname = 'public' and tablename <> 'schema_migrations'`).Scan(&tables)
-	if tables != 17 {
-		t.Fatalf("%d tables, want 17", tables)
+	if tables != 18 {
+		t.Fatalf("%d tables, want 18", tables)
 	}
 	rows, err := db.Query(`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'university_id' and table_name <> 'universities'`)
 	if err != nil {
@@ -61,7 +67,7 @@ func TestMigrate(t *testing.T) {
 			t.Errorf("%s: tenant_isolation policy with qual and with_check missing", name)
 		}
 	}
-	for _, name := range []string{"universities", "users", "sessions", "magic_links"} {
+	for _, name := range []string{"universities", "users", "sessions", "magic_links", "outbox_mails"} {
 		var on bool
 		db.QueryRow(`select relrowsecurity from pg_class where oid = $1::regclass`, name).Scan(&on)
 		if on {

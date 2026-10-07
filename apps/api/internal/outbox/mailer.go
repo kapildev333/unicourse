@@ -1,4 +1,4 @@
-package auth
+package outbox
 
 import (
 	"context"
@@ -32,7 +32,6 @@ type smtpMailer struct {
 }
 
 // NewSMTPMailer parses smtp://user:pass@host:port?from=noreply@x.edu. STARTTLS is negotiated by net/smtp.
-// ponytail: net/smtp is frozen and synchronous; move to a queue or provider API when volume or latency matters.
 func NewSMTPMailer(rawURL string) (Mailer, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {

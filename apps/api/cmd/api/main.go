@@ -14,6 +14,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/config"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
@@ -34,18 +35,12 @@ func newHandler(logger *slog.Logger, ready func(context.Context) error, api, web
 	return httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, httpx.Recover(mux)))
 }
 
-// authDeps builds the auth wiring: providers whose client id is unset are absent; without an SMTP URL
-// the magic-link mail is written to the log (dev and e2e).
-func authDeps(ctx context.Context, cfg config.Config, db *sql.DB, logger *slog.Logger) (auth.Deps, error) {
+// authDeps builds the auth wiring: providers whose client id is unset are absent. wake nudges the
+// outbox sender after a magic link is queued.
+func authDeps(ctx context.Context, cfg config.Config, db *sql.DB, wake func()) (auth.Deps, error) {
 	providers, err := auth.NewProviders(ctx, cfg)
 	if err != nil {
 		return auth.Deps{}, err
-	}
-	var mailer auth.Mailer = auth.LogMailer{L: logger}
-	if cfg.SMTPURL != "" {
-		if mailer, err = auth.NewSMTPMailer(cfg.SMTPURL); err != nil {
-			return auth.Deps{}, err
-		}
 	}
 	web := cfg.WebOrigin
 	if web == "" {
@@ -53,7 +48,7 @@ func authDeps(ctx context.Context, cfg config.Config, db *sql.DB, logger *slog.L
 	}
 	return auth.Deps{
 		DB: db, Sessions: &auth.SessionStore{DB: db},
-		Magic:     &auth.MagicLinks{DB: db, Mailer: mailer, BaseURL: cfg.BaseURL},
+		Magic:     &auth.MagicLinks{DB: db, Wake: wake, BaseURL: cfg.BaseURL},
 		Providers: providers, Secret: []byte(cfg.SessionSecret), WebBase: web,
 		EmailLimit: auth.NewLimiter(5, time.Hour), IPLimit: auth.NewLimiter(300, time.Hour),
 	}, nil
@@ -83,12 +78,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	deps, err := authDeps(ctx, cfg, db, logger)
+	// without an SMTP URL mail is written to the log (dev and e2e)
+	var mailer outbox.Mailer = outbox.LogMailer{L: logger}
+	if cfg.SMTPURL != "" {
+		if mailer, err = outbox.NewSMTPMailer(cfg.SMTPURL); err != nil {
+			logger.Error("mail", "err", err)
+			os.Exit(1)
+		}
+	}
+	sender := outbox.NewSender(db, mailer, logger)
+	go sender.Run(ctx)
+
+	deps, err := authDeps(ctx, cfg, db, sender.Wake)
 	if err != nil {
 		logger.Error("auth", "err", err)
 		os.Exit(1)
 	}
-	api := app.NewRouter(app.Deps{Auth: deps, Mailer: deps.Magic.Mailer, BaseURL: cfg.BaseURL})
+	api := app.NewRouter(app.Deps{Auth: deps, BaseURL: cfg.BaseURL})
 
 	var web http.Handler
 	if cfg.WebDir != "" {

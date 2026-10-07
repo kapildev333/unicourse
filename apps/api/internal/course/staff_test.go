@@ -106,8 +106,8 @@ func TestStaffInviteFlow(t *testing.T) {
 	if st != 202 || json.Unmarshal(raw, &got) != nil || !got.Invited || got.Invitation.Email != "newbie@outside.org" || got.Invitation.Role != "member" {
 		t.Fatalf("invite: %d %s", st, raw)
 	}
-	if e.Mails.count() != 1 || e.count(`select count(*) from pending_section_staff`) != 1 {
-		t.Errorf("mails %d", e.Mails.count())
+	if e.count(`select count(*) from outbox_mails`) != 1 || e.count(`select count(*) from pending_section_staff`) != 1 {
+		t.Errorf("mails %d", e.count(`select count(*) from outbox_mails`))
 	}
 	_, raw = e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
 	if p := jmap(t, raw)["pendingStaff"].([]any); len(p) != 1 || p[0].(map[string]any)["email"] != "newbie@outside.org" {
@@ -120,8 +120,8 @@ func TestStaffInviteFlow(t *testing.T) {
 	if st, raw := e.call(e.DaIn, "POST", e.staffPath(s2), map[string]any{"email": "newbie@outside.org", "role": "instructor"}); st != 202 {
 		t.Fatalf("second section: %d %s", st, raw)
 	}
-	if n := e.count(`select count(*) from invitations where email = 'newbie@outside.org'`); n != 1 || e.Mails.count() != 1 {
-		t.Errorf("invitations %d mails %d", n, e.Mails.count())
+	if n := e.count(`select count(*) from invitations where email = 'newbie@outside.org'`); n != 1 || e.count(`select count(*) from outbox_mails`) != 1 {
+		t.Errorf("invitations %d mails %d", n, e.count(`select count(*) from outbox_mails`))
 	}
 	if n := e.count(`select count(*) from pending_section_staff`); n != 2 {
 		t.Errorf("pending rows %d", n)
@@ -151,8 +151,8 @@ func TestStaffIgnoresExpiredInvitation(t *testing.T) {
 	if st != 202 || json.Unmarshal(raw, &got) != nil || got.Invitation.ID == "" || got.Invitation.ID == oldID {
 		t.Fatalf("expired invitation reused: %d %s (old %s)", st, raw, oldID)
 	}
-	if e.Mails.count() != 1 {
-		t.Errorf("mails %d", e.Mails.count())
+	if e.count(`select count(*) from outbox_mails`) != 1 {
+		t.Errorf("mails %d", e.count(`select count(*) from outbox_mails`))
 	}
 	if n := e.count(`select count(*) from pending_section_staff where invitation_id = $1`, got.Invitation.ID); n != 1 {
 		t.Errorf("pending rows on new invitation %d", n)

@@ -12,7 +12,6 @@ import (
 // registration (the contract test), handlers only dereference at request time.
 type Deps struct {
 	Auth    auth.Deps
-	Mailer  auth.Mailer
 	BaseURL string // used for invitation URLs
 }
 
@@ -21,7 +20,7 @@ type Deps struct {
 func NewRouter(deps Deps) *httpx.Router {
 	r := httpx.NewRouter()
 	auth.Register(r, deps.Auth)
-	td := tenant.Deps{DB: deps.Auth.DB, Sessions: deps.Auth.Sessions, Mailer: deps.Mailer, BaseURL: deps.BaseURL}
+	td := tenant.Deps{DB: deps.Auth.DB, Sessions: deps.Auth.Sessions, BaseURL: deps.BaseURL}
 	tenant.Register(r, td)
 	course.Register(r, td)
 	return r

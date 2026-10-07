@@ -1,11 +1,10 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
-	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -15,12 +14,27 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
 
-func newMagic(t *testing.T) (*MagicLinks, *sql.DB, testdb.Fixture, *bytes.Buffer) {
+var urlRe = regexp.MustCompile(`https?://\S+`)
+
+// lastURL returns the URL in the body of the newest outbox row.
+func lastURL(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	var body string
+	if err := db.QueryRow(`select body from outbox_mails order by created_at desc, id desc limit 1`).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	if u := urlRe.FindString(body); u != "" {
+		return u
+	}
+	t.Fatal("no URL in newest outbox mail")
+	return ""
+}
+
+func newMagic(t *testing.T) (*MagicLinks, *sql.DB, testdb.Fixture) {
 	t.Helper()
 	db := testdb.Open(t)
 	fx := testdb.Seed(t, db)
-	var buf bytes.Buffer
-	return &MagicLinks{DB: db, Mailer: LogMailer{L: slog.New(slog.NewJSONHandler(&buf, nil))}, BaseURL: "http://api.test"}, db, fx, &buf
+	return &MagicLinks{DB: db, BaseURL: "http://api.test"}, db, fx
 }
 
 func tokenFromURL(t *testing.T, u string) string {
@@ -45,7 +59,7 @@ func wantLinkErr(t *testing.T, err error, msg string) {
 }
 
 func TestMagicSendAndConsume(t *testing.T) {
-	m, db, _, buf := newMagic(t)
+	m, db, _ := newMagic(t)
 	ctx := context.Background()
 
 	if err := m.Send(ctx, "  Alice@A.EDU ", ""); err != nil {
@@ -54,7 +68,7 @@ func TestMagicSendAndConsume(t *testing.T) {
 	if n := sqlCount(t, db, `select count(*) from magic_links where email = 'alice@a.edu'`); n != 1 {
 		t.Fatalf("rows %d", n)
 	}
-	u := lastURL(t, buf)
+	u := lastURL(t, db)
 	if !strings.HasPrefix(u, "http://api.test/api/v1/auth/magic-link/") {
 		t.Fatalf("url %q", u)
 	}
@@ -74,27 +88,26 @@ func TestMagicSendAndConsume(t *testing.T) {
 }
 
 func TestMagicSendNextAndNotAllowed(t *testing.T) {
-	m, db, _, buf := newMagic(t)
+	m, db, _ := newMagic(t)
 	ctx := context.Background()
 
-	buf.Reset()
 	if err := m.Send(ctx, "x@nowhere.org", ""); err != nil {
 		t.Fatal(err)
 	}
-	if n := sqlCount(t, db, `select count(*) from magic_links`); n != 0 || buf.Len() != 0 {
-		t.Fatalf("not-allowed email left rows=%d mail=%q", n, buf.String())
+	if n := sqlCount(t, db, `select count(*) from magic_links`); n != 0 || sqlCount(t, db, `select count(*) from outbox_mails`) != 0 {
+		t.Fatalf("not-allowed email left rows=%d", n)
 	}
 
 	if err := m.Send(ctx, "bob@a.edu", "/a/admin"); err != nil {
 		t.Fatal(err)
 	}
-	if u := lastURL(t, buf); !strings.HasSuffix(u, "?next=%2Fa%2Fadmin") {
+	if u := lastURL(t, db); !strings.HasSuffix(u, "?next=%2Fa%2Fadmin") {
 		t.Fatalf("next missing: %q", u)
 	}
 }
 
 func TestMagicSendInvitedExternalEmail(t *testing.T) {
-	m, db, fx, buf := newMagic(t)
+	m, db, fx := newMagic(t)
 	ctx := context.Background()
 	insert := func(expires string) {
 		t.Helper()
@@ -116,11 +129,11 @@ func TestMagicSendInvitedExternalEmail(t *testing.T) {
 	if err := m.Send(ctx, "adj@other.org", ""); err != nil || sqlCount(t, db, `select count(*) from magic_links`) != 1 {
 		t.Fatal("pending invitation must allow")
 	}
-	lastURL(t, buf)
+	lastURL(t, db)
 }
 
 func TestMagicSendBadEmail(t *testing.T) {
-	m, _, _, _ := newMagic(t)
+	m, _, _ := newMagic(t)
 	var he *httpx.Error
 	if err := m.Send(context.Background(), "nope", ""); !errors.As(err, &he) || he.Code != "validation_failed" {
 		t.Fatalf("got %v", err)
@@ -128,14 +141,14 @@ func TestMagicSendBadEmail(t *testing.T) {
 }
 
 func TestMagicConsumeFailures(t *testing.T) {
-	m, db, _, buf := newMagic(t)
+	m, db, _ := newMagic(t)
 	ctx := context.Background()
 	mk := func() (string, []byte) {
 		t.Helper()
 		if err := m.Send(ctx, "alice@a.edu", ""); err != nil {
 			t.Fatal(err)
 		}
-		tok := tokenFromURL(t, lastURL(t, buf))
+		tok := tokenFromURL(t, lastURL(t, db))
 		return tok, hashToken(tok)
 	}
 
@@ -157,12 +170,12 @@ func TestMagicConsumeFailures(t *testing.T) {
 }
 
 func TestMagicConsumeRace(t *testing.T) {
-	m, _, _, buf := newMagic(t)
+	m, db, _ := newMagic(t)
 	ctx := context.Background()
 	if err := m.Send(ctx, "alice@a.edu", ""); err != nil {
 		t.Fatal(err)
 	}
-	tok := tokenFromURL(t, lastURL(t, buf))
+	tok := tokenFromURL(t, lastURL(t, db))
 	const n = 10
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -188,5 +201,29 @@ func TestMagicConsumeRace(t *testing.T) {
 	wg.Wait()
 	if wins != 1 || used != n-1 {
 		t.Fatalf("wins=%d used=%d", wins, used)
+	}
+}
+
+func TestMagicSendQueuesUrgentMailAndWakes(t *testing.T) {
+	m, db, _ := newMagic(t)
+	wakes := 0
+	m.Wake = func() { // db is another connection: sees the row only once the send committed
+		wakes++
+		if n := sqlCount(t, db, `select count(*) from outbox_mails`); n != 1 {
+			t.Errorf("wake saw %d outbox rows, want 1 (wake before commit?)", n)
+		}
+	}
+	ctx := context.Background()
+	if err := m.Send(ctx, "alice@a.edu", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := sqlCount(t, db, `select count(*) from outbox_mails where recipient = 'alice@a.edu' and urgent`); n != 1 || wakes != 1 {
+		t.Fatalf("rows %d wakes %d", n, wakes)
+	}
+	if err := m.Send(ctx, "x@nowhere.org", ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := sqlCount(t, db, `select count(*) from outbox_mails`); n != 1 || wakes != 1 {
+		t.Fatalf("not allowed: rows %d wakes %d", n, wakes)
 	}
 }

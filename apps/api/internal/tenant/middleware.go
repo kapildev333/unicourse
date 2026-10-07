@@ -16,7 +16,6 @@ import (
 type Deps struct {
 	DB       *sql.DB
 	Sessions *auth.SessionStore
-	Mailer   auth.Mailer
 	BaseURL  string // cfg.BaseURL, used for invitation URLs
 }
 
