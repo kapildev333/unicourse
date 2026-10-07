@@ -1,10 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { CalendarRange, Layers, Plus, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
-import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
@@ -12,7 +11,6 @@ import { errorMessage } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
@@ -27,33 +25,40 @@ import { SectionDialog } from './section-dialog'
 
 type Section = components['schemas']['Section']
 
+const columns = ['Course', 'Section', 'Instructors', 'TAs', '']
 const listCopy = { forbidden: "You don't have permission to view this." }
 
-function Chips({ section, staffRole }: { section: Section; staffRole: 'instructor' | 'ta' }) {
+function StaffCell({ section, staffRole }: { section: Section; staffRole: 'instructor' | 'ta' }) {
   const staff = section.staff.filter((s) => s.role === staffRole)
   const pending = section.pendingStaff.filter((s) => s.role === staffRole)
-  if (staff.length + pending.length === 0)
+  const total = staff.length + pending.length
+  if (total === 0)
     return (
       <>
         <span className="text-ink-muted">—</span>
         <span className="sr-only">none</span>
       </>
     )
+  const firstName = staff[0] ? personName(staff[0]) : `${pending[0].email} (invited)`
+  const names = [
+    ...staff.map((s) => <span key={s.userId}>{personName(s)}</span>),
+    ...pending.map((s) => (
+      <span key={s.email} className="text-ink-muted">
+        {s.email} (invited)
+      </span>
+    )),
+  ]
+  const join = (items: React.ReactNode[]) =>
+    items.flatMap((n, i) => (i === 0 ? [n] : [<span key={`sep${i}`}>, </span>, n]))
+  // more than two: first name and a count; the full list stays available to assistive tech
+  if (total <= 2) return <span className="text-sm">{join(names)}</span>
   return (
-    <ul className="flex flex-wrap gap-1">
-      {staff.map((s) => (
-        <li key={s.userId}>
-          <Badge tone="neutral">{personName(s)}</Badge>
-        </li>
-      ))}
-      {pending.map((s) => (
-        <li key={s.email}>
-          <Badge tone="neutral" className="border-dashed">
-            {s.email} (invited)
-          </Badge>
-        </li>
-      ))}
-    </ul>
+    <span className="text-sm">
+      <span aria-hidden="true">
+        {`${firstName} +${total - 1}`}
+      </span>
+      <span className="sr-only">{join(names)}</span>
+    </span>
   )
 }
 
@@ -89,33 +94,58 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
     },
   })
 
+  const navigate = useNavigate()
+  const noTerms = !termsQuery.isPending && !termsQuery.error && terms.length === 0
   const actions = (
-    <div className="flex gap-2">
-      <Button variant="secondary" onClick={() => setImporting(true)}>
-        <Upload />
-        Import sections
-      </Button>
-      <Button disabled={!term} onClick={() => setCreating(true)}>
+    <div className="flex flex-wrap items-center gap-2">
+      {!noTerms && (
+        <Button variant="secondary" onClick={() => setImporting(true)}>
+          <Upload />
+          Import sections
+        </Button>
+      )}
+      <Button disabled={!term} aria-describedby={noTerms ? 'new-section-reason' : undefined} onClick={() => setCreating(true)}>
         <Plus />
         New section
       </Button>
+      {noTerms && (
+        <span id="new-section-reason" className="text-sm text-ink-muted">
+          Add a term first
+        </span>
+      )}
     </div>
   )
 
   let body: React.ReactNode
-  if (termsQuery.isPending) body = <Loading />
+  if (termsQuery.isPending) body = <Loading variant="table" columns={columns} />
   else if (termsQuery.error)
-    body = <ErrorBanner onRetry={() => void termsQuery.refetch()}>{errorMessage(termsQuery.error, listCopy)}</ErrorBanner>
+    body = (
+      <ErrorBanner title="Couldn't load sections" onRetry={() => void termsQuery.refetch()}>
+        {errorMessage(termsQuery.error, listCopy)}
+      </ErrorBanner>
+    )
   else if (!term)
     body = (
       <EmptyState
         title="No terms yet"
         icon={CalendarRange}
         body="An administrator creates terms under Admin → Terms before sections can be added."
+        action={
+          membership.role === 'admin' ? (
+            <Button variant="secondary" onClick={() => void navigate({ to: '/$slug/admin/terms', params: { slug } })}>
+              Set up terms
+            </Button>
+          ) : undefined
+        }
       />
     )
-  else if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  else if (list.isPending) body = <Loading variant="table" columns={columns} />
+  else if (list.error)
+    body = (
+      <ErrorBanner title="Couldn't load sections" onRetry={list.refetch}>
+        {errorMessage(list.error, listCopy)}
+      </ErrorBanner>
+    )
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -133,7 +163,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   else
     body = (
       <>
-        <Table caption={`Sections in ${term.name}`}>
+        <Table caption={`Sections in ${term.name}`} stack>
           <thead>
             <tr>
               <th scope="col">Course</th>
@@ -148,7 +178,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
           <tbody>
             {list.items.map((s) => (
               <tr key={s.id}>
-                <td>
+                <td data-label="Course">
                   <Link
                     to="/$slug/sections/$id"
                     params={{ slug, id: s.id }}
@@ -158,12 +188,12 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
                   </Link>
                   <span className="block text-xs text-ink-muted">{s.course.title}</span>
                 </td>
-                <td>{s.number}</td>
-                <td>
-                  <Chips section={s} staffRole="instructor" />
+                <td data-label="Section">{s.number}</td>
+                <td data-label="Instructors">
+                  <StaffCell section={s} staffRole="instructor" />
                 </td>
-                <td>
-                  <Chips section={s} staffRole="ta" />
+                <td data-label="TAs">
+                  <StaffCell section={s} staffRole="ta" />
                 </td>
                 <td className="text-right whitespace-nowrap">
                   {canManageDepartment(membership, s.course.departmentId) && (
@@ -199,24 +229,39 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )
 
   return (
     <>
-      <PageHeader title="Sections" description="Sections of each course in a term." action={actions} />
-      <div role="search" className="mb-6">
-        <FormField label="Term" name="termId">
-          <select className={`${inputClass} w-64`} value={effectiveId ?? ''} onChange={(e) => onTermChange(e.target.value)}>
-            {terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({formatDate(t.startsOn)} – {formatDate(t.endsOn)})
-              </option>
-            ))}
-          </select>
-        </FormField>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <p className="text-base text-ink-muted">Sections of each course in a term.</p>
+        {actions}
       </div>
+      {!noTerms && (
+        <div role="search" className="mb-6 flex flex-wrap items-end gap-4">
+          <FormField label="Term" name="termId">
+            <select
+              className={`${inputClass} w-full sm:w-72`}
+              value={effectiveId ?? ''}
+              onChange={(e) => onTermChange(e.target.value)}
+            >
+              {terms.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({formatDate(t.startsOn)} – {formatDate(t.endsOn)})
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {term && !list.isPending && !list.error && list.items.length > 0 && (
+            <p role="status" className="ml-auto text-sm text-ink-muted">
+              Showing {list.items.length}
+            </p>
+          )}
+        </div>
+      )}
       <StatusMessage message={notice} />
       {body}
       {creating && term && (

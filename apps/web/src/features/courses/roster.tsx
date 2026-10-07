@@ -54,8 +54,13 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Email', 'Added']} />
+  else if (list.error)
+    body = (
+      <ErrorBanner title="Couldn't load the roster" onRetry={list.refetch}>
+        {errorMessage(list.error)}
+      </ErrorBanner>
+    )
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -66,13 +71,12 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
             ? 'Import a CSV of student emails to build the roster.'
             : 'Students enrolled in this section will appear here.'
         }
-        action={canEdit ? importButton : undefined}
       />
     )
   else
     body = (
       <>
-        <Table caption="Roster">
+        <Table caption="Roster" stack>
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -88,9 +92,18 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
           <tbody>
             {list.items.map((e) => (
               <tr key={e.userId}>
-                <td className="font-medium">{personName(e)}</td>
-                <td>{e.email}</td>
-                <td>{formatDate(e.createdAt)}</td>
+                <td data-label="Name" className="font-medium">
+                  {e.displayName ? (
+                    e.displayName
+                  ) : (
+                    <>
+                      <span className="text-ink-muted">—</span>
+                      <span className="sr-only">no name</span>
+                    </>
+                  )}
+                </td>
+                <td data-label="Email">{e.email}</td>
+                <td data-label="Added">{formatDate(e.createdAt)}</td>
                 {canEdit && (
                   <td className="text-right">
                     <Button
@@ -121,7 +134,21 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
 
   return (
     <>
-      {canEdit && <div className="mb-3 flex justify-end">{importButton}</div>}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 id="roster-h" className="text-xl font-bold">
+          Roster
+          {!list.isPending && !list.error && (
+            <>
+              {' '}
+              <span className="font-normal text-ink-muted">
+                {list.items.length}
+                {list.hasNextPage ? '+' : ''}
+              </span>
+            </>
+          )}
+        </h2>
+        {canEdit && importButton}
+      </div>
       <StatusMessage message={notice} />
       {body}
       <RemoveDialog

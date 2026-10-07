@@ -7,6 +7,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 const erin = { userId: 'u-erin', email: 'erin@a.edu', displayName: 'Erin Moe', createdAt: '2026-09-01T10:00:00Z' }
 const sam = { userId: 'u-sam', email: 'sam@a.edu', displayName: '', createdAt: '2026-09-02T10:00:00Z' }
+const renderPage = () => renderWithQuery(<Roster slug="a" sectionId="s1" canEdit />)
 const E = 'GET /universities/a/sections/s1/enrollments'
 
 it('lists the roster and removes a student after confirmation', async () => {
@@ -43,4 +44,24 @@ it('shows the empty state', async () => {
   mockApi({ [E]: () => ({ body: { items: [] } }) })
   renderWithQuery(<Roster slug="a" sectionId="s1" canEdit={false} />)
   expect(await screen.findByText('No students yet')).toBeInTheDocument()
+})
+
+it('stacks the table; a nameless student shows the email once and a muted dash in Name', async () => {
+  mockApi({ [E]: () => ({ body: { items: [erin, sam] } }) })
+  renderPage()
+  const row = (await screen.findByText('sam@a.edu')).closest('tr')!
+  expect(screen.getByRole('table', { name: 'Roster' })).toHaveClass('ui-table-stack')
+  const cells = within(row).getAllByRole('cell')
+  expect(cells.map((c) => c.getAttribute('data-label'))).toEqual(['Name', 'Email', 'Added', null])
+  expect(cells[0]).toHaveTextContent('—')
+  expect(screen.getAllByText('sam@a.edu', { exact: false, selector: 'td' })).toHaveLength(1)
+  const named = screen.getByText('erin@a.edu').closest('tr')!
+  expect(within(named).getByText('Erin Moe')).toBeInTheDocument()
+})
+
+it('puts the count and Import in the heading row', async () => {
+  mockApi({ [E]: () => ({ body: { items: [erin, sam] } }) })
+  renderPage()
+  const h = await screen.findByRole('heading', { name: 'Roster 2' })
+  expect(within(h.parentElement!).getByRole('button', { name: 'Import roster' })).toBeInTheDocument()
 })
