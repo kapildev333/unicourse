@@ -24,7 +24,7 @@ Source: the spec's section 1 and the phase outcome in PLAN.md.
 
 ## Phase close
 
-`--generate-notes` prepends the notes you pass (`--notes` or `--notes-file`) to the generated list; verified on the first release.
+`--generate-notes` prepends the notes you pass (`--notes` or `--notes-file`) to the generated list; verified on v0.12.0 (2026-10-07).
 
 ```
 git checkout main && git pull --ff-only
