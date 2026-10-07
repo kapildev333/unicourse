@@ -6,7 +6,7 @@ UniCourse web app (React + Vite + TypeScript). Stack and internal layout are def
 
 ## Run
 
-Node 22, npm. From `apps/web`:
+Node 22.22.2 or newer, npm. From `apps/web`:
 
 - `npm run dev`: Vite dev server; `/api` is proxied to `http://localhost:8080`.
 - `npm run build`: typecheck, then production build.

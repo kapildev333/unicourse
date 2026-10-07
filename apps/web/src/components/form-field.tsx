@@ -12,7 +12,7 @@ export function FormField(props: {
   name: string
   error?: string
   hint?: string
-  children: React.ReactElement
+  children: React.ReactElement<React.HTMLAttributes<HTMLElement>>
 }) {
   const { label, name, error, hint, children } = props
   const id = useId()
