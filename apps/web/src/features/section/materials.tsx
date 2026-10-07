@@ -57,7 +57,7 @@ function Materials({ slug, section, canEdit }: { slug: string; section: Section;
   // a keyed reorder can drop focus: put it back on the move button once the new order renders
   useEffect(() => {
     if (!focusAfter.current) return
-    const [dir, id] = [focusAfter.current.slice(0, 4), focusAfter.current.slice(5)]
+    const [dir, id] = focusAfter.current.split(' ')
     const el = [`move-${dir}-${id}`, `move-${dir === 'up' ? 'down' : 'up'}-${id}`]
       .map((i) => document.getElementById(i) as HTMLButtonElement | null)
       .find((b) => b && !b.disabled)

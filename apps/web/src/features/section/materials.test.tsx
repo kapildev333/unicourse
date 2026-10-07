@@ -135,6 +135,14 @@ it('moves a week and keeps focus on a move button', async () => {
   await waitFor(() => expect(document.activeElement?.id).toMatch(/^move-(up|down)-w1$/))
 })
 
+it('keeps focus on a move button after moving up', async () => {
+  setup({ 'PATCH /universities/a/sections/s1/weeks/w2': () => ({ body: week(2, [], { position: 1 }) }) })
+  await screen.findByText('Week 2')
+  fireEvent.click(screen.getByRole('button', { name: 'Move Week 2 up' }))
+  await waitFor(() => expect(statusText()).toContain('Week 2 moved up.'))
+  await waitFor(() => expect(document.activeElement?.id).toMatch(/^move-(up|down)-w2$/))
+})
+
 it('names the file count when deleting a week', async () => {
   const fn = setup({
     'DELETE /universities/a/sections/s1/weeks/w1': () => ({ status: 204 }),
