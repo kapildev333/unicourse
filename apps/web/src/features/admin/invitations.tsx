@@ -1,10 +1,11 @@
 import { useMutation } from '@tanstack/react-query'
+import { Mail, UserPlus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Badge, RoleBadge, roleLabel } from '../../components/badge'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
@@ -96,14 +97,14 @@ function InviteForm(props: { slug: string; role: string; onDone: (notice?: strin
       {!fixed && role === 'dept_admin' && (
         <DepartmentPicker slug={slug} value={departmentIds} onChange={setDepartmentIds} error={fields.departmentIds} />
       )}
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={m.isPending}>
           {m.isPending ? 'Sending…' : 'Send invitation'}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   )
 }
@@ -131,14 +132,14 @@ function RevokeForm(props: {
   return (
     <div className="flex flex-col gap-4">
       {m.error != null && <ErrorBanner title="">{errorMessage(m.error, revokeCopy)}</ErrorBanner>}
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button variant="danger" disabled={m.isPending} onClick={() => m.mutate()}>
           {m.isPending ? 'Revoking…' : 'Revoke'}
         </Button>
-      </div>
+      </DialogFooter>
     </div>
   )
 }
@@ -168,6 +169,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
   }
   const create = (
     <Button disabled={list.isPending} onClick={() => setInviting(true)}>
+      <UserPlus size={16} />
       Invite someone
     </Button>
   )
@@ -178,6 +180,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
   else if (list.items.length === 0)
     body = (
       <EmptyState
+        icon={Mail}
         title="No invitations"
         body="Invite colleagues by email. They'll join when they sign in."
         action={create}
@@ -222,9 +225,8 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
                   <td className="text-right whitespace-nowrap">
                     {status === 'pending' && (
                       <Button
-                        variant="ghost"
+                        variant="ghost-danger"
                         size="sm"
-                        className="text-danger hover:bg-danger-soft"
                         aria-label={`Revoke invitation for ${i.email}`}
                         onClick={() => setRevoking(i)}
                       >

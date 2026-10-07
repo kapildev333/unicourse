@@ -1,3 +1,4 @@
+import { History } from 'lucide-react'
 import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -59,7 +60,7 @@ function Side(props: { title: string; data?: Record<string, unknown>; other?: Re
   const keys = data ? Object.keys(data) : []
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase text-ink-muted">{title}</h3>
+      <h3 className="text-xs font-bold text-ink-muted">{title}</h3>
       {keys.length === 0 ? (
         <p className="text-xs">—</p>
       ) : (
@@ -69,7 +70,7 @@ function Side(props: { title: string; data?: Record<string, unknown>; other?: Re
             return (
               <div key={k} className="flex gap-2 text-xs">
                 <dt className="text-ink-muted">{k}</dt>
-                <dd className={`font-mono break-all ${changed ? 'font-semibold' : ''}`}>
+                <dd className={`break-all ${changed ? 'font-bold' : ''}`}>
                   {formatValue(data![k])}
                   {changed && ' (changed)'}
                 </dd>
@@ -117,12 +118,13 @@ export function AuditLogPage({ slug }: { slug: string }) {
   else if (list.items.length === 0)
     body = filtered ? (
       <EmptyState
+        icon={History}
         title="No changes match these filters"
         body="Try a wider date range or fewer filters."
         action={clear}
       />
     ) : (
-      <EmptyState title="No changes recorded yet" body="Changes made by admins will appear here." />
+      <EmptyState icon={History} title="No changes recorded yet" body="Changes made by admins will appear here." />
     )
   else
     body = (
@@ -141,7 +143,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
               const verb = e.action.split('.').pop() ?? e.action
               return (
                 <tr key={e.id}>
-                  <td className="whitespace-nowrap">
+                  <td className="whitespace-nowrap text-ink-muted">
                     <time dateTime={e.at}>{formatDateTime(e.at)}</time>
                   </td>
                   <td>{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>
@@ -150,7 +152,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
                   </td>
                   <td>
                     <details>
-                      <summary className="cursor-pointer text-sm text-accent">Show changes</summary>
+                      <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">Show changes</summary>
                       <div className="mt-2 grid grid-cols-2 gap-4">
                         <Side title="Before" data={e.before} other={e.after} />
                         <Side title="After" data={e.after} other={e.before} />
@@ -178,7 +180,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
         role="search"
         aria-label="Filter audit log"
         onSubmit={(e) => e.preventDefault()}
-        className="mb-4 flex flex-wrap items-end gap-3"
+        className="mb-6 flex flex-wrap items-end gap-4"
       >
         <div className="w-48">
           <FormField label="Entity" name="entityType">
