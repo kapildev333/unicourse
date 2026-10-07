@@ -1,36 +1,36 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/source-sans-3';
-@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource/dm-serif-display';
 
-/* Tokens and contrast: docs/design/P6-L1.md §1. Light values here; dark below. */
+/* Tokens and contrast: docs/design/P6-L1.md §1 (Olive Garden Feast). Light values here; dark below. */
 @theme static {
   --color-*: initial;   /* no Tailwind default palette: tokens only */
   --shadow-*: initial;  /* no default shadows: only shadow-dialog */
 
-  --font-sans: 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif: 'Source Serif 4 Variable', ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'DM Serif Display', ui-serif, Georgia, 'Times New Roman', serif;
   --text-xs: 0.8125rem;              /* 13 px: spec minimum */
   --text-xs--line-height: 1.125rem;
-  --shadow-dialog: 0 16px 40px -12px rgb(11 37 69 / 0.45);  /* Oxford */
+  --shadow-dialog: 0 16px 40px -12px rgb(40 54 24 / 0.45);  /* Pakistan green */
 
-  --color-canvas: #eef4ed;
+  --color-canvas: #fefae0;
   --color-surface: #ffffff;
-  --color-line: #8da9c4;
-  --color-line-strong: #71839d;
-  --color-ink: #0b2545;
-  --color-ink-muted: #425a7d;
-  --color-accent: #134074;
-  --color-accent-hover: #0b2545;
-  --color-accent-soft: #ebeef0;
+  --color-line: #d4d7d1;
+  --color-line-strong: #7e8674;
+  --color-ink: #283618;
+  --color-ink-muted: #535e46;
+  --color-accent: #606c38;
+  --color-accent-hover: #905c21;
+  --color-accent-soft: #e7e9e1;
   --color-on-accent: #ffffff;
-  --color-focus: #134074;
+  --color-focus: #283618;
   --color-danger: #b42318;
   --color-danger-hover: #8f1c13;
   --color-danger-soft: #fdf1f0;
-  --color-success: #1e6b3b;
-  --color-success-soft: #eef7f1;
-  --color-warning: #93370d;
-  --color-warning-soft: #fffaeb;
+  --color-success: #1d6b50;
+  --color-success-soft: #e8f0ee;
+  --color-warning: #72511e;
+  --color-warning-soft: #f6e8d7;
 }
 
 html { color-scheme: light; }
@@ -38,46 +38,46 @@ html { color-scheme: light; }
 /* Dark: keep the two blocks identical (src/lib/theme.test.ts checks). */
 html[data-theme='dark'] {
   color-scheme: dark;
-  --color-canvas: #0b2545;
-  --color-surface: #13315c;
-  --color-line: #324f76;
-  --color-line-strong: #8da9c4;
-  --color-ink: #eef4ed;
-  --color-ink-muted: #8da9c4;
-  --color-accent: #8da9c4;
-  --color-accent-hover: #beced8;
-  --color-accent-soft: #0b2545;
-  --color-on-accent: #0b2545;
-  --color-focus: #eef4ed;
+  --color-canvas: #283618;
+  --color-surface: #374426;
+  --color-line: #5f684b;
+  --color-line-strong: #91967a;
+  --color-ink: #fefae0;
+  --color-ink-muted: #b8ba9f;
+  --color-accent: #dda15e;
+  --color-accent-hover: #e7bc85;
+  --color-accent-soft: #2f3a1b;
+  --color-on-accent: #283618;
+  --color-focus: #fefae0;
   --color-danger: #f4a39b;
   --color-danger-hover: #f8c4be;
-  --color-danger-soft: #4a2125;
-  --color-success: #8ed1a5;
-  --color-success-soft: #183f2e;
-  --color-warning: #f2c36b;
-  --color-warning-soft: #43321a;
+  --color-danger-soft: #4b3118;
+  --color-success: #8fd4b8;
+  --color-success-soft: #254326;
+  --color-warning: #eac592;
+  --color-warning-soft: #3e2d1a;
 }
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
     color-scheme: dark;
-    --color-canvas: #0b2545;
-    --color-surface: #13315c;
-    --color-line: #324f76;
-    --color-line-strong: #8da9c4;
-    --color-ink: #eef4ed;
-    --color-ink-muted: #8da9c4;
-    --color-accent: #8da9c4;
-    --color-accent-hover: #beced8;
-    --color-accent-soft: #0b2545;
-    --color-on-accent: #0b2545;
-    --color-focus: #eef4ed;
+    --color-canvas: #283618;
+    --color-surface: #374426;
+    --color-line: #5f684b;
+    --color-line-strong: #91967a;
+    --color-ink: #fefae0;
+    --color-ink-muted: #b8ba9f;
+    --color-accent: #dda15e;
+    --color-accent-hover: #e7bc85;
+    --color-accent-soft: #2f3a1b;
+    --color-on-accent: #283618;
+    --color-focus: #fefae0;
     --color-danger: #f4a39b;
     --color-danger-hover: #f8c4be;
-    --color-danger-soft: #4a2125;
-    --color-success: #8ed1a5;
-    --color-success-soft: #183f2e;
-    --color-warning: #f2c36b;
-    --color-warning-soft: #43321a;
+    --color-danger-soft: #4b3118;
+    --color-success: #8fd4b8;
+    --color-success-soft: #254326;
+    --color-warning: #eac592;
+    --color-warning-soft: #3e2d1a;
   }
 }
 
@@ -85,9 +85,10 @@ html[data-theme='dark'] {
   html { background: var(--color-canvas); color: var(--color-ink); line-height: 1.5; font-variant-numeric: tabular-nums; }
   body { -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { line-height: 1.25; }
-  h1 { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+  /* DM Serif Display ships weight 400 only: never let the browser fake a bold. */
+  h1 { font-family: var(--font-serif); font-weight: 400; font-synthesis: none; letter-spacing: -0.01em; line-height: 1.2; }
   a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 2px; }
-  dialog::backdrop { background: rgb(11 37 69 / 0.6); }  /* Oxford scrim, both modes */
+  dialog::backdrop { background: rgb(40 54 24 / 0.6); }  /* Pakistan green scrim, both modes */
 }
 
 @media (prefers-reduced-motion: reduce) {

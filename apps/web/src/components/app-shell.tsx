@@ -31,7 +31,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-8 py-2">
           <div className="flex items-center gap-3">
-            <span className="font-serif text-lg font-semibold tracking-tight text-ink">UniCourse</span>
+            <span className="font-serif text-2xl leading-none tracking-tight text-ink">UniCourse</span>
             <span aria-hidden="true" className="h-5 w-px bg-line" />
             <span className="text-sm text-ink-muted">{membership.university.name}</span>
           </div>
