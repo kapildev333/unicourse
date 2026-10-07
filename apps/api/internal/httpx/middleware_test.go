@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"regexp"
 	"strings"
 	"testing"
@@ -134,5 +135,24 @@ func TestLogMiddlewareLogsRoutePatternNotParams(t *testing.T) {
 	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/nope", nil))
 	if !strings.Contains(buf.String(), `"path":"/nope"`) {
 		t.Fatalf("unmatched log %s", buf.String())
+	}
+}
+
+func TestLogMiddlewareClientIP(t *testing.T) {
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	run := func(wrap func(http.Handler) http.Handler) string {
+		var buf bytes.Buffer
+		h := wrap(LogMiddleware(slog.New(slog.NewJSONHandler(&buf, nil)), ok))
+		r := httptest.NewRequest("GET", "/", nil)
+		r.Header.Set("X-Forwarded-For", "203.0.113.7")
+		h.ServeHTTP(httptest.NewRecorder(), r)
+		return buf.String()
+	}
+	trusted := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	if l := run(func(n http.Handler) http.Handler { return ClientIPMiddleware(trusted, n) }); !strings.Contains(l, `"clientIp":"203.0.113.7"`) {
+		t.Fatal(l)
+	}
+	if l := run(func(n http.Handler) http.Handler { return n }); !strings.Contains(l, `"clientIp":"192.0.2.1"`) {
+		t.Fatal(l)
 	}
 }

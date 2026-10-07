@@ -16,6 +16,7 @@ type ctxKey int
 const (
 	requestIDKey ctxKey = iota
 	logFieldsKey
+	clientIPKey
 )
 
 // logFields is filled by inner layers (auth, tenant) and read by the outer LogMiddleware.
@@ -109,6 +110,7 @@ func LogMiddleware(l *slog.Logger, next http.Handler) http.Handler {
 		attrs := []any{
 			"method", r.Method, "path", path, "status", sw.status,
 			"durationMs", time.Since(start).Milliseconds(), "requestId", RequestID(r.Context()),
+			"clientIp", ClientIP(r),
 		}
 		if f.userID != "" {
 			attrs = append(attrs, "userId", f.userID)
