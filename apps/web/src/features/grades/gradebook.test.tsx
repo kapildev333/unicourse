@@ -59,6 +59,7 @@ function renderPage(role: Role, routes: Parameters<typeof mockApi>[0] = {}, gb: 
   const fn = mockApi({
     'GET /universities/a/sections/s1': () => ({ body: section(staff) }),
     [GB]: () => ({ body: gb }),
+    'GET /universities/a/me/sections': () => ({ body: { terms: [] } }),
     'GET /universities/a/grade-scale': () => ({ body: { rows: usPreset } }),
     ...routes,
   })
@@ -76,12 +77,12 @@ function renderPage(role: Role, routes: Parameters<typeof mockApi>[0] = {}, gb: 
   const root = createRootRoute()
   const r = createRoute({
     getParentRoute: () => root,
-    path: '$slug',
+    path: '$slug/sections/$id/grades',
     component: () => <GradebookPage slug="a" sectionId="s1" />,
   })
   const router = createRouter({
     routeTree: root.addChildren([r]),
-    history: createMemoryHistory({ initialEntries: ['/a'] }),
+    history: createMemoryHistory({ initialEntries: ['/a/sections/s1/grades'] }),
   })
   render(
     <QueryClientProvider client={client}>
@@ -105,6 +106,31 @@ it('instructor sees headers, weights warning, rows and stats', async () => {
   expect(screen.getByText('85.00%')).toBeInTheDocument()
   expect(screen.getByText('81.40%')).toBeInTheDocument()
   expect(screen.getByText('Letters: A 1 · B 1')).toBeInTheDocument()
+})
+
+it('renders under the section band and tab strip with one h1', async () => {
+  renderPage('instructor')
+  await screen.findByText('40 pts · 40%')
+  expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['CS101 · Section 001'])
+  expect(screen.getByRole('heading', { level: 2, name: 'Gradebook' })).toBeInTheDocument()
+  const tabs = screen.getByRole('navigation', { name: 'Section pages' })
+  expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('href', '/a/sections/s1/grades')
+  expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('aria-current', 'page')
+})
+
+it('says plain "(1 missing)" when every unscored assessment is published', async () => {
+  const b = book([stu('sam', 'Sam Lee', { a1: 30 })])
+  b.assessments = [asm('a1', 'Midterm', 40, 40, true), asm('a2', 'Final exam', 100, 60, true)]
+  renderPage('instructor', {}, b)
+  expect(await screen.findByText('(1 missing)')).toBeInTheDocument()
+})
+
+it('labels published-only missing against the count Finalize uses', async () => {
+  const b = book([stu('sam', 'Sam Lee', { a1: 30 }), stu('ann', 'Ann Ode')])
+  b.assessments[0] = asm('a1', 'Midterm', 40, 40, true)
+  renderPage('instructor', {}, b)
+  expect(await screen.findByText('(1 missing, 2 at finalize)')).toBeInTheDocument()
+  expect(screen.getByText('(1 at finalize)')).toBeInTheDocument()
 })
 
 it('saves on blur with one PUT, shows Saved, announces and refetches', async () => {
@@ -309,12 +335,13 @@ it('a newer draft survives the response of an older save and is saved on its own
   expect(JSON.parse(await calls(fn, PUT1)[1][0].text())).toEqual({ scores: [{ userId: 'u-sam', points: 35 }] })
 })
 
-it('the description keeps a hyphenated course code', async () => {
+it('the band and table caption keep a hyphenated course code', async () => {
   const sec = section([{ userId: 'u0', role: 'instructor', email: 'x@a.edu' }])
   renderPage('instructor', {
     'GET /universities/a/sections/s1': () => ({ body: { ...sec, course: { ...sec.course, code: 'CS-101' } } }),
   })
-  expect(await screen.findByText(/^CS-101 · Section 001 · /)).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'CS-101 · Section 001' })).toBeInTheDocument()
+  expect(await screen.findByRole('table', { name: 'Gradebook for CS-101-001' })).toBeInTheDocument()
 })
 
 const finalBook = () => ({
@@ -344,7 +371,25 @@ it('Finalize grades is disabled with its reason until weights total 100', async 
   renderPage('instructor')
   const btn = await screen.findByRole('button', { name: 'Finalize grades' })
   expect(btn).toBeDisabled()
-  expect(screen.getByText('Assessment weights must total 100%.')).toBeInTheDocument()
+  expect(screen.getByText('Weights must total 100% to finalize. They total 90%.')).toBeInTheDocument()
+  expect(btn).toHaveAccessibleDescription('Weights must total 100% to finalize. They total 90%.')
+})
+
+it('Finalize grades says there are no students to grade', async () => {
+  renderPage('instructor', {}, { ...book([]), stats: { letters: {} } })
+  await screen.findByRole('button', { name: 'Finalize grades' })
+  expect(screen.getByText('No students to grade.')).toBeInTheDocument()
+})
+
+it('the sticky Student cells keep their surface on row hover', async () => {
+  renderPage('instructor')
+  expect(await screen.findByRole('rowheader', { name: /Erin Moe/ })).toHaveClass('bg-surface!')
+})
+
+it('Finalize grades says to add assessments when there are none', async () => {
+  renderPage('instructor', {}, { ...book(), assessments: [] })
+  await screen.findByRole('button', { name: 'Finalize grades' })
+  expect(screen.getByText('Add assessments before you finalize.')).toBeInTheDocument()
 })
 
 it('Finalize grades opens the dialog when weights total 100', async () => {
@@ -377,7 +422,7 @@ it('flags missing scores of published assessments and shows one email line for u
   await screen.findByText('Letters: A 1 · B 1')
   const sam = screen.getByRole('row', { name: /Sam Lee/ })
   expect(within(sam).getByText('Missing')).toBeInTheDocument()
-  expect(within(sam).getByText('(1 missing)')).toBeInTheDocument()
+  expect(within(sam).getByText('(1 missing, 2 at finalize)')).toBeInTheDocument()
   expect(within(screen.getByRole('row', { name: /Erin Moe/ })).queryByText('Missing')).not.toBeInTheDocument()
   const zed = screen.getByRole('rowheader', { name: 'zed@a.edu' })
   expect(zed.querySelectorAll('span')).toHaveLength(0)

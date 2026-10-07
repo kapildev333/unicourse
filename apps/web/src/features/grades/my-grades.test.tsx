@@ -30,6 +30,7 @@ const grades = (over: Record<string, unknown> = {}) => ({
           course: course('CS101', 'Intro to CS'),
           credits: 3,
           final: { status: 'graded', letter: 'B+', points: 3.3, percent: 88.4 },
+          unpublishedCount: 0,
           assessments: [mid, fin],
         },
         {
@@ -37,6 +38,7 @@ const grades = (over: Record<string, unknown> = {}) => ({
           course: course('MA201', 'Linear Algebra'),
           credits: 4,
           final: { status: 'incomplete' },
+          unpublishedCount: 0,
           assessments: [],
         },
         {
@@ -44,6 +46,7 @@ const grades = (over: Record<string, unknown> = {}) => ({
           course: course('PH110', 'Physics I'),
           credits: 3,
           running: { percent: 84.1, letter: 'B' },
+          unpublishedCount: 2,
           assessments: [
             { ...mid, id: 'a3', name: 'Quiz' },
             { ...fin, id: 'a4', name: 'Lab', points: 9 },
@@ -53,6 +56,7 @@ const grades = (over: Record<string, unknown> = {}) => ({
           section: { id: 's5', number: '002' },
           course: course('HI101', 'History'),
           credits: 3,
+          unpublishedCount: 0,
           assessments: [{ ...mid, id: 'a5', name: 'Essay', weight: 100 }],
         },
       ],
@@ -111,7 +115,18 @@ it('incomplete and running cards', async () => {
   const run = await card('PH110-001')
   expect(within(run).getByText('Current B')).toBeInTheDocument()
   expect(within(run).getByText('84.10% so far')).toBeInTheDocument()
-  expect(within(run).getByText('Counts published scores only.')).toBeInTheDocument()
+  expect(within(run).getByText('2 assessments not yet published')).toBeInTheDocument()
+  expect(within(run).queryByText('Counts published scores only.')).not.toBeInTheDocument()
+})
+
+it.each([
+  [1, '1 assessment not yet published'],
+  [0, 'Counts published scores only.'],
+])('running card with unpublishedCount %i says %s', async (n, text) => {
+  const g = grades()
+  g.terms[1].sections![2].unpublishedCount = n
+  renderPage(g)
+  expect(within(await card('PH110-001')).getByText(text)).toBeInTheDocument()
 })
 
 it('computes nothing itself: no final and no running means No grade yet, and only the three endpoints are called', async () => {
