@@ -34,7 +34,7 @@ async function shell(me: Me, at = '/') {
     path: '$slug/catalog',
     component: () => null,
   })
-  const more = ['$slug/sections/$id', '$slug/grade-scale'].map((path) =>
+  const more = ['$slug/sections/$id', '$slug/sections/$id/announcements', '$slug/grade-scale'].map((path) =>
     createRoute({ getParentRoute: () => root, path, component: () => null }),
   )
   const router = createRouter({
@@ -91,6 +91,11 @@ it('marks Courses current on a section detail page', async () => {
   await shell(mk(['admin']), '/u0/sections/abc')
   expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Admin' })).not.toHaveAttribute('aria-current')
+})
+
+it('marks Courses current on the announcements tab', async () => {
+  await shell(mk(['admin']), '/u0/sections/abc/announcements')
+  expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('aria-current', 'page')
 })
 
 it('marks Admin current on the grade scale page', async () => {

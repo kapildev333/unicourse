@@ -2,6 +2,7 @@ import { cloneElement, useId } from 'react'
 
 export const inputClass =
   'h-10 w-full rounded border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-muted transition-colors hover:not-aria-invalid:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-danger'
+export const textareaClass = inputClass.replace('h-10 ', 'min-h-32 resize-y py-2 ')
 export const fileInputClass =
   'text-sm text-ink file:mr-3 file:h-10 file:rounded file:border file:border-ink file:bg-surface file:px-4 file:text-sm file:font-bold file:text-ink hover:file:bg-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-60'
 
