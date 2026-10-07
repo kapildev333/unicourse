@@ -3,6 +3,7 @@
 Spec 1: `docs/specs/2026-10-05-platform-core-and-staffing.md` · plan `docs/plans/2026-10-05-platform-core-and-staffing.md` (done)
 Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-06-student-schedule.md` (Phase 5, done)
 Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026-10-06-visual-design-system.md` (Phase 6, running)
+Spec 4: `docs/specs/2026-10-07-grading.md` · plan `docs/plans/2026-10-07-grading.md` (Phase 7, starting)
 
 ## Decisions
 | # | Decision | Status |
@@ -67,6 +68,10 @@ Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026
 | D58 | Type is DM Sans alone, bold (700) headings; DM Serif Display dropped. Supersedes D51; D50 package list reduced | Agreed (owner, 2026-10-07) |
 | D59 | The header gains a search field that navigates to `/{slug}/catalog?q=`; the only new behaviour in Spec 3 | Orchestrator 2026-10-07, owner to confirm |
 | D60 | Where Catalog and the My sections list become card grids, the e2e suite may swap `row`/`cell` selectors for `listitem`/text selectors for the same assertions, and nothing else | Orchestrator 2026-10-07 |
+| D61 | Spec 4 (grading, scores, GPA) is the next piece of work; written and approved under D8 delegation in the tick the owner asked for it. Model: per-university editable letter scale (US plus/minus 4.0 preset seeded; Canadian A+ preset loadable), course credits (default 3.0), weighted assessments per section, scores per student, final grades as a snapshot with `graded`/`incomplete`/`withdrawn` status, GPA = credit-weighted grade points over graded final grades | Orchestrator 2026-10-07, owner to confirm |
+| D62 | Running percent counts only scored assessments (normalised by their weights); finalization counts missing scores as 0 and requires weights to sum to 100.00; the letter is decided on the unrounded percent, stored values are rounded half up to 2 decimals; scale edits never rewrite existing final grades | Orchestrator 2026-10-07, owner to confirm |
+| D63 | Roles: instructors own assessments, finalize, override with a reason and reopen; TAs enter scores only; admins and department admins read and may finalize/override; students see published assessments only, their running grade only when every scored assessment is published. Every grade action is audited | Orchestrator 2026-10-07, owner to confirm |
+| D64 | Phase 7 coexists with Phase 6 (another session): grading touches no Phase 6 file - new package `internal/grade`, migration `0005`, `features/grades/**` and new route files only; the "Grades" nav entry and the admin tab are a follow-up after Phase 6 lands. Gradebook CSV export is `GET /sections/{id}/gradebook` with `Accept: text/csv` (no verb routes) | Orchestrator 2026-10-07 |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -179,6 +184,13 @@ Shared `node_modules`: lanes' worktrees symlink to the main checkout's `apps/web
 
 Order: P6-L1 designer → worker → review → PR; then L2 ∥ L3 ∥ L4a → L4b ∥ L5, each reviewed; then L6.
 
+## Phase 7 - Grading, scores and GPA (Spec 4, starting)
+| Lane | Model | Scope (disjoint from Phase 6) | Status |
+|------|-------|------------------|--------|
+| P7-L1 - Grading API (Task 1, D; sub-lanes a, b, c) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P7-L1.md`, `apps/api/migrations/0005_grading.sql`, `apps/api/openapi.json`, `apps/api/internal/grade`, `apps/api/internal/course` (credits), `apps/api/cmd/unicourse-admin` (seed), `apps/web/src/api/types.ts` | designer launched 2026-10-07 |
+| P7-L2 - Grading web (Task 2, D; sub-lanes a, b, c) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P7-L2.md`, `apps/web/src/features/grades`, `apps/web/src/routes/$slug/{grades.tsx,sections_.$id.grades.tsx,admin/grade-scale.tsx}` | designer launched 2026-10-07; workers after P7-L1a lands |
+| P7-L3 - End-to-end extension (Task 3, W) | Sonnet 5.5 | `apps/web/e2e` | after L1 and L2 |
+
 ## Backlog
 - The CLI runs as `unicourse_owner` (D48); a third, non-owning platform role for everyday university creation is the upgrade when a non-engineer runs the CLI.
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
@@ -209,3 +221,4 @@ Order: P6-L1 designer → worker → review → PR; then L2 ∥ L3 ∥ L4a → L
 - 2026-10-06: Owner started a 10-minute loop asking for a professional light-and-dark UI across every page (coolors trending palette, Google Fonts, Lucide, no "AI slop", instructions for later sessions, spec-driven). Spec 3 and its plan written; D49-D54 ruled under delegation; Phase 6 cut into five lanes plus an evidence step; P6-L1 designer launched.
 - 2026-10-06: P6-L1 designed, built (a+b), reviewed and fixed; the orchestrator's browser pass found the dialog pinned top-left (preflight margin reset, present on main too), fixed. The owner saw the result and rejected the orchestrator's palette and fonts, choosing "Olive Garden Feast" and DM Serif Display + DM Sans (D49, D51 now agreed). Spec 3 §3 amended; P6-L1 re-tokenised before its PR.
 - 2026-10-07: P6-L1 re-tokenised to the owner's first choice (Olive Garden Feast + DM Serif Display/DM Sans, L1c) and verified in the browser (header wrap found and fixed). The owner then asked for Udemy's colours and UI patterns; D56-D60 ruled; Spec 3 §3, §5, §6, §8 amended; design round 3 launched on the same lane branch.
+- 2026-10-07: Owner started a 5-minute loop asking for a full grading feature (grades, GPA, scores) with decisions delegated, while Phase 6 runs in another session. Spec 4 and its plan written; D61-D64 ruled; Phase 7 cut into three lanes disjoint from Phase 6; P7-L1 and P7-L2 designers launched.
