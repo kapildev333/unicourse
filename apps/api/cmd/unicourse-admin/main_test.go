@@ -198,7 +198,7 @@ func TestDomainsDeduplicated(t *testing.T) {
 
 func TestUsageNeedsNoDatabase(t *testing.T) {
 	open := func() (*sql.DB, error) { return nil, errors.New("database opened") }
-	for _, args := range [][]string{nil, {"-h"}, {"create-university", "-h"}, {"create-university"}, {"bogus"}} {
+	for _, args := range [][]string{nil, {"-h"}, {"create-university", "-h"}, {"create-university"}, {"seed-demo", "-h"}, {"bogus"}} {
 		var o, e bytes.Buffer
 		if code := run(context.Background(), args, env, open, &o, &e); code != 2 || strings.Contains(e.String(), "database opened") {
 			t.Errorf("%v: code %d, stderr %q", args, code, e.String())
@@ -362,5 +362,53 @@ func TestPruneFilesUsage(t *testing.T) {
 		if code := run(context.Background(), c.args, envf, open, &o, &e); code != c.code || !strings.Contains(e.String(), c.msg) || strings.Contains(e.String(), "database opened") {
 			t.Errorf("%v: code %d, stderr %q", c.args, code, e.String())
 		}
+	}
+}
+
+func mapEnv(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
+
+func TestSeedDemoUsage(t *testing.T) {
+	dir := t.TempDir()
+	both := map[string]string{"UNICOURSE_BASE_URL": baseURL, "UNICOURSE_FILES_DIR": dir}
+	cases := []struct {
+		args []string
+		env  map[string]string
+		code int
+		want string
+	}{
+		{[]string{"seed-demo", "-h"}, both, 2, "seed-demo flags"},
+		{[]string{"seed-demo", "extra"}, both, 2, "unexpected argument"},
+		{[]string{"seed-demo", "--slug", "Bad_Slug"}, both, 2, "slug"},
+		{[]string{"seed-demo", "--slug", "invite"}, both, 2, "reserved"},
+		{[]string{"seed-demo"}, map[string]string{"UNICOURSE_FILES_DIR": dir}, 2, "UNICOURSE_BASE_URL is not set"},
+		{[]string{"seed-demo"}, map[string]string{"UNICOURSE_BASE_URL": baseURL}, 2, "UNICOURSE_FILES_DIR is not set"},
+		{[]string{"seed-demo"}, map[string]string{"UNICOURSE_BASE_URL": baseURL, "UNICOURSE_FILES_DIR": filepath.Join(dir, "missing")}, 1, "UNICOURSE_FILES_DIR"},
+		{[]string{"-h"}, nil, 2, "seed-demo"},
+	}
+	open := func() (*sql.DB, error) { return nil, errors.New("database opened") }
+	for _, c := range cases {
+		var o, e bytes.Buffer
+		code := run(context.Background(), c.args, mapEnv(c.env), open, &o, &e)
+		if code != c.code || !strings.Contains(e.String(), c.want) || strings.Contains(e.String(), "database opened") {
+			t.Errorf("%v: code %d, stderr %q", c.args, code, e.String())
+		}
+	}
+}
+
+func TestSeedDemo(t *testing.T) {
+	_, db := testdb.OpenWithOwner(t)
+	e := mapEnv(map[string]string{"UNICOURSE_BASE_URL": baseURL, "UNICOURSE_FILES_DIR": t.TempDir()})
+	open := func() (*sql.DB, error) { return db, nil }
+	var o, er bytes.Buffer
+	if code := run(context.Background(), []string{"seed-demo"}, e, open, &o, &er); code != 0 {
+		t.Fatalf("code %d: %s", code, er.String())
+	}
+	if !strings.HasPrefix(o.String(), "seeded Northfield University (northfield)") || !strings.Contains(o.String(), "registrar@northfield.edu") {
+		t.Fatalf("stdout: %s", o.String())
+	}
+	o.Reset()
+	er.Reset()
+	if code := run(context.Background(), []string{"seed-demo"}, e, open, &o, &er); code != 2 || !strings.Contains(er.String(), "already exists; rerun with --reset") {
+		t.Fatalf("second run: code %d: %s", code, er.String())
 	}
 }
