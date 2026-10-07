@@ -117,6 +117,14 @@ it('renders under the section band and tab strip with one h1', async () => {
   expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('href', '/a/sections/s1/grades')
 })
 
+it('labels published-only missing against the count Finalize uses', async () => {
+  const b = book([stu('sam', 'Sam Lee', { a1: 30 }), stu('ann', 'Ann Ode')])
+  b.assessments[0] = asm('a1', 'Midterm', 40, 40, true)
+  renderPage('instructor', {}, b)
+  expect(await screen.findByText('(1 missing, 2 at finalize)')).toBeInTheDocument()
+  expect(screen.getByText('(1 at finalize)')).toBeInTheDocument()
+})
+
 it('saves on blur with one PUT, shows Saved, announces and refetches', async () => {
   const fn = renderPage('instructor', { [PUT1]: () => ({ body: { items: [] } }) })
   const cell = await input('Score for Sam Lee, Midterm')

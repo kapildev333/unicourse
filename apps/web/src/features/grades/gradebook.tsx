@@ -309,6 +309,7 @@ function Gradebook({ slug, sectionId, sec }: { slug: string; sectionId: string; 
   })
   const editing = access.assessments
   const missingCount = (s: Student) => assessments.filter((a) => a.published && s.scores[a.id] === undefined).length
+  const unscoredCount = (s: Student) => assessments.filter((a) => s.scores[a.id] === undefined).length
   const scoredCount = (a: Assessment) => students.filter((s) => s.scores[a.id] !== undefined).length
   const newButton = (
     <Button variant="secondary" onClick={() => setDialog('new')}>
@@ -500,7 +501,16 @@ function Gradebook({ slug, sectionId, sec }: { slug: string; sectionId: string; 
                 })}
                 <td className="text-right">
                   {s.percent === undefined ? '—' : `${fmt2(s.percent)}%`}
-                  {missingCount(s) > 0 && <span className="text-ink-muted"> ({missingCount(s)} missing)</span>}
+                  {unscoredCount(s) > 0 && (
+                    <span className="text-ink-muted">
+                      {' '}
+                      {missingCount(s) === unscoredCount(s)
+                        ? `(${missingCount(s)} missing)`
+                        : missingCount(s) === 0
+                          ? `(${unscoredCount(s)} at finalize)`
+                          : `(${missingCount(s)} missing, ${unscoredCount(s)} at finalize)`}
+                    </span>
+                  )}
                 </td>
                 <td>{s.letter ?? '—'}</td>
                 {finalized && (
