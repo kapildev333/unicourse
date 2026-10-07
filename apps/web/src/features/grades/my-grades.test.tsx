@@ -111,6 +111,7 @@ it('incomplete and running cards', async () => {
   const run = await card('PH110-001')
   expect(within(run).getByText('Current B')).toBeInTheDocument()
   expect(within(run).getByText('84.10% so far')).toBeInTheDocument()
+  expect(within(run).getByText('Counts published scores only.')).toBeInTheDocument()
 })
 
 it('computes nothing itself: no final and no running means No grade yet, and only the three endpoints are called', async () => {

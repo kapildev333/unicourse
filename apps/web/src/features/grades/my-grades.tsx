@@ -40,6 +40,7 @@ function GradeBlock({ s }: { s: GradeSection }) {
       <>
         <p className="text-base font-bold">Current {running.letter}</p>
         <p className="text-sm text-ink-muted">{fmt2(running.percent)}% so far</p>
+        <p className="text-sm text-ink-muted">Counts published scores only.</p>
       </>
     )
   return <p className="text-sm text-ink-muted">No grade yet</p>
