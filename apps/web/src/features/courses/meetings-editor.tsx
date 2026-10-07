@@ -61,8 +61,8 @@ export function MeetingsEditor(props: {
         const j = sentKeys.indexOf(r.key)
         const has = (f: string) => j >= 0 && fields[`meetings[${j}].${f}`]
         return (
-          <div key={r.key} role="group" aria-label={`Meeting ${i + 1}`} className="flex flex-wrap items-start gap-2">
-            <div className="w-36">
+          <div key={r.key} role="group" aria-label={`Meeting ${i + 1}`} className="grid grid-cols-[minmax(0,8rem)_minmax(0,7rem)_minmax(0,7rem)_minmax(0,1fr)_auto] items-start gap-3">
+            <div>
               <FormField
                 label="Day"
                 name={`meetings[${i}].weekday`}
@@ -81,7 +81,7 @@ export function MeetingsEditor(props: {
                 </select>
               </FormField>
             </div>
-            <div className="w-32">
+            <div>
               <FormField
                 label="Starts"
                 name={`meetings[${i}].startsAt`}
@@ -95,7 +95,7 @@ export function MeetingsEditor(props: {
                 />
               </FormField>
             </div>
-            <div className="w-32">
+            <div>
               <FormField
                 label="Ends"
                 name={`meetings[${i}].endsAt`}
@@ -109,7 +109,7 @@ export function MeetingsEditor(props: {
                 />
               </FormField>
             </div>
-            <div className="w-48">
+            <div>
               <FormField
                 label="Location"
                 name={`meetings[${i}].location`}

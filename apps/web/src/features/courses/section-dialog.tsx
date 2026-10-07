@@ -69,7 +69,7 @@ export function SectionDialog(props: {
   useFocusFirstError(formRef, m.error, bannerRef)
 
   return (
-    <Dialog open onClose={onClose} title={section ? `Edit ${classCode(section)}` : 'New section'}>
+    <Dialog open size="lg" onClose={onClose} title={section ? `Edit ${classCode(section)}` : 'New section'}>
       <form
         ref={formRef}
         noValidate
