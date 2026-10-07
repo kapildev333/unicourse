@@ -199,6 +199,46 @@ func TestPreviewCountsAllKeysAndVerdictMismatch(t *testing.T) {
 	}
 }
 
+func TestUpdateAction(t *testing.T) {
+	ctx := context.Background()
+	spec := Spec{Required: []string{"email"}, Actions: []Action{Add, Update, Exists, Error}}
+	recs := []Record{{2, map[string]string{"email": "a"}}, {3, map[string]string{"email": "b"}}, {4, map[string]string{"email": "c"}}}
+	cls := func(act ...Action) Classifier {
+		return func(_ context.Context, _ *sql.Tx, recs []Record) ([]Verdict, error) {
+			vs := make([]Verdict, len(recs))
+			for i, r := range recs {
+				vs[i] = Verdict{Action: act[i], Ref: r.Line}
+			}
+			return vs, nil
+		}
+	}
+	p, err := PreviewRows(ctx, nil, recs, "x", spec, cls(Add, Update, Update))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[Action]int{Add: 1, Update: 2, Exists: 0, Error: 0}
+	if !reflect.DeepEqual(p.Counts, want) {
+		t.Fatalf("counts = %v", p.Counts)
+	}
+	var got []Row
+	if err := Apply(ctx, nil, p, "x", func(_ context.Context, _ *sql.Tx, rows []Row) error { got = rows; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 || got[0].Line != 2 || got[1].Action != Update || got[2].Line != 4 {
+		t.Fatalf("applier rows = %v", got)
+	}
+	if _, err := PreviewRows(ctx, nil, recs, "x", spec, cls(Add, Invite, Add)); err == nil {
+		t.Fatal("invite must be rejected when Actions excludes it")
+	}
+	p, err = PreviewRows(ctx, nil, recs, "x", Spec{Required: []string{"email"}}, cls(Add, Exists, Invite))
+	if err != nil || !reflect.DeepEqual(p.Counts, map[Action]int{Add: 1, Exists: 1, Invite: 1, Error: 0}) {
+		t.Fatalf("default counts = %v %v", p.Counts, err)
+	}
+	if _, err := PreviewRows(ctx, nil, recs, "x", Spec{Required: []string{"email"}}, cls(Add, Update, Add)); err == nil {
+		t.Fatal("update must be rejected without Actions")
+	}
+}
+
 func preview(rows ...Row) Preview {
 	return Preview{Checksum: "abc", Rows: rows}
 }
