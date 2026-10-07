@@ -365,7 +365,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     expect(res.headers()['content-type']).toContain('text/csv')
     const lines = (await res.text()).replace(/^﻿/, '').trim().split(/\r?\n/)
     expect(lines[0]).toBe('email,displayName,Midterm,Final,percent,letter,final')
-    expect(lines.find((l) => l.startsWith(`${s1},`))).toBe(`${s1},,95.00,180.00,92.00,A-,A-`)
+    expect(lines.find((l) => l.startsWith(`${s1},`))).toBe(`${s1},Student,95.00,180.00,92.00,A-,A-`)
     await profCtx.close()
   })
 
