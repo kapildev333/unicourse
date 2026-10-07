@@ -16,7 +16,7 @@ const callbackCopy: Record<string, string> = {
   unauthenticated: "Sign-in didn't complete. Please try again.",
   forbidden: "This email can't sign in to UniCourse. Ask your university administrator to invite you.",
   validation_failed: 'That sign-in link has expired or was already used. Request a new one below.',
-  rate_limited: 'Too many sign-in attempts. Wait a minute, then try again.',
+  rate_limited: 'Too many sign-in attempts. Try again in an hour.',
   no_membership:
     "You're signed in, but your account isn't a member of any university yet. Ask your administrator for an invitation.",
 }

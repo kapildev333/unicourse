@@ -179,3 +179,8 @@ it('does not record Last used when the provider start fails', async () => {
   await screen.findByRole('alert')
   expect(localStorage.getItem('unicourse:last-sign-in')).toBeNull()
 })
+
+it('rate_limited callback copy names the real window, an hour', () => {
+  renderWithQuery(<SignInPage error="rate_limited" />)
+  expect(screen.getByRole('alert')).toHaveTextContent('Too many sign-in attempts. Try again in an hour.')
+})
