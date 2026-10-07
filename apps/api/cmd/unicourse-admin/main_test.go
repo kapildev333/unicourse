@@ -200,3 +200,35 @@ func TestUsageNeedsNoDatabase(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateUniversitySeedsScale(t *testing.T) {
+	_, db := testdb.OpenWithOwner(t)
+	if code, _, errOut := admin(t, db, create()...); code != 0 {
+		t.Fatalf("code %d: %s", code, errOut)
+	}
+	var id string
+	if err := db.QueryRow(`select id from universities where slug = 'example'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	err := pg.WithTx(context.Background(), db, id, func(tx *sql.Tx) error {
+		rows, err := tx.Query(`select letter, min_percent::text, points::text from grade_scales order by min_percent desc`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var l, m, p string
+			rows.Scan(&l, &m, &p)
+			got = append(got, l+" "+m+" "+p)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "A 93.00 4.00,A- 90.00 3.70,B+ 87.00 3.30,B 83.00 3.00,B- 80.00 2.70,C+ 77.00 2.30,C 73.00 2.00,C- 70.00 1.70,D+ 67.00 1.30,D 63.00 1.00,D- 60.00 0.70,F 0.00 0.00"
+	if strings.Join(got, ",") != want {
+		t.Fatalf("scale = %v", got)
+	}
+}
