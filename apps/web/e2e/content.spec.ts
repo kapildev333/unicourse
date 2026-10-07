@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { createUniversity, runId, signIn } from './helpers'
+import { apiLog } from './env'
 
 const slug = `ec-${runId}`
 const domain = `c-${runId}.edu`
@@ -20,6 +21,28 @@ const pptx = fixture('slides.pptx')
 const description = 'Welcome to CS101.\nWe meet on Mondays.'
 const annA = { title: 'Welcome from the instructor', body: 'Read the syllabus before week 1.' }
 const annB = { title: 'TA office hours', body: 'Fridays at noon.' }
+
+// Wait until the dev mail log holds a message to `to` whose subject contains `text`.
+async function expectMail(to: string, text: string) {
+  await expect
+    .poll(
+      () =>
+        fs
+          .readFileSync(apiLog, 'utf8')
+          .split('\n')
+          .some((l) => {
+            if (!l.includes('"msg":"mail"')) return false
+            try {
+              const m = JSON.parse(l)
+              return m.to === to && String(m.subject).includes(text)
+            } catch {
+              return false // partial line
+            }
+          }),
+      { timeout: 15_000 },
+    )
+    .toBe(true)
+}
 
 async function postAnnouncement(page: Page, a: { title: string; body: string }) {
   await page.getByRole('button', { name: 'New announcement' }).first().click()
@@ -79,7 +102,10 @@ test('section content: description, announcements, materials, access', async ({ 
 
     for (const email of [instr, ta, member]) {
       await page.goto(`/${slug}/admin/invitations`)
-      await page.getByRole('button', { name: /New invitation|Invite/ }).first().click()
+      await page
+        .getByRole('button', { name: /New invitation|Invite/ })
+        .first()
+        .click()
       await page.getByLabel('Email').fill(email)
       await page.getByRole('button', { name: 'Send invitation' }).click()
       await expect(page.getByRole('cell', { name: email, exact: true })).toBeVisible()
@@ -128,6 +154,7 @@ test('section content: description, announcements, materials, access', async ({ 
   await test.step('instructor posts an announcement, emailed', async () => {
     await prof.goto(`${sectionUrl}/announcements`)
     await postAnnouncement(prof, annA)
+    await expectMail(students[0], annA.title)
   })
 
   await test.step('instructor adds Week 1 and uploads the PDF and the ZIP', async () => {
@@ -145,7 +172,6 @@ test('section content: description, announcements, materials, access', async ({ 
     await expect(prof.getByRole('link', { name: 'Download code-samples.zip' })).toBeVisible()
     await expect(prof.getByRole('link', { name: /^Download / })).toHaveCount(2)
   })
-
 
   const taPage = await as(ta)
 
@@ -180,14 +206,14 @@ test('section content: description, announcements, materials, access', async ({ 
     expect(fs.readFileSync(saved).equals(fs.readFileSync(pdf))).toBe(true)
 
     // no staff controls on either page
-    await expect(s.getByRole('button', { name: 'Add week' })).toHaveCount(0)
-    await expect(s.getByRole('button', { name: /^Rename / })).toHaveCount(0)
-    await expect(s.getByRole('button', { name: /^Delete / })).toHaveCount(0)
-    await expect(s.getByRole('button', { name: /^Upload files/ })).toHaveCount(0)
+    await expect(
+      s.getByRole('button', { name: /^(Add week|Edit |Rename |Move |Delete |Upload files|New announcement)/ }),
+    ).toHaveCount(0)
     await s.goto(`${sectionUrl}/announcements`)
     await expect(s.getByRole('heading', { name: annA.title })).toBeVisible()
-    await expect(s.getByRole('button', { name: 'New announcement' })).toHaveCount(0)
-    await expect(s.getByRole('button', { name: /^Delete / })).toHaveCount(0)
+    await expect(
+      s.getByRole('button', { name: /^(Add week|Edit |Rename |Move |Delete |Upload files|New announcement)/ }),
+    ).toHaveCount(0)
     await s.context().close()
   })
 
