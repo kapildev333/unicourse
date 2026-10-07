@@ -18,6 +18,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
@@ -28,8 +29,9 @@ const usage = `usage: unicourse-admin <command> [flags]
 commands:
   migrate               apply database migrations
   create-university     create a university and an admin invitation (see create-university -h)
+  prune-files [--delete]  list (or remove) files no material references, and materials whose file is missing
 
-environment: UNICOURSE_OWNER_DATABASE_URL (all commands; the owner role, not the API role), UNICOURSE_BASE_URL (create-university)
+environment: UNICOURSE_OWNER_DATABASE_URL (all commands; the owner role, not the API role), UNICOURSE_BASE_URL (create-university), UNICOURSE_FILES_DIR (prune-files)
 `
 
 const createHelp = `create-university flags:
@@ -104,6 +106,8 @@ func run(ctx context.Context, args []string, env func(string) string, open func(
 		return 0
 	case "create-university":
 		return createUniversity(ctx, args[1:], env, open, stdout, stderr)
+	case "prune-files":
+		return pruneFiles(ctx, args[1:], env, open, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown command %q\n%s", args[0], usage)
 	return 2
@@ -209,6 +213,131 @@ func createUniversity(ctx context.Context, args []string, env func(string) strin
 	}
 	fmt.Fprintf(stdout, "created university %s\nadmin invitation for %s (forward this URL):\n%s\n", *slug, email, m.URL())
 	return 0
+}
+
+// pruneFiles lists, or with --delete removes, committed blobs no materials row references (skipping
+// blobs under an hour old: an upload between rename and commit looks orphaned), and lists materials
+// whose file is missing. Missing files are only reported; the rows stay.
+func pruneFiles(ctx context.Context, args []string, env func(string) string, open func() (*sql.DB, error), stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("prune-files", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	del := fs.Bool("delete", false, "remove the orphan files instead of listing them")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(stderr, "prune-files: unexpected argument %q\n", fs.Arg(0))
+		return 2
+	}
+	root := env("UNICOURSE_FILES_DIR")
+	if root == "" {
+		fmt.Fprintln(stderr, "prune-files: UNICOURSE_FILES_DIR is not set")
+		return 2
+	}
+	dir, err := blob.New(root)
+	if err != nil {
+		fmt.Fprintln(stderr, "prune-files:", err)
+		return 1
+	}
+	db, err := open()
+	if err != nil {
+		fmt.Fprintln(stderr, "database:", err)
+		return 1
+	}
+	rows := map[string]bool{}
+	var unis []string
+	err = pg.WithPlatformTx(ctx, db, func(tx *sql.Tx) error {
+		r, err := tx.QueryContext(ctx, `select id::text from universities order by id`)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		for r.Next() {
+			var id string
+			if err := r.Scan(&id); err != nil {
+				return err
+			}
+			unis = append(unis, id)
+		}
+		return r.Err()
+	})
+	// the owner role is under forced row level security: one tenant transaction per university
+	for _, uni := range unis {
+		if err != nil {
+			break
+		}
+		err = pg.WithTx(ctx, db, uni, func(tx *sql.Tx) error {
+			r, err := tx.QueryContext(ctx, `select id::text from materials`)
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			for r.Next() {
+				var id string
+				if err := r.Scan(&id); err != nil {
+					return err
+				}
+				rows[uni+"/"+id] = true
+			}
+			return r.Err()
+		})
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "prune-files:", err)
+		return 1
+	}
+	blobs := map[string]bool{}
+	var orphans []string
+	err = dir.Walk(func(uni, id string, mod time.Time) error {
+		k := uni + "/" + id
+		blobs[k] = true
+		if !rows[k] && time.Since(mod) >= time.Hour {
+			orphans = append(orphans, k)
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintln(stderr, "prune-files:", err)
+		return 1
+	}
+	var missing []string
+	for k := range rows {
+		if !blobs[k] {
+			missing = append(missing, k)
+		}
+	}
+	slices.Sort(orphans)
+	slices.Sort(missing)
+	code, removed := 0, 0
+	for _, k := range orphans {
+		if !*del {
+			fmt.Fprintln(stdout, "orphan", k)
+			continue
+		}
+		uni, id, _ := strings.Cut(k, "/")
+		if err := dir.Remove(uni, id); err != nil {
+			fmt.Fprintf(stderr, "prune-files: remove %s: %v\n", k, err)
+			code = 1
+			continue
+		}
+		removed++
+		fmt.Fprintln(stdout, "removed", k)
+	}
+	for _, k := range missing {
+		fmt.Fprintln(stdout, "missing", k)
+	}
+	plural := func(n int, what string) string {
+		if n == 1 {
+			return fmt.Sprintf("%d %s file", n, what)
+		}
+		return fmt.Sprintf("%d %s files", n, what)
+	}
+	found, tail := len(orphans), ""
+	if *del {
+		found, tail = removed, " removed"
+	}
+	fmt.Fprintf(stdout, "%s%s, %s\n", plural(found, "orphan"), tail, plural(len(missing), "missing"))
+	return code
 }
 
 func main() {
