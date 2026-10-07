@@ -1398,7 +1398,7 @@
               "request": {
                 "name": "List Courses",
                 "description": {
-                  "content": "Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND.",
+                  "content": "Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND. Ordered by code, then id.",
                   "type": "text/plain"
                 },
                 "url": {
@@ -1771,7 +1771,7 @@
               "request": {
                 "name": "List Sections",
                 "description": {
-                  "content": "Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.",
+                  "content": "Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND. Ordered by course code, then section number, then term start, then id.",
                   "type": "text/plain"
                 },
                 "url": {
@@ -3314,7 +3314,7 @@
                       "request": {
                         "name": "Override final grade",
                         "description": {
-                          "content": "Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field \"\" (\"no fields to update\").",
+                          "content": "Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field \"\" (\"no fields to update\"); an unchanged letter keeps its recorded points.",
                           "type": "text/plain"
                         },
                         "url": {
