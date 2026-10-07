@@ -411,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Preview courses import
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you". Existing rows are never updated.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title; optional credits (0 to 20, one decimal; empty means 3.0; ignored for existing courses). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you", "credits must be a number", "credits must have at most 1 decimal", "credits must be between 0 and 20". Existing rows are never updated.
          */
         post: operations["previewCourseImport"];
         delete?: never;
@@ -431,7 +431,7 @@ export interface paths {
         put?: never;
         /**
          * Import courses
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you". Existing rows are never updated.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title; optional credits (0 to 20, one decimal; empty means 3.0; ignored for existing courses). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "code is required", "title is required", "code must be at most 20 characters", "title must be at most 200 characters", "unknown department code <X>", "department <X> is not managed by you", "credits must be a number", "credits must have at most 1 decimal", "credits must be between 0 and 20". Existing rows are never updated.
          */
         post: operations["importCourses"];
         delete?: never;
@@ -676,6 +676,226 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/grade-scale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Grade scale
+         * @description Who: member.
+         */
+        get: operations["getGradeScale"];
+        /**
+         * Replace grade scale
+         * @description Who: admin. Replaces every row. Errors: rows (count 1 to 50, or "must include a row with minPercent 0"), rows[<i>].letter, rows[<i>].minPercent, rows[<i>].points, including "duplicate letter" and "duplicate minPercent". Existing final grades never change. 409 when a concurrent replace won.
+         */
+        put: operations["updateGradeScale"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List assessments
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published assessments only.
+         */
+        get: operations["listAssessments"];
+        put?: never;
+        /**
+         * Create assessment
+         * @description Who: admin, dept_admin (own departments), instructor of the section. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.
+         */
+        post: operations["createAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete assessment
+         * @description Who: admin, dept_admin (own departments), instructor of the section. Deletes its scores too; final grades do not change.
+         */
+        delete: operations["deleteAssessment"];
+        options?: never;
+        head?: never;
+        /**
+         * Update assessment
+         * @description Who: admin, dept_admin (own departments), instructor of the section. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.
+         */
+        patch: operations["updateAssessment"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set scores
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Upserts 1 to 500 scores in one transaction: any bad row fails the request. Errors: scores (count), scores[<i>].userId ("must be a uuid", "duplicate userId", "is not enrolled in this section"), scores[<i>].points ("is required", "must be a number", "must have at most 2 decimals", "must be between 0 and <2 x maxPoints>"); points null deletes that score (no error when there was none). Final grades never change. Returns every score of the assessment.
+         */
+        put: operations["setScores"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/scores/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview scores import
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. CSV header row required, case-insensitive. Columns: required email, points. Max 5 MiB. Rows: add (no score yet), update (score changes; message "<old> → <new>"), exists (same score), error. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "invalid email", "unknown email", "not enrolled in this section", "points is required", "points must be a number", "points must have at most 2 decimals", "points must be between 0 and <2 x maxPoints>", "duplicate of line <n>".
+         */
+        post: operations["previewScoreImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/scores/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import scores
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. CSV header row required, case-insensitive. Columns: required email, points. Max 5 MiB. Rows: add (no score yet), update (score changes; message "<old> → <new>"), exists (same score), error. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "invalid email", "unknown email", "not enrolled in this section", "points is required", "points must be a number", "points must have at most 2 decimals", "points must be between 0 and <2 x maxPoints>", "duplicate of line <n>".
+         */
+        post: operations["importScores"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/gradebook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gradebook
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. With Accept: text/csv the response is text/csv; charset=utf-8 (UTF-8 BOM, attachment gradebook.csv): header email, displayName, one column per assessment name (by position), percent, letter, final; one row per student; empty cell when absent; final is the final letter, or incomplete / withdrawn, or empty.
+         */
+        get: operations["getGradebook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/final-grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List final grades
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section.
+         */
+        get: operations["listFinalGrades"];
+        put?: never;
+        /**
+         * Finalize section
+         * @description Who: admin, dept_admin (own departments), instructor of the section. Gives every enrolled student a final grade: weights must sum to 100.00 (else field weights), every assessment becomes published, a missing score counts as 0, the letter comes from the unrounded percent, percent is stored rounded half up to 2 decimals. Overrides apply in the same transaction (fields overrides[<i>].userId, .status, .letter, .reason). 409 when the section is already finalized (reopen first). Body may be {}.
+         */
+        post: operations["finalizeSection"];
+        /**
+         * Reopen section
+         * @description Who: admin, dept_admin (own departments), instructor of the section. Deletes every final grade of the section; assessments stay published. 404 when it has none.
+         */
+        delete: operations["reopenSection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/final-grades/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Override final grade
+         * @description Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field "" ("no fields to update").
+         */
+        patch: operations["updateFinalGrade"];
+        trace?: never;
+    };
+    "/universities/{slug}/me/grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My grades
+         * @description Who: member. The caller's sections (enrolled, or holding a final grade) with term and cumulative GPA. Published assessments only.
+         */
+        get: operations["getMyGrades"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -906,7 +1126,7 @@ export interface components {
              * @example term
              * @enum {string}
              */
-            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment";
+            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale";
             /**
              * Format: uuid
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
@@ -951,6 +1171,11 @@ export interface components {
             code: string;
             /** @example Intro to Programming */
             title: string;
+            /**
+             * @description Credit hours, at most one decimal.
+             * @example 3
+             */
+            credits: number;
         };
         CourseCreate: {
             /**
@@ -962,6 +1187,11 @@ export interface components {
             code: string;
             /** @example Intro to Programming */
             title: string;
+            /**
+             * @description At most one decimal. Omitted means 3.0.
+             * @example 3
+             */
+            credits?: number;
         };
         CourseUpdate: {
             /**
@@ -973,6 +1203,11 @@ export interface components {
             code?: string;
             /** @example Intro to Programming */
             title?: string;
+            /**
+             * @description At most one decimal.
+             * @example 4
+             */
+            credits?: number;
         };
         SectionStaff: {
             /**
@@ -1278,6 +1513,417 @@ export interface components {
             /** @example eyJhIjoxfQ */
             nextCursor?: string;
         };
+        GradeScaleRow: {
+            /** @example A- */
+            letter: string;
+            /** @example 90 */
+            minPercent: number;
+            /** @example 3.7 */
+            points: number;
+        };
+        /** @description Letters unique (exact match after trimming), minPercent unique, at most 2 decimals each. */
+        GradeScaleRowInput: {
+            /** @example A- */
+            letter: string;
+            /** @example 90 */
+            minPercent: number;
+            /** @example 3.7 */
+            points: number;
+        };
+        GradeScale: {
+            /** @description Highest minPercent first. */
+            rows: components["schemas"]["GradeScaleRow"][];
+        };
+        GradeScaleUpdate: {
+            /** @description Replaces the whole scale; must include a row with minPercent 0. */
+            rows: components["schemas"]["GradeScaleRowInput"][];
+        };
+        Assessment: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            sectionId: string;
+            /** @example Midterm */
+            name: string;
+            /** @example 100 */
+            maxPoints: number;
+            /**
+             * @description Percent of the section grade.
+             * @example 40
+             */
+            weight: number;
+            /**
+             * Format: date
+             * @example 2026-10-20
+             */
+            dueOn?: string;
+            /** @example false */
+            published: boolean;
+            /** @example 0 */
+            position: number;
+        };
+        AssessmentCreate: {
+            /** @example Midterm */
+            name: string;
+            /**
+             * @description At most 2 decimals.
+             * @example 100
+             */
+            maxPoints: number;
+            /**
+             * @description At most 2 decimals. Weights may sum to anything until finalization.
+             * @example 40
+             */
+            weight: number;
+            /**
+             * Format: date
+             * @example 2026-10-20
+             */
+            dueOn?: string;
+            /**
+             * @description Omitted means false.
+             * @example false
+             */
+            published?: boolean;
+            /**
+             * @description Omitted means after the last assessment.
+             * @example 0
+             */
+            position?: number;
+        };
+        AssessmentUpdate: {
+            /** @example Midterm */
+            name?: string;
+            /** @example 100 */
+            maxPoints?: number;
+            /** @example 40 */
+            weight?: number;
+            /**
+             * Format: date
+             * @description null clears the date.
+             * @example 2026-10-20
+             */
+            dueOn?: string | null;
+            /** @example true */
+            published?: boolean;
+            /** @example 1 */
+            position?: number;
+        };
+        AssessmentList: {
+            /** @description Ordered by position, then creation. */
+            items: components["schemas"]["Assessment"][];
+        };
+        ScoreInput: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * @description At most 2 decimals and at most 2 x maxPoints (bonus). null deletes the student's score.
+             * @example 87.5
+             */
+            points: number | null;
+        };
+        ScoresUpdate: {
+            scores: components["schemas"]["ScoreInput"][];
+        };
+        Score: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /** @example 87.5 */
+            points: number;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            gradedBy: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-05T14:03:22Z
+             */
+            gradedAt: string;
+        };
+        ScoreList: {
+            /** @description Scores of enrolled students, ordered by userId. */
+            items: components["schemas"]["Score"][];
+        };
+        FinalGrade: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * Format: email
+             * @example erin@a.edu
+             */
+            email: string;
+            /** @example Erin Moe */
+            displayName: string;
+            /**
+             * @example graded
+             * @enum {string}
+             */
+            status: "graded" | "incomplete" | "withdrawn";
+            /**
+             * @description graded only.
+             * @example 91.25
+             */
+            percent?: number;
+            /**
+             * @description graded only.
+             * @example A-
+             */
+            letter?: string;
+            /**
+             * @description graded only.
+             * @example 3.7
+             */
+            points?: number;
+            /** @example Medical documentation */
+            overrideReason?: string;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            finalizedBy: string;
+            /**
+             * Format: date-time
+             * @example 2026-12-20T14:03:22Z
+             */
+            finalizedAt: string;
+        };
+        FinalGradeList: {
+            /** @description Ordered by email; unpaginated. */
+            items: components["schemas"]["FinalGrade"][];
+        };
+        /** @description Set status, letter or both. letter only with status graded (or omitted status); points follow the scale row. */
+        FinalGradeOverride: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * @example incomplete
+             * @enum {string}
+             */
+            status?: "graded" | "incomplete" | "withdrawn";
+            /** @example B+ */
+            letter?: string;
+            /** @example Medical documentation */
+            reason: string;
+        };
+        FinalGradeCreate: {
+            /** @description Omitted means none. */
+            overrides?: components["schemas"]["FinalGradeOverride"][];
+        };
+        FinalGradeUpdate: {
+            /**
+             * @example graded
+             * @enum {string}
+             */
+            status?: "graded" | "incomplete" | "withdrawn";
+            /** @example B+ */
+            letter?: string;
+            /** @example Regrade of the final exam */
+            reason: string;
+        };
+        GradebookStudent: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * Format: email
+             * @example erin@a.edu
+             */
+            email: string;
+            /** @example Erin Moe */
+            displayName: string;
+            /**
+             * @description assessmentId to points; an assessment without a score is absent.
+             * @example {
+             *       "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11": 87.5
+             *     }
+             */
+            scores: {
+                [key: string]: number;
+            };
+            /**
+             * @description Running percent over the scored assessments (all of them, published or not). Omitted when none is scored or their weights sum to 0.
+             * @example 87.5
+             */
+            percent?: number;
+            /**
+             * @description Letter of the unrounded running percent; omitted with percent.
+             * @example B+
+             */
+            letter?: string;
+            final?: components["schemas"]["FinalGrade"];
+        };
+        /** @description Over each student's final grade when graded, else the running grade; incomplete and withdrawn are left out. */
+        GradebookStats: {
+            /** @example 81.4 */
+            mean?: number;
+            /** @example 83 */
+            median?: number;
+            /**
+             * @description Every letter of the scale, 0 when unused.
+             * @example {
+             *       "A": 3,
+             *       "B": 5,
+             *       "F": 0
+             *     }
+             */
+            letters: {
+                [key: string]: number;
+            };
+        };
+        Gradebook: {
+            assessments: components["schemas"]["Assessment"][];
+            /** @description Enrolled students, ordered by email. */
+            students: components["schemas"]["GradebookStudent"][];
+            stats: components["schemas"]["GradebookStats"];
+        };
+        ScoreImportRow: {
+            /** @example 3 */
+            line: number;
+            /**
+             * @example update
+             * @enum {string}
+             */
+            action: "add" | "update" | "exists" | "error";
+            /** @example 80.00 → 90.00 */
+            message?: string;
+            /**
+             * @example {
+             *       "email": "erin@a.edu",
+             *       "points": "90"
+             *     }
+             */
+            data: {
+                [key: string]: string;
+            };
+        };
+        ScoreImportCounts: {
+            /** @example 0 */
+            add: number;
+            /** @example 0 */
+            update: number;
+            /** @example 0 */
+            exists: number;
+            /** @example 0 */
+            error: number;
+        };
+        ScoreImportPreview: {
+            /** @example 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 */
+            checksum: string;
+            rows: components["schemas"]["ScoreImportRow"][];
+            counts: components["schemas"]["ScoreImportCounts"];
+        };
+        SectionRef: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /** @example 001 */
+            number: string;
+        };
+        FinalGradeSummary: {
+            /**
+             * @example graded
+             * @enum {string}
+             */
+            status: "graded" | "incomplete" | "withdrawn";
+            /** @example 91.25 */
+            percent?: number;
+            /** @example A- */
+            letter?: string;
+            /** @example 3.7 */
+            points?: number;
+        };
+        RunningGrade: {
+            /** @example 88.4 */
+            percent: number;
+            /** @example B+ */
+            letter: string;
+        };
+        MyAssessment: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /** @example Midterm */
+            name: string;
+            /** @example 40 */
+            weight: number;
+            /** @example 100 */
+            maxPoints: number;
+            /**
+             * Format: date
+             * @example 2026-10-20
+             */
+            dueOn?: string;
+            /**
+             * @description Omitted when not scored.
+             * @example 87.5
+             */
+            points?: number;
+        };
+        MyGradesSection: {
+            section: components["schemas"]["SectionRef"];
+            course: components["schemas"]["Course"];
+            /**
+             * @description The course's credits.
+             * @example 3
+             */
+            credits: number;
+            final?: components["schemas"]["FinalGradeSummary"];
+            /** @description Only without final, and only when every assessment scored for the caller is published. */
+            running?: components["schemas"]["RunningGrade"];
+            /** @description Published assessments only, by position. */
+            assessments: components["schemas"]["MyAssessment"][];
+        };
+        MyGradesTerm: {
+            term: components["schemas"]["Term"];
+            /**
+             * @description Credit-weighted grade points over graded final grades of the term, rounded half up to 2 decimals; omitted when they carry 0 credits.
+             * @example 3.34
+             */
+            gpa?: number;
+            /**
+             * @description Credits of the graded final grades of the term.
+             * @example 14
+             */
+            credits: number;
+            /** @description By course code, then section number. */
+            sections: components["schemas"]["MyGradesSection"][];
+        };
+        MyGrades: {
+            /** @description Newest term first. */
+            terms: components["schemas"]["MyGradesTerm"][];
+            /**
+             * @description Over every graded final grade; omitted when they carry 0 credits.
+             * @example 3.41
+             */
+            cumulativeGpa?: number;
+            /** @example 29 */
+            cumulativeCredits: number;
+        };
     };
     responses: {
         /** @description validation_failed */
@@ -1361,7 +2007,7 @@ export interface components {
         termId: string;
         courseId: string;
         departmentId: string;
-        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment";
+        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale";
         entityId: string;
         actorUserId: string;
         /** @description Inclusive. */
@@ -1370,6 +2016,7 @@ export interface components {
         to: string;
         /** @description Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q. */
         q: string;
+        assessmentId: string;
     };
     requestBodies: never;
     headers: never;
@@ -2739,6 +3386,470 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGradeScale: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeScale"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateGradeScale: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GradeScaleUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeScale"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAssessments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    setScores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScoresUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    previewScoreImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUpload"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreImportPreview"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    importScores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportCommit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreImportPreview"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGradebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Gradebook"];
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listFinalGrades: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalGradeList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    finalizeSection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalGradeCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalGradeList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reopenSection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateFinalGrade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                userId: components["parameters"]["userId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalGradeUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinalGrade"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getMyGrades: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyGrades"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
