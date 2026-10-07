@@ -327,7 +327,7 @@ test('capture every screen', async ({ browser, page }) => {
     // CS210 has weights 40 + 60; a third assessment makes 110, which shows the "Must total 100%" warning badge
     await api(profPage, 'post', `${A}/sections/${sec.CS210}/assessments`, { name: 'Extra Credit', maxPoints: 10, weight: 10, published: true })
     await profPage.goto(`/${slug}/sections/${sec.CS210}/grades`)
-    await expect(profPage.getByText('Must total 100% to finalize')).toBeVisible()
+    await expect(profPage.getByText('Must total 100% to finalize', { exact: true })).toBeVisible()
     await snap(profPage, '73-states-weight-warning-instructor', 'Gradebook CS210 with weights totalling 110 (warning badge), instructor')
   })
 
