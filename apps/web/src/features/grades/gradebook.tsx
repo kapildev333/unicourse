@@ -18,6 +18,7 @@ import { personName } from '../courses/access'
 import { AssessmentDialog } from './assessment-dialog'
 import { fmt2, fmtNum, gradebookAccess, parsePoints, sentence, totalsHundred, weightTotal } from './grade'
 import {
+  downloadGradebookCsv,
   putScores,
   useGradebook,
   useGradeScale,
@@ -103,6 +104,11 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   const [message, setMessage] = useState('')
   const [pageError, setPageError] = useState('')
   const [dialog, setDialog] = useState<'new' | Assessment | null>(null)
+  const exportCsv = useMutation({
+    mutationFn: (fileName: string) => downloadGradebookCsv(slug, sectionId, fileName),
+    onSuccess: () => setPageError(''),
+    onError: (e) => setPageError(`Couldn't export the gradebook: ${errorMessage(e)}`),
+  })
 
   const back = (label: string) => (
     <Link
@@ -302,7 +308,13 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         {!totalsHundred(assessments) && <Badge tone="warning">Must total 100% to finalize</Badge>}
         <div className="ml-auto flex gap-2">
           {editing && newButton}
-          {/* L2c: Import scores (access.scores) and Export CSV (access.view) */}
+          <Button
+            variant="secondary"
+            disabled={exportCsv.isPending}
+            onClick={() => exportCsv.mutate(`${sec.course.code}-${sec.number}-gradebook.csv`)}
+          >
+            {exportCsv.isPending ? 'Exporting…' : 'Export CSV'}
+          </Button>
         </div>
       </div>
       <p className="mb-4 text-sm text-ink-muted">

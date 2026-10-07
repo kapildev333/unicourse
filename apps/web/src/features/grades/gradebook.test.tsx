@@ -258,3 +258,21 @@ it('TA sees the no-assessments copy without an action', async () => {
   expect(await screen.findByText("The instructor hasn't added assessments yet.")).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'New assessment' })).not.toBeInTheDocument()
 })
+
+it('Export CSV requests text/csv and downloads a named file', async () => {
+  const create = vi.fn(() => 'blob:x')
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }))
+  let name = ''
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    name = this.download
+  })
+  const fn = renderPage('instructor', {
+    [GB]: (req) =>
+      req.headers.get('Accept') === 'text/csv' ? { body: undefined } : { body: book() },
+  })
+  fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }))
+  await waitFor(() => expect(create).toHaveBeenCalled())
+  expect(calls(fn, GB).some(([r]) => r.headers.get('Accept') === 'text/csv')).toBe(true)
+  expect(name).toBe('CS101-001-gradebook.csv')
+  click.mockRestore()
+})

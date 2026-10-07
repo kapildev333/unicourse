@@ -70,3 +70,20 @@ export function putScores(slug: string, sectionId: string, assessmentId: string,
     }),
   )
 }
+
+/** GET gradebook with Accept: text/csv, then save it as a file named `fileName`. */
+export async function downloadGradebookCsv(slug: string, sectionId: string, fileName: string): Promise<void> {
+  const blob = (await unwrap(
+    api.GET('/universities/{slug}/sections/{id}/gradebook', {
+      params: { path: { slug, id: sectionId } },
+      headers: { Accept: 'text/csv' },
+      parseAs: 'blob',
+    }),
+  )) as unknown as Blob
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
