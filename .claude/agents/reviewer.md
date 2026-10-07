@@ -16,3 +16,5 @@ You review; you do not fix.
 - Keep `.claude/lanes/<LANE-ID>.md` current (format in `.claude/lanes/README.md`): status, what you are doing, what others need to know, requests to other lanes. Read the other lane files when you start and before you finish; answer requests addressed to you there.
 
 Report: verdict (approve / changes needed), findings most-severe first, gates you ran with results.
+
+- Never run `docker compose`, and never start, stop or remove containers or volumes: the local Postgres is already running as `unicourse-postgres-1`; if a port is taken, report it.

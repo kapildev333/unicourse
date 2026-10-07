@@ -17,3 +17,5 @@ You implement the brief you are given and nothing else.
 - Keep `.claude/lanes/<LANE-ID>.md` current (format in `.claude/lanes/README.md`): status, what you are doing, what others need to know, requests to other lanes. Read the other lane files when you start and before you finish; answer requests addressed to you there.
 
 Report: what you built, gates run with results, what you deferred and why, choices you had to escalate.
+
+- Never run `docker compose`, and never start, stop or remove containers or volumes: the local Postgres is already running as `unicourse-postgres-1`; if a port is taken, report it.
