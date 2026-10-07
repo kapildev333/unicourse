@@ -4,6 +4,7 @@ Spec 1: `docs/specs/2026-10-05-platform-core-and-staffing.md` · plan `docs/plan
 Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-06-student-schedule.md` (Phase 5, done)
 Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026-10-06-visual-design-system.md` (Phase 6, running)
 Spec 4: `docs/specs/2026-10-07-grading.md` · plan `docs/plans/2026-10-07-grading.md` (Phase 7, starting)
+Spec 5: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-06-section-content.md` (Phase 8, not started)
 
 ## Decisions
 | # | Decision | Status |
@@ -76,6 +77,10 @@ Spec 4: `docs/specs/2026-10-07-grading.md` · plan `docs/plans/2026-10-07-gradin
 | D66 | D60 extended to the unit tests of Catalog and My sections (`tr` to `li`, table to list queries) for the same assertions | Orchestrator 2026-10-07 |
 | D67 | P6-L1 design rulings folded into Spec 3: dark primary button is a light purple tint with charcoal text; links purple at rest, deep purple on hover; focus ring is the ink colour; header search border is `line-strong`; table headers 700; the card cover band is the one allowed purple background | Orchestrator 2026-10-07, owner to confirm |
 | D66 | Grading API rulings on the P7-L1 design: deleting a section that has final grades is a 409 `conflict` (restrict FK, like D15) while assessments and scores cascade; `final_grades.credits` is copied from the course at finalization so past GPAs never move when a course's credits change; grade numbers are JSON numbers backed by Postgres `numeric` with exact fractions in Go for percent and letter, SQL `round` half up for GPA; the US preset is one SQL function used by the migration and the CLI; audit `score.set` records points and previous values; the scores import keeps an `exists` action. Credits get a UI field only after Phase 6 lands (course dialog is a Phase 6 file) | Orchestrator 2026-10-07, owner to confirm |
+| D70 | Spec 5 (section home page, announcements, weekly materials, TA parity) written under D8 delegation on 2026-10-06 (the owner's brainstorming loop, no answer in 30 minutes). File bytes live on a local directory `UNICOURSE_FILES_DIR/<university_id>/<material_id>` behind `internal/blob` (one implementation, no interface); metadata in Postgres under RLS; an S3-compatible store is the upgrade when API processes cannot share a volume. Alternatives weighed: S3 now (needs a SigV4 signer or a new module), Postgres `bytea` (100 MB decks make the database and backups heavy) | Orchestrator 2026-10-06, owner to confirm |
+| D71 | Instructors and TAs have identical powers over section content, including editing and deleting another author's announcement; staffing and grade finalization stay as Specs 1 and 4 define them. Content is readable by staff, enrolled students, admins and department admins; a plain member sees the description only | Orchestrator 2026-10-06, owner to confirm |
+| D72 | Announcements are emailed through the existing outbox to the roster minus the author, on by default (`email: true`), never on edit; the outbox's one-mail-at-a-time ceiling (backlog) is accepted for announcements | Orchestrator 2026-10-06, owner to confirm |
+| D73 | Description, week notes and announcement bodies are plain text rendered with line breaks; Markdown is deferred to the first instructor who asks. Allowed uploads: pdf, png, jpg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md, csv, 100 MB each; downloads are always attachments with `nosniff` and a sandbox CSP | Orchestrator 2026-10-06, owner to confirm |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -197,6 +202,15 @@ Order: P6-L1 designer → worker → review → PR; then L2 ∥ L3 ∥ L4a → L
 | P7-L2 - Grading web (Task 2, D; sub-lanes a, b, c) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P7-L2.md`, `apps/web/src/features/grades`, `apps/web/src/routes/$slug/{grades.tsx,sections_.$id.grades.tsx,admin/grade-scale.tsx}` | designer launched 2026-10-07; workers after P7-L1a lands |
 | P7-L3 - End-to-end extension (Task 3, W) | Sonnet 5.5 | `apps/web/e2e` | after L1 and L2 |
 
+## Phase 8 - Section content: home page, announcements, weekly materials (Spec 5, not started)
+| Lane | Model | Scope (disjoint from Phases 6 and 7) | Status |
+|------|-------|------------------|--------|
+| P8-L1 - Content API (Task 1, D; sub-lanes a, b) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P8-L1.md`, `apps/api/migrations/0006_section_content.sql`, `apps/api/internal/{content,blob}`, `apps/api/internal/authz`, `apps/api/internal/course` (description, blob cleanup on delete), `apps/api/internal/config`, `apps/api/internal/app`, `apps/api/cmd/unicourse-admin`, `apps/api/openapi.json`, `apps/web/src/api/types.ts`, `docker-compose.yml`, `apps/api/README.md`, `apps/web/e2e/env.ts` | after P7-L1a (shared contract, authz and `course`) |
+| P8-L2 - Section web (Task 2, D; sub-lanes a, b) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P8-L2.md`, `apps/web/src/features/section`, `apps/web/src/features/courses/section-detail.tsx`, `apps/web/src/routes/$slug/sections.$id.tsx`, `apps/web/src/routes/$slug/sections_.$id.{announcements,materials,participants}.tsx` | after P8-L1a and P6-L4 (#63) |
+| P8-L3 - End-to-end extension (Task 3, W) | Sonnet 5.5 | `apps/web/e2e` | after L1 and L2 |
+
+Order: P8-L1 designer → L1a → PR → (L1b ∥ P8-L2 designer → L2a → L2b) → P8-L3. Spec 5 §14 lists D70-D73 for the owner; the plan's coexistence note sequences the shared files.
+
 ## Backlog
 - The CLI runs as `unicourse_owner` (D48); a third, non-owning platform role for everyday university creation is the upgrade when a non-engineer runs the CLI.
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
@@ -230,3 +244,4 @@ Order: P6-L1 designer → worker → review → PR; then L2 ∥ L3 ∥ L4a → L
 - 2026-10-07: P7-L1 and P7-L2 designs done; D65 (roles, grade-scale route) and D66 (API rulings) ruled; Spec 4 §4/§6 amended (#58); P7-L1a worker launched.
 - 2026-10-07: Owner started a 5-minute loop asking for a full grading feature (grades, GPA, scores) with decisions delegated, while Phase 6 runs in another session. Spec 4 and its plan written; D61-D64 ruled; Phase 7 cut into three lanes disjoint from Phase 6; P7-L1 and P7-L2 designers launched.
 - 2026-10-07: P6-L1 built for the Udemy direction (design round 3, workers d1 and d2), reviewed twice, fixed, verified by the orchestrator in both modes and opened as #56. D65-D67 ruled. Page lanes P6-L2, L3, L4a, L5 launched in parallel on the L1 head. The grading session's Phase 7 (#55) runs alongside with disjoint scopes (D64).
+- 2026-10-06: Owner started a 30-minute brainstorming loop for section content (announcements, section home page, weekly materials, TA upload parity) with a Moodle screenshot as a structural reference (no data taken from it). Spec 5 and its plan written under D8 delegation after no answer on the storage question; D70-D73 ruled; Phase 8 cut into three lanes sequenced after P7-L1a and P6-L4. Nothing launched.
