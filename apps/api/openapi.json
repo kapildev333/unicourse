@@ -1735,6 +1735,41 @@
         }
       }
     },
+    "/universities/{slug}/sections/{id}/pending-staff/{invitationId}": {
+      "delete": {
+        "operationId": "deleteSectionPendingStaff",
+        "summary": "Cancel a pending staff assignment",
+        "description": "Who: admin, dept_admin; instructor of the section for ta rows. Deletes only the pending row for this section; the invitation stays (revoke it with deleteInvitation). 404 when the invitation has no pending row on this section.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/invitationId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cancelled."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
     "/universities/{slug}/sections/{id}/enrollments": {
       "get": {
         "operationId": "listEnrollments",
@@ -3276,6 +3311,15 @@
       },
       "userId": {
         "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "invitationId": {
+        "name": "invitationId",
         "in": "path",
         "required": true,
         "schema": {

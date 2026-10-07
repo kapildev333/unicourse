@@ -259,3 +259,52 @@ func TestStaffListPaginated(t *testing.T) {
 		t.Errorf("unrelated member: %d", st)
 	}
 }
+
+func TestPendingStaffDelete(t *testing.T) {
+	e := newEnv(t)
+	s2 := e.newSection(e.TermA2, "001")
+	mk := func(sec, email, role string) string {
+		st, raw := e.call(e.Admin, "POST", e.staffPath(sec), map[string]any{"email": email, "role": role})
+		var got struct{ Invitation struct{ ID string } }
+		if st != 202 || json.Unmarshal(raw, &got) != nil {
+			t.Fatalf("invite: %d %s", st, raw)
+		}
+		return got.Invitation.ID
+	}
+	taInv := mk(e.SectionA, "pta@outside.org", "ta")
+	instInv := mk(e.SectionA, "pinst@outside.org", "instructor")
+	mk(s2, "pta@outside.org", "instructor") // same invitation, other section
+	path := func(sec, inv string) string { return "/sections/" + sec + "/pending-staff/" + inv }
+	if st, _ := e.call(e.TA, "DELETE", path(e.SectionA, taInv), nil); st != 403 {
+		t.Errorf("ta: %d", st)
+	}
+	if st, _ := e.call(e.DaOut, "DELETE", path(e.SectionA, taInv), nil); st != 403 {
+		t.Errorf("daOut: %d", st)
+	}
+	if st, _ := e.call(e.Inst, "DELETE", path(e.SectionA, instInv), nil); st != 403 {
+		t.Errorf("instructor cancels instructor row: %d", st)
+	}
+	for _, p := range []string{path(e.SectionA, "nope"), path(e.SectionA, "00000000-0000-0000-0000-000000000000"), path(s2, instInv), path("nope", taInv)} {
+		if st, _ := e.call(e.Admin, "DELETE", p, nil); st != 404 {
+			t.Errorf("unknown %s: %d", p, st)
+		}
+	}
+	if st, raw := e.call(e.Inst, "DELETE", path(e.SectionA, taInv), nil); st != 204 {
+		t.Fatalf("instructor cancels ta row: %d %s", st, raw)
+	}
+	if st, _ := e.call(e.Inst, "DELETE", path(e.SectionA, taInv), nil); st != 404 {
+		t.Errorf("repeat: %d", st)
+	}
+	if n := e.count(`select count(*) from pending_section_staff where invitation_id = $1`, taInv); n != 1 {
+		t.Errorf("other section row should remain: %d", n)
+	}
+	if n := e.count(`select count(*) from invitations where id = $1`, taInv); n != 1 {
+		t.Errorf("invitation must stay: %d", n)
+	}
+	if n := e.count(`select count(*) from audit_log where action = 'pending_staff.delete' and entity_type = 'section' and entity_id = $1 and before->>'invitationId' = $2 and before->>'email' = 'pta@outside.org' and before->>'role' = 'ta'`, e.SectionA, taInv); n != 1 {
+		t.Errorf("audit: %d", n)
+	}
+	if st, _ := e.call(e.DaIn, "DELETE", path(e.SectionA, instInv), nil); st != 204 {
+		t.Errorf("dept_admin cancels instructor row: %d", st)
+	}
+}
