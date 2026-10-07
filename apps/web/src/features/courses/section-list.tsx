@@ -131,7 +131,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
       <EmptyState
         title="No terms yet"
         icon={CalendarRange}
-        body="An administrator creates terms under Admin → Terms before sections can be added."
+        body="An administrator creates terms before sections can be added."
         action={
           membership.role === 'admin' ? (
             <ButtonLink variant="secondary" to="/$slug/admin/terms" params={{ slug }}>
@@ -194,7 +194,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
                 <td data-label="Instructors">
                   <StaffCell section={s} staffRole="instructor" />
                 </td>
-                <td data-label="TAs">
+                <td data-label="TAs" data-empty={!s.staff.some((x) => x.role === 'ta') && !s.pendingStaff.some((x) => x.role === 'ta') || undefined}>
                   <StaffCell section={s} staffRole="ta" />
                 </td>
                 <td className="text-right whitespace-nowrap">
@@ -244,7 +244,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
       </div>
       {!noTerms && (
         <div role="search" className="mb-6 flex flex-wrap items-end gap-4">
-          <FormField label="Term" name="termId">
+          <FormField label="Term" name="termId" hint={term ? `${formatDate(term.startsOn)} to ${formatDate(term.endsOn)}` : undefined}>
             <select
               className={`${inputClass} w-full sm:w-72`}
               value={effectiveId ?? ''}
@@ -252,7 +252,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
             >
               {terms.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({formatDate(t.startsOn)} – {formatDate(t.endsOn)})
+                  {t.name}
                 </option>
               ))}
             </select>

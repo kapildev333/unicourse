@@ -131,3 +131,10 @@ it('keeps the viewport height cap at every width so the body scrolls on desktop'
   expect(d.className).not.toMatch(/max-h-none/)
   expect(d).toHaveClass('max-h-[calc(100dvh-2rem)]')
 })
+
+it('the Close X is a neutral control, not a second accent', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T">a</Dialog>)
+  const close = document.querySelector('dialog')!.querySelector('button[aria-label="Close"]')!
+  expect(close).toHaveClass('text-ink-muted', 'hover:text-ink')
+  expect(close).not.toHaveClass('text-accent')
+})

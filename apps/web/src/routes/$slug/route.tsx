@@ -40,7 +40,7 @@ function UniversityLayout() {
       <EntryLayout>
         <h1 className="text-2xl text-ink">You don't have access to this university</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          Your account ({me.data.user.email}) isn't a member of this university's address.
+          Your account ({me.data.user.email}) isn't a member of the university at this address.
         </p>
         {me.data.memberships.length !== 1 && (
           <>

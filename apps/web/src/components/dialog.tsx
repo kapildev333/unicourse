@@ -53,7 +53,7 @@ export function Dialog(props: {
       )}
       <div className="mt-5">{children}</div>
       {/* last in DOM so native autofocus still lands on the first control (Cancel), placed top right by CSS */}
-      <Button variant="ghost" size="sm" aria-label="Close" title="Close" className="absolute top-3 right-3" onClick={() => ref.current?.close()}>
+      <Button variant="ghost-neutral" size="sm" aria-label="Close" title="Close" className="absolute top-3 right-3" onClick={() => ref.current?.close()}>
         <X aria-hidden="true" />
       </Button>
     </dialog>

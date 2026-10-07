@@ -23,3 +23,19 @@ it('without stack there is no stack class; the scroll wrapper sits in a min-w-0 
   expect(table.parentElement).toHaveClass('overflow-x-auto', 'relative')
   expect(table.parentElement!.parentElement).toHaveClass('min-w-0')
 })
+
+it('a data-empty cell stays in the DOM (CSS hides it on phones)', () => {
+  render(
+    <Table caption="People" stack>
+      <tbody>
+        <tr>
+          <td data-label="Name">Ada</td>
+          <td data-label="Departments" data-empty>
+            —
+          </td>
+        </tr>
+      </tbody>
+    </Table>,
+  )
+  expect(screen.getByRole('cell', { name: '—' })).toHaveAttribute('data-empty')
+})

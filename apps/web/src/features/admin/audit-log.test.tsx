@@ -87,7 +87,7 @@ it('sends local-day bounds for the date filters', async () => {
   })
 })
 
-it('words every API action in the past tense and keeps the table scrolling', async () => {
+it('words every API action in the past tense and stacks on phones', async () => {
   const actions: [string, string, string][] = [
     ['membership.update', 'membership', 'Member updated'],
     ['invitation.accept', 'invitation', 'Invitation accepted'],
@@ -102,7 +102,7 @@ it('words every API action in the past tense and keeps the table scrolling', asy
   })
   renderWithQuery(<AuditLogPage slug="x" />)
   for (const [, , label] of actions) expect(await screen.findByText(label)).toBeInTheDocument()
-  expect(screen.getByRole('table')).not.toHaveClass('ui-table-stack')
-  expect(screen.getByRole('columnheader', { name: 'When' })).toHaveClass('sticky')
+  expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+  expect(screen.getByRole('columnheader', { name: 'When' })).toHaveClass('sm:sticky')
   expect(screen.getAllByText('Show changes')).toHaveLength(actions.length)
 })

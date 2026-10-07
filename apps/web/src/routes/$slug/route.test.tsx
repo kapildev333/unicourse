@@ -56,7 +56,7 @@ async function noAccess(universities: string[]) {
 
 it('offers one primary link for a single membership', async () => {
   const router = await noAccess(['Harbor College'])
-  expect(screen.getByText(/this university's address/)).toBeInTheDocument()
+  expect(screen.getByText(/the university at this address/)).toBeInTheDocument()
   expect(screen.queryByText('Go to your university:')).toBeNull()
   fireEvent.click(screen.getByRole('link', { name: 'Go to Harbor College' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/harbor-college/me'))

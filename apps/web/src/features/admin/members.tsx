@@ -15,13 +15,13 @@ import { LoadMore } from '../../components/load-more'
 import { personName } from '../courses/access'
 import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useMe } from '../auth/use-me'
 import { DepartmentPicker } from './department-picker'
 import { useAllDepartments, useRefresh } from './queries'
+import { TabHeader } from './tab-header'
 
 type Membership = components['schemas']['Membership']
 type Role = Membership['role']
@@ -196,7 +196,7 @@ export function MembersPage({ slug }: { slug: string }) {
                 <td data-label="Role">
                   <RoleBadge role={x.role} />
                 </td>
-                <td data-label="Departments">
+                <td data-label="Departments" data-empty={x.departmentIds.length === 0 || undefined}>
                   {x.departmentIds.length === 0
                     ? '—'
                     : x.departmentIds.map((id) => deptCode.get(id) ?? 'Unknown').join(', ')}
@@ -240,7 +240,7 @@ export function MembersPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <PageHeader
+      <TabHeader
         title="Members"
         description={
           <>

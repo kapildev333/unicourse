@@ -26,6 +26,7 @@ it('marks only the current admin tab as active', async () => {
     </QueryClientProvider>,
   )
   await screen.findByText('members page')
+  expect(screen.getByRole('heading', { level: 1, name: 'Admin' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page')
   for (const name of ['Departments', 'Terms', 'Invitations', 'Audit log']) {
     const link = screen.getByRole('link', { name })

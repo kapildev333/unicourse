@@ -13,13 +13,13 @@ import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { DepartmentPicker } from './department-picker'
 import { useAllDepartments, useRefresh } from './queries'
+import { TabHeader } from './tab-header'
 
 type Invitation = components['schemas']['Invitation']
 type Role = Invitation['role']
@@ -213,7 +213,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
                   <td data-label="Role">
                     <RoleBadge role={i.role} />
                   </td>
-                  <td data-label="Departments">
+                  <td data-label="Departments" data-empty={i.departmentIds.length === 0 || undefined}>
                     {i.departmentIds.length === 0
                       ? '—'
                       : i.departmentIds.map((id) => deptCode.get(id) ?? 'Unknown').join(', ')}
@@ -223,7 +223,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
                       {status === 'accepted' ? 'Accepted' : status === 'expired' ? 'Expired' : 'Pending'}
                     </Badge>
                   </td>
-                  <td data-label="Expires">
+                  <td data-label="Expires" data-empty={status === 'accepted' || undefined}>
                     {status === 'accepted' ? <span className="text-ink-muted">—</span> : formatDate(i.expiresAt)}
                   </td>
                   <td className="text-right whitespace-nowrap">
@@ -255,7 +255,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
 
   return (
     <>
-      <PageHeader
+      <TabHeader
         title="Invitations"
         description="People you invite get access when they first sign in with that email."
         action={create}
