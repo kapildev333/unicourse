@@ -1,10 +1,13 @@
 package httpx
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -16,15 +19,16 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 
 // DecodeJSON reads a body of at most 1 MB, rejecting unknown fields.
 func DecodeJSON(r *http.Request, dst any) error {
-	dec := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20))
+	var raw bytes.Buffer
+	dec := json.NewDecoder(io.TeeReader(http.MaxBytesReader(nil, r.Body, 1<<20), &raw))
 	dec.DisallowUnknownFields()
 	err := dec.Decode(dst)
 	if err == nil {
 		// A second value (or garbage) after the first is an error; io.EOF means clean end.
-		if err = dec.Decode(&struct{}{}); err == io.EOF {
-			return nil
+		if err = dec.Decode(&struct{}{}); err != io.EOF {
+			return Validation(FieldError{Field: "body", Message: "must contain a single JSON value"})
 		}
-		return Validation(FieldError{Field: "body", Message: "must contain a single JSON value"})
+		return exactKeys(raw.Bytes(), dst)
 	}
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {
@@ -45,4 +49,46 @@ func DecodeJSON(r *http.Request, dst any) error {
 		return Validation(FieldError{Field: field, Message: "invalid value"})
 	}
 	return Validation(FieldError{Field: "body", Message: "invalid JSON"})
+}
+
+// exactKeys rejects top-level keys that are not byte-equal to a json tag of dst, because
+// encoding/json matches keys case-insensitively. Non-struct dst is skipped.
+// ponytail: top level only; nested objects still match case-insensitively. Recurse if a contract needs it.
+func exactKeys(body []byte, dst any) error {
+	t := reflect.TypeOf(dst)
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t == nil || t.Kind() != reflect.Struct {
+		return nil
+	}
+	allowed := map[string]bool{}
+	for _, f := range reflect.VisibleFields(t) {
+		if !f.IsExported() {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" && f.Tag.Get("json") == "-" {
+			continue
+		}
+		if name == "" {
+			name = f.Name
+		}
+		allowed[name] = true
+	}
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(body, &keys) != nil {
+		return nil // not an object (or null); the decode above already accepted it
+	}
+	names := make([]string, 0, len(keys))
+	for k := range keys {
+		names = append(names, k)
+	}
+	sort.Strings(names) // deterministic first offender
+	for _, k := range names {
+		if !allowed[k] {
+			return Validation(FieldError{Field: k, Message: "unknown field"})
+		}
+	}
+	return nil
 }
