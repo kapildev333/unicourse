@@ -20,10 +20,12 @@
 
 ```
 apps/web/index.html                              theme boot script (same-origin file, CSP), color-scheme
-apps/web/package.json                            lucide-react, @fontsource-variable/dm-sans, @fontsource/dm-serif-display
+apps/web/package.json                            lucide-react, @fontsource-variable/dm-sans
 apps/web/src/index.css                           fonts, tokens for both modes, base, ui-table, skeleton
 apps/web/src/lib/theme.ts (+ test)               read/write/apply `unicourse:theme`
 apps/web/src/components/theme-switch.tsx         System / Light / Dark control
+apps/web/src/components/card.tsx                 section/course card (cover band, title, meta)
+apps/web/src/components/header-search.tsx        search field that navigates to the catalog with q
 apps/web/src/components/*.tsx                    restyled shared components, icons
 apps/web/src/no-literal-colors.test.ts           gate
 apps/web/src/features/auth/*, routes/sign-in.tsx, routes/invite.$token.tsx, routes/index.tsx   Task 2
@@ -46,7 +48,8 @@ Spec §3, §4, §6 (Shell, Shared), §7, §8. Designer writes `docs/design/P6-L1
 - [ ] `lib/theme.ts` with a unit test: `read()`, `write(choice)`, `apply(choice)`, `boot()`; the inline boot script in `index.html` is the same logic, minified by hand, with a comment pointing at `theme.ts`.
 - [ ] `theme-switch.tsx`: three-option control, labelled, keyboard operable, in the header.
 - [ ] Restyle every file in `components/`: button (`on-accent` token, icon slot), badge (warning tone via tokens), dialog (header/body/footer rhythm), empty-state (icon slot), error-banner, form-field, load-more, loading (skeleton), page-header, status-message (Lucide check), table (`ui-table` for both modes). Existing component tests stay green; add state tests only where behaviour changed.
-- [ ] `app-shell.tsx`: wordmark, nav with icons, university switch, theme switch, sign-out, hairline header.
+- [ ] `app-shell.tsx`: Udemy-style top bar: wordmark, text nav, header search to the catalog, university switch, theme switch, sign-out, hairline.
+- [ ] `card.tsx`: the shared card (spec §6) with a unit test.
 - [ ] `no-literal-colors.test.ts` per spec §8; make it pass by fixing `badge.tsx` and `button.tsx`.
 - [ ] `e2e/theme.spec.ts`: sign in, choose Dark, reload, `html[data-theme="dark"]`.
 - [ ] Gates: lint, typecheck, test, build; e2e. Commit.
@@ -57,7 +60,7 @@ Spec §6 (Entry), §5.2. Scope: `features/auth/*`, `routes/sign-in.tsx`, `routes
 
 ### Task 3 (P6-L3, W): my sections and catalog
 
-Spec §6 (My sections, Catalog). Scope: `features/my-sections/*`, `features/catalog/*`, `routes/$slug/me.tsx`, `routes/$slug/catalog.tsx`, `routes/$slug/index.tsx`. The week grid keeps its DOM (regions, list items, clash text); blocks and the term picker take the tokens; catalog filters in one labelled row. Gates as Task 2, plus `lib/schedule.test.ts` untouched and green.
+Spec §6 (My sections, Catalog), §8 (D60). Scope: `features/my-sections/*`, `features/catalog/*`, `routes/$slug/me.tsx`, `routes/$slug/catalog.tsx`, `routes/$slug/index.tsx`, and the e2e selectors for these two pages only. The list and the catalog become card grids on the shared card; the week grid keeps its DOM (regions, list items, clash text); the catalog reads `q` from the URL so the header search lands on filtered results. Gates as Task 2, plus `lib/schedule.test.ts` untouched and green, and `npm run e2e`.
 
 ### Task 4 (P6-L4, W; sub-lanes a: lists and detail, b: dialogs and editors): courses
 
