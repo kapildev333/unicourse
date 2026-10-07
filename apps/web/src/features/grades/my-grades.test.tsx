@@ -44,7 +44,10 @@ const grades = (over: Record<string, unknown> = {}) => ({
           course: course('PH110', 'Physics I'),
           credits: 3,
           running: { percent: 84.1, letter: 'B' },
-          assessments: [{ ...mid, id: 'a3', name: 'Quiz' }, { ...fin, id: 'a4', name: 'Lab', points: 9 }],
+          assessments: [
+            { ...mid, id: 'a3', name: 'Quiz' },
+            { ...fin, id: 'a4', name: 'Lab', points: 9 },
+          ],
         },
         {
           section: { id: 's5', number: '002' },
