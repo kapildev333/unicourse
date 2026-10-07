@@ -25,6 +25,12 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   const { query: termsQuery, terms, term, notInSession } = useTermChoice(slug, termId)
   const departments = useAllDepartments(slug).data?.items ?? []
   const [text, setText] = useState(q ?? '')
+  // q changed from outside (nav click, back button): follow it, so the debounce below finds nothing to write
+  const [seenQ, setSeenQ] = useState(q)
+  if (seenQ !== q) {
+    setSeenQ(q)
+    if ((q ?? '') !== text.trim()) setText(q ?? '')
+  }
   useEffect(() => {
     const t = setTimeout(() => {
       const v = text.trim()

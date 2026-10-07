@@ -35,7 +35,7 @@ export function SectionDialog(props: {
   const { slug, term, section, onClose, onSaved } = props
   const { membership } = useUniversity()
   const onlyDept = membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
-  const courseData = useAllCourses(slug, onlyDept).data
+  const courseData = useAllCourses(slug, onlyDept, !section).data
   const courses = (courseData?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
   const refresh = useRefresh(slug, 'sections')
   const [courseId, setCourseId] = useState('')

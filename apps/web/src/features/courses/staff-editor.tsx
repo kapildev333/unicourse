@@ -1,10 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
+import { ApiError } from '../../api/errors'
 import type { components } from '../../api/types'
 import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
-import { FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
+import { ErrorBanner } from '../../components/error-banner'
+import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { StatusMessage } from '../../components/status-message'
 import { useRefresh } from '../admin/queries'
@@ -68,6 +70,21 @@ export function StaffEditor(props: {
       setNotice(`${personName(s)} removed from the staff.`)
     },
   })
+  const cancel = useMutation({
+    mutationFn: (s: PendingStaff) =>
+      unwrap(
+        api.DELETE('/universities/{slug}/sections/{id}/pending-staff/{invitationId}', {
+          params: { path: { slug, id: sectionId, invitationId: s.invitationId } },
+        }),
+      ),
+    onSuccess: async (_, s) => {
+      await refresh([slug, 'my-sections'], [slug, 'invitations'])
+      setNotice(`Invitation for ${s.email} cancelled for this section.`)
+    },
+    // a 404 means the row is already gone: refresh so it disappears
+    onError: () => void refresh([slug, 'my-sections'], [slug, 'invitations']),
+  })
+  const alreadyGone = cancel.error instanceof ApiError && cancel.error.code === 'not_found'
   const fields = useFieldErrors(add.error, copy)
   useFocusFirstError(formRef, add.error, bannerRef)
 
@@ -93,6 +110,7 @@ export function StaffEditor(props: {
                   aria-label={`Remove ${personName(s)} as ${roleName(role)}`}
                   onClick={() => {
                     remove.reset()
+                    cancel.reset()
                     setRemoving(s)
                   }}
                 >
@@ -102,11 +120,28 @@ export function StaffEditor(props: {
             </li>
           ))}
           {pending.map((s) => (
-            <li key={s.email} className="px-4 py-2">
-              <p className="text-sm font-medium">
-                {s.email} <Badge tone="warning">Invited</Badge>
-              </p>
-              <p className="text-xs text-ink-muted">Joins when they sign in.</p>
+            <li key={s.invitationId} className="flex items-center justify-between gap-2 px-4 py-2">
+              <div>
+                <p className="text-sm font-medium">
+                  {s.email} <Badge tone="warning">Invited</Badge>
+                </p>
+                <p className="text-xs text-ink-muted">Joins when they sign in.</p>
+              </div>
+              {canRemove && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-danger hover:bg-danger-soft"
+                  disabled={cancel.isPending}
+                  aria-label={`Cancel invitation for ${s.email}`}
+                  onClick={() => {
+                    setNotice('')
+                    cancel.mutate(s)
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -117,6 +152,12 @@ export function StaffEditor(props: {
   return (
     <div className="flex flex-col gap-4">
       <StatusMessage message={notice} />
+      {alreadyGone && (
+        <p role="status" className="text-sm text-ink-muted">
+          Already cancelled.
+        </p>
+      )}
+      {cancel.error && !alreadyGone && <ErrorBanner>{errorMessage(cancel.error)}</ErrorBanner>}
       {group('Instructors', 'instructor', canManageInstructors, 'No instructors yet.')}
       {group('Teaching assistants', 'ta', canManageTAs, 'No TAs yet.')}
       {(canManageInstructors || canManageTAs) && (
@@ -127,6 +168,7 @@ export function StaffEditor(props: {
           onSubmit={(e) => {
             e.preventDefault()
             setNotice('')
+            cancel.reset()
             add.mutate({ email: email.trim(), role: roleRef.current })
           }}
         >
