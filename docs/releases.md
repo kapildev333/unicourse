@@ -14,9 +14,11 @@ Three to six bullets in user terms, each naming what someone can now do and link
 ```markdown
 ## Highlights
 
-- Students see their sections, weekly schedule and clashes ([Spec 2](specs/<file>.md)).
-- Staff publish announcements and weekly materials on a section ([Spec 6](specs/<file>.md)).
+- Students see their sections, weekly schedule and clashes ([Spec 2](https://github.com/kapildev333/unicourse/blob/main/docs/specs/<file>.md)).
+- Staff publish announcements and weekly materials on a section ([Spec 6](https://github.com/kapildev333/unicourse/blob/main/docs/specs/<file>.md)).
 ```
+
+Links in release notes must be absolute GitHub URLs; relative paths do not resolve on the Releases page.
 
 Source: the spec's section 1 and the phase outcome in PLAN.md.
 

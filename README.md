@@ -156,6 +156,6 @@ One Go binary serves the API and the built web app (`UNICOURSE_WEB_DIR`), agains
 
 ## Status
 
-Implemented: Spec 1 (platform core, sign-in, courses, sections, staffing, rosters), Spec 2 (student My sections and schedule), Spec 3 (design system, light and dark), Spec 4 (grading, scores, GPA), Spec 5 (UI/UX benchmark and the Phase 9 improvements), Spec 6 (section home, announcements, weekly materials). Spec 7 (demo seed and this README) is in progress, plus P4-L4 (live Google and Microsoft sign-in credentials). Pending work is in the [PLAN.md backlog](PLAN.md#backlog).
+Implemented: Spec 1 (platform core, sign-in, courses, sections, staffing, rosters), Spec 2 (student My sections and schedule), Spec 3 (design system, light and dark), Spec 4 (grading, scores, GPA), Spec 5 (UI/UX benchmark and the Phase 9 improvements), Spec 6 (section home, announcements, weekly materials), Spec 7 (demo seed and this README), Spec 8 (Postman collection generated from the OpenAPI contract). Also in progress: P4-L4 (live Google and Microsoft sign-in credentials). Pending work is in the [PLAN.md backlog](PLAN.md#backlog).
 
 Each completed phase is summarised in the [releases](https://github.com/kapildev333/unicourse/releases).
