@@ -7,12 +7,13 @@ import (
 	"net/url"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 type MagicLinks struct {
 	DB      *sql.DB
-	Mailer  Mailer
+	Mailer  outbox.Mailer
 	BaseURL string
 }
 

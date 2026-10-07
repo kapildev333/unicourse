@@ -11,6 +11,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 )
 
 // Invitation is the contract resource; createdAt only feeds the list cursor.
@@ -58,7 +59,7 @@ func scanInvitation(row rowScanner) (Invitation, error) {
 
 // CreateInvitation does no authorisation (callers check authz.CanInvite). tx must be a
 // pg.WithTx(in.UniversityID) transaction. Mail is sent before commit.
-func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, m auth.Mailer, baseURL string) (Invitation, error) {
+func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, m outbox.Mailer, baseURL string) (Invitation, error) {
 	var details []httpx.FieldError
 	email, err := auth.NormalizeEmail(in.Email)
 	if err != nil {
@@ -117,7 +118,7 @@ func invitationMail(name, role, url string, expiresAt time.Time) (subject, text 
 // CreateInvitations is the batch form of CreateInvitation (one insert, one audit statement, one
 // mail each, all before commit). Precondition, NOT re-checked here: callers pass distinct, normalised
 // emails that are neither active members nor already pending. Imports invite members only.
-func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, m auth.Mailer, baseURL string) ([]Invitation, error) {
+func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, m outbox.Mailer, baseURL string) ([]Invitation, error) {
 	if len(emails) == 0 {
 		return []Invitation{}, nil
 	}

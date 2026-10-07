@@ -1,4 +1,4 @@
-package auth
+package outbox
 
 import (
 	"bufio"
@@ -7,29 +7,10 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
-
-var urlRe = regexp.MustCompile(`https?://\S+`)
-
-// lastURL applies the design §8 parse rule: the URL in the last "mail" log line.
-func lastURL(t *testing.T, buf *bytes.Buffer) string {
-	t.Helper()
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		var m struct{ Msg, To, Text string }
-		if json.Unmarshal([]byte(lines[i]), &m) == nil && m.Msg == "mail" {
-			if u := urlRe.FindString(m.Text); u != "" {
-				return u
-			}
-		}
-	}
-	t.Fatal("no mail line with a URL")
-	return ""
-}
 
 func TestLogMailer(t *testing.T) {
 	var buf bytes.Buffer
@@ -37,8 +18,10 @@ func TestLogMailer(t *testing.T) {
 	if err := m.Send(context.Background(), "a@a.edu", "Hi", "click\nhttps://x.test/p?q=1\nbye"); err != nil {
 		t.Fatal(err)
 	}
-	if u := lastURL(t, &buf); u != "https://x.test/p?q=1" {
-		t.Fatalf("url %q", u)
+	var line struct{ Msg, To, Text string }
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil || line.Msg != "mail" || line.To != "a@a.edu" ||
+		line.Text != "click\nhttps://x.test/p?q=1\nbye" {
+		t.Fatalf("log line %q (%v)", buf.String(), err)
 	}
 }
 

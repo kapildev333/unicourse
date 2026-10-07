@@ -18,6 +18,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -54,7 +55,7 @@ var reserved = []string{"api", "assets", "invite", "sign-in", "healthz", "readyz
 
 // captor is a mailer that remembers the invitation URL instead of sending anything.
 type captor interface {
-	auth.Mailer
+	outbox.Mailer
 	URL() string
 }
 

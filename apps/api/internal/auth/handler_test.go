@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
@@ -45,7 +46,7 @@ func newHXLimit(t *testing.T, perEmail int) *hx {
 	}
 	x.d = Deps{
 		DB: db, Sessions: &SessionStore{DB: db}, Providers: map[string]Provider{"google": p}, Secret: testSecret, WebBase: webBase,
-		Magic:      &MagicLinks{DB: db, Mailer: LogMailer{L: slog.New(slog.NewJSONHandler(x.mail, nil))}, BaseURL: "http://api.test"},
+		Magic:      &MagicLinks{DB: db, Mailer: outbox.LogMailer{L: slog.New(slog.NewJSONHandler(x.mail, nil))}, BaseURL: "http://api.test"},
 		EmailLimit: NewLimiter(perEmail, time.Hour), IPLimit: NewLimiter(300, time.Hour),
 	}
 	rt := httpx.NewRouter()

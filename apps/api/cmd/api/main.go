@@ -14,6 +14,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/config"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
@@ -41,9 +42,9 @@ func authDeps(ctx context.Context, cfg config.Config, db *sql.DB, logger *slog.L
 	if err != nil {
 		return auth.Deps{}, err
 	}
-	var mailer auth.Mailer = auth.LogMailer{L: logger}
+	var mailer outbox.Mailer = outbox.LogMailer{L: logger}
 	if cfg.SMTPURL != "" {
-		if mailer, err = auth.NewSMTPMailer(cfg.SMTPURL); err != nil {
+		if mailer, err = outbox.NewSMTPMailer(cfg.SMTPURL); err != nil {
 			return auth.Deps{}, err
 		}
 	}

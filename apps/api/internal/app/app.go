@@ -5,6 +5,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/course"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
 
@@ -12,7 +13,7 @@ import (
 // registration (the contract test), handlers only dereference at request time.
 type Deps struct {
 	Auth    auth.Deps
-	Mailer  auth.Mailer
+	Mailer  outbox.Mailer
 	BaseURL string // used for invitation URLs
 }
 

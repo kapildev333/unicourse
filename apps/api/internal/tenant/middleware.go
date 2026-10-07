@@ -10,13 +10,14 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 type Deps struct {
 	DB       *sql.DB
 	Sessions *auth.SessionStore
-	Mailer   auth.Mailer
+	Mailer   outbox.Mailer
 	BaseURL  string // cfg.BaseURL, used for invitation URLs
 }
 

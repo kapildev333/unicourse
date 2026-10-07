@@ -4,23 +4,44 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
+
+var urlRe = regexp.MustCompile(`https?://\S+`)
+
+// lastURL applies the design §8 parse rule: the URL in the last "mail" log line.
+func lastURL(t *testing.T, buf *bytes.Buffer) string {
+	t.Helper()
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		var m struct{ Msg, To, Text string }
+		if json.Unmarshal([]byte(lines[i]), &m) == nil && m.Msg == "mail" {
+			if u := urlRe.FindString(m.Text); u != "" {
+				return u
+			}
+		}
+	}
+	t.Fatal("no mail line with a URL")
+	return ""
+}
 
 func newMagic(t *testing.T) (*MagicLinks, *sql.DB, testdb.Fixture, *bytes.Buffer) {
 	t.Helper()
 	db := testdb.Open(t)
 	fx := testdb.Seed(t, db)
 	var buf bytes.Buffer
-	return &MagicLinks{DB: db, Mailer: LogMailer{L: slog.New(slog.NewJSONHandler(&buf, nil))}, BaseURL: "http://api.test"}, db, fx, &buf
+	return &MagicLinks{DB: db, Mailer: outbox.LogMailer{L: slog.New(slog.NewJSONHandler(&buf, nil))}, BaseURL: "http://api.test"}, db, fx, &buf
 }
 
 func tokenFromURL(t *testing.T, u string) string {
