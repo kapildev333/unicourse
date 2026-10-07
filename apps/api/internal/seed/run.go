@@ -2,6 +2,7 @@ package seed
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -411,7 +412,7 @@ func (w *writer) seed(db *sql.DB, uni string, f Fixture, o Options) error {
 }
 
 func (w *writer) course(c Course, admin string) error {
-	a := cmp(c.As, admin)
+	a := cmp.Or(c.As, admin)
 	body := struct {
 		DepartmentID string      `json:"departmentId"`
 		Code         string      `json:"code"`
@@ -428,13 +429,6 @@ func (w *writer) course(c Course, admin string) error {
 		}
 	}
 	return nil
-}
-
-func cmp(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }
 
 func (w *writer) section(c Course, s Section, courseID, a string) error {
@@ -488,7 +482,7 @@ func (w *writer) section(c Course, s Section, courseID, a string) error {
 			return err
 		}
 	}
-	return w.content(s, label, base, cmp(grader, a))
+	return w.content(s, label, base, cmp.Or(grader, a))
 }
 
 func (w *writer) grade(s Section, label, base, i string) error {
@@ -546,7 +540,7 @@ func (w *writer) content(s Section, label, base, cActor string) error {
 		}
 	}
 	for _, an := range s.Announcements {
-		err := w.post(fmt.Sprintf("announcement %q in %s", an.Title, label), cmp(an.As, cActor), http.MethodPost, base+"/announcements",
+		err := w.post(fmt.Sprintf("announcement %q in %s", an.Title, label), cmp.Or(an.As, cActor), http.MethodPost, base+"/announcements",
 			struct {
 				Title string `json:"title"`
 				Body  string `json:"body"`

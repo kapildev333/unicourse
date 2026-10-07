@@ -88,7 +88,7 @@ func TestLoadRejects(t *testing.T) {
 		}, "scores"},
 		{"override outside roster", func(m map[string]any) {
 			f := sec(m, 0, 0)["finalize"].(map[string]any)
-			f["overrides"] = append(f["overrides"].([]any), map[string]any{"student": "ingrid.larsen@<domain>", "reason": "x"})
+			f["overrides"] = append(f["overrides"].([]any), map[string]any{"student": "david.mensah@<domain>", "reason": "x"})
 		}, "overrides"},
 		{"duplicate email", func(m map[string]any) { at(m, "people", 3)["email"] = at(m, "people", 2)["email"] }, "email"},
 		{"second admin", func(m map[string]any) { at(m, "people", 2)["role"] = "admin" }, "admin"},
@@ -185,7 +185,7 @@ func TestRunSeedsDemo(t *testing.T) {
 		{"assessments total", `select count(*) from assessments`, 10, false},
 		{"scores", `select count(*) from scores`, 47, false},
 		{"final_grades", `select count(*) from final_grades`, 8, false},
-		{"incomplete", `select count(*) from final_grades where status = 'incomplete' and override_reason <> ''`, 1, false},
+		{"incomplete", `select count(*) from final_grades f join users u on u.id = f.user_id where f.status = 'incomplete' and f.override_reason <> '' and u.email = 'lucas.moreau@northfield.edu'`, 1, false},
 		{"cs210 final grades", `select count(*) from final_grades f join sections s on s.id = f.section_id join courses c on c.id = s.course_id where c.code = 'CS210'`, 0, false},
 		{"descriptions", `select count(*) from sections where description <> ''`, 6, false},
 		{"announcements", `select count(*) from announcements`, 8, false},
@@ -301,12 +301,67 @@ func TestRunTwiceAndReset(t *testing.T) {
 	if n := platformCount(t, db, `select count(*) from users where email like '%@northfield.edu'`); n != 13 {
 		t.Errorf("users %d", n)
 	}
-	o.Files.Walk(func(uni, id string, _ time.Time) error {
+	if err := o.Files.Walk(func(uni, id string, _ time.Time) error {
 		if uni == first.UniversityID {
 			t.Errorf("old blob %s/%s left", uni, id)
 		}
 		return nil
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResetLeavesOtherUniversityAlone(t *testing.T) {
+	_, db := testdb.OpenWithOwner(t)
+	o := seedOpts(t)
+	run := func(slug string) Report {
+		f, err := Load(Demo, slug, 2031)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rep, err := Run(context.Background(), db, f, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rep
+	}
+	keep, gone := run("northfield"), run("acme")
+	blobs := func(uni string) (n int) {
+		if err := o.Files.Walk(func(u, _ string, _ time.Time) error {
+			if u == uni {
+				n++
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if blobs(keep.UniversityID) != 3 || blobs(gone.UniversityID) != 3 {
+		t.Fatal("want 3 blobs per university before the reset")
+	}
+	f, err := Load(Demo, "acme", 2031)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Reset = true
+	if _, err := Run(context.Background(), db, f, o); err != nil {
+		t.Fatal(err)
+	}
+	for q, want := range map[string]int{`select count(*) from sections`: 6, `select count(*) from scores`: 47, `select count(*) from materials`: 3, `select count(*) from enrollments`: 26} {
+		if n := count(t, db, keep.UniversityID, q); n != want {
+			t.Errorf("northfield %s: %d, want %d", q, n, want)
+		}
+	}
+	if n := platformCount(t, db, `select count(*) from universities where slug = 'northfield'`); n != 1 {
+		t.Errorf("northfield rows: %d", n)
+	}
+	if blobs(keep.UniversityID) != 3 {
+		t.Errorf("northfield blobs: %d", blobs(keep.UniversityID))
+	}
+	if blobs(gone.UniversityID) != 0 {
+		t.Errorf("old acme blobs left: %d", blobs(gone.UniversityID))
+	}
 }
 
 func TestRunFailureHint(t *testing.T) {
