@@ -1,7 +1,6 @@
 package tenant
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"math/big"
@@ -164,7 +163,7 @@ func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err != nil {
 		return 0, nil, err
 	}
-	total, err := countAuditLog(r.Context(), tx, f)
+	total, err := audit.Count(r.Context(), tx, f)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -172,27 +171,4 @@ func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		httpx.List[audit.Row]
 		Total int `json:"total"`
 	}{out, total}, nil
-}
-
-// countAuditLog counts entries matching f, ignoring the cursor and limit. Its conditions mirror audit.List.
-func countAuditLog(ctx context.Context, tx *sql.Tx, f audit.Filter) (n int, err error) {
-	err = tx.QueryRowContext(ctx, `select count(*) from audit_log a
-where ($1::text is null or a.entity_type = $1) and ($2::uuid is null or a.entity_id = $2) and ($3::uuid is null or a.actor_user_id = $3)
-and ($4::timestamptz is null or a.at >= $4) and ($5::timestamptz is null or a.at < $5)`,
-		nullStr(f.EntityType), nullStr(f.EntityID), nullStr(f.ActorUserID), nullTime(f.From), nullTime(f.To)).Scan(&n)
-	return n, err
-}
-
-func nullStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-func nullTime(t time.Time) any {
-	if t.IsZero() {
-		return nil
-	}
-	return t
 }

@@ -95,15 +95,8 @@ type Row struct {
 	At          time.Time       `json:"at"`
 }
 
-// List returns rows newest first, keyset-paginated on (at, id).
-func List(ctx context.Context, tx *sql.Tx, f Filter, p httpx.Page) (httpx.List[Row], error) {
-	limit := p.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-	q := `select a.id, a.actor_user_id, u.email, u.display_name, a.action, a.entity_type, a.entity_id, a.before, a.after, a.at
-		from audit_log a left join users u on u.id = a.actor_user_id where true`
-	var args []any
+// where returns the filter's conditions (each starting with " and ") and their arguments, shared by List and Count.
+func (f Filter) where() (q string, args []any) {
 	add := func(cond string, v any) {
 		args = append(args, v)
 		q += fmt.Sprintf(" and "+cond, len(args))
@@ -123,6 +116,28 @@ func List(ctx context.Context, tx *sql.Tx, f Filter, p httpx.Page) (httpx.List[R
 	if !f.To.IsZero() {
 		add("a.at < $%d", f.To)
 	}
+	return q, args
+}
+
+// Count returns how many rows match f (no cursor, no limit).
+func Count(ctx context.Context, tx *sql.Tx, f Filter) (n int, err error) {
+	cond, args := f.where()
+	if err = tx.QueryRowContext(ctx, `select count(*) from audit_log a where true`+cond, args...).Scan(&n); err != nil {
+		return 0, fmt.Errorf("audit count: %w", err)
+	}
+	return n, nil
+}
+
+// List returns rows newest first, keyset-paginated on (at, id).
+func List(ctx context.Context, tx *sql.Tx, f Filter, p httpx.Page) (httpx.List[Row], error) {
+	limit := p.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	q := `select a.id, a.actor_user_id, u.email, u.display_name, a.action, a.entity_type, a.entity_id, a.before, a.after, a.at
+		from audit_log a left join users u on u.id = a.actor_user_id where true`
+	cond, args := f.where()
+	q += cond
 	if at, id, ok := p.After(); ok {
 		args = append(args, at, id)
 		q += fmt.Sprintf(" and (a.at, a.id) < ($%d, $%d)", len(args)-1, len(args))
