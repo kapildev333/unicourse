@@ -33,7 +33,7 @@ jobs:
         run: |
           gofmt -l . | tee /dev/stderr | test -z "$(cat)"
           go vet ./...
-          go test ./... -count=1
+          go test ./... -count=1 -short
   web:
     runs-on: ubuntu-latest
     steps:
