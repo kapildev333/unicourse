@@ -63,7 +63,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
             {me.memberships.length > 1 && (
               <select
                 aria-label="University"
-                className={inputClass + ' w-56'}
+                className={inputClass + ' w-40 min-w-0 xl:w-56'}
                 value={slug}
                 onChange={(e) =>
                   void navigate({
