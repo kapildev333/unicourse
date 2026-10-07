@@ -294,6 +294,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await p.goto(`/${slugA}/courses/sections`)
     await p.getByRole('link', { name: 'MA201' }).click()
     ids.ma201 = new URL(p.url()).pathname.split('/').filter(Boolean).pop()!
+    await p.getByRole('link', { name: 'Participants' }).click()
     await p.getByRole('button', { name: 'Import roster' }).first().click()
     const dlg = p.getByRole('dialog')
     await dlg.getByLabel('CSV file').setInputFiles(csv([`${s1},Student`]))
