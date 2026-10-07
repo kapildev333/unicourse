@@ -19,6 +19,11 @@ it('labels each dialog by its own title', () => {
   expect(screen.queryByRole('dialog')).toBeNull() // closed
 })
 
+it('centres itself: preflight zeroes the margin that centres a modal dialog', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T">a</Dialog>)
+  expect(document.querySelector('dialog')).toHaveClass('m-auto')
+})
+
 it('returns focus to the trigger when closed or unmounted', () => {
   HTMLDialogElement.prototype.showModal ||= function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
