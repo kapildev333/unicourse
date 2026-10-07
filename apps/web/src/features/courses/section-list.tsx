@@ -154,12 +154,6 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
         title={`No sections in ${term.name}`}
         icon={Layers}
         body="Create sections one at a time or import them from a CSV file."
-        action={(
-          <Button onClick={() => setCreating(true)}>
-            <Plus />
-            New section
-          </Button>
-        )}
       />
     )
   else

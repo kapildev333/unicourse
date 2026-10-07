@@ -244,3 +244,10 @@ it('names the failure', async () => {
   renderPage(admin)
   expect(await screen.findByText("Couldn't load sections")).toBeInTheDocument()
 })
+
+it('an empty term has one New section button, not two', async () => {
+  mockApi({ [T]: () => ({ body: { items: terms } }), [L]: () => ({ body: { items: [] } }) })
+  renderPage(admin)
+  expect(await screen.findByText(/^No sections in/)).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'New section' })).toHaveLength(1)
+})
