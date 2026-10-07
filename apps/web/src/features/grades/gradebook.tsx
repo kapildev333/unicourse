@@ -15,7 +15,9 @@ import { Table } from '../../components/table'
 import { formatDate } from '../../lib/format'
 import { useMe, useUniversity } from '../auth/use-me'
 import { personName } from '../courses/access'
+import { RemoveDialog } from '../courses/remove-dialog'
 import { AssessmentDialog } from './assessment-dialog'
+import { FinalizeDialog, finalizeCopy, OverrideDialog } from './finalize-dialog'
 import { fmt2, fmtNum, gradebookAccess, parsePoints, sentence, totalsHundred, weightTotal } from './grade'
 import {
   downloadGradebookCsv,
@@ -85,6 +87,32 @@ function PublishToggle(props: {
   )
 }
 
+function FinalCell({ s }: { s: Student }) {
+  const f = s.final
+  if (!f) return <>—</>
+  return (
+    <>
+      {f.status === 'graded' ? (
+        <>
+          <span className="font-bold">{f.letter}</span>
+          {f.points !== undefined && <span className="text-ink-muted"> {fmt2(f.points)}</span>}
+        </>
+      ) : (
+        <span>{f.status === 'incomplete' ? 'Incomplete' : 'Withdrawn'}</span>
+      )}
+      {f.overrideReason && (
+        <>
+          {' '}
+          <Badge tone="neutral" className="align-middle">
+            <span title={f.overrideReason}>Changed</span>
+            <span className="sr-only">: {f.overrideReason}</span>
+          </Badge>
+        </>
+      )}
+    </>
+  )
+}
+
 export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: string }) {
   const { membership } = useUniversity()
   const me = useMe().data
@@ -106,6 +134,21 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   const [pageError, setPageError] = useState('')
   const [dialog, setDialog] = useState<'new' | Assessment | null>(null)
   const [importing, setImporting] = useState(false)
+  const [finalizing, setFinalizing] = useState(false)
+  const [reopening, setReopening] = useState(false)
+  const [changing, setChanging] = useState<Student>()
+  const reopen = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.DELETE('/universities/{slug}/sections/{id}/final-grades', { params: { path: { slug, id: sectionId } } }),
+      ),
+    onSuccess: async () => {
+      await refreshGrades()
+      setReopening(false)
+      setPageError('')
+      setMessage('Grades reopened. Finalize again when scores are ready.')
+    },
+  })
   const exportCsv = useMutation({
     mutationFn: (fileName: string) => downloadGradebookCsv(slug, sectionId, fileName),
     onSuccess: () => setPageError(''),
@@ -170,6 +213,13 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   const { assessments, students, stats } = gq.data
   const finalized = students.some((s) => s.final)
   const total = weightTotal(assessments)
+  const finalizeBlock = !scale
+    ? 'Loading the grade scale…'
+    : students.length === 0
+      ? 'No students are enrolled.'
+      : !totalsHundred(assessments)
+        ? 'Assessment weights must total 100%.'
+        : ''
 
   // ---- cell state (design 3.3) ----
   const setDraft = (k: string, draft: string) =>
@@ -300,9 +350,31 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   return (
     <>
       {back(`${sec.course.code} section ${sec.number}`)}
-      {/* L2c: Finalize grades / Reopen grades button goes in `action` */}
       <PageHeader
         title="Gradebook"
+        action={
+          access.finalize &&
+          (finalized ? (
+            <Button variant="secondary" onClick={() => setReopening(true)}>
+              Reopen grades
+            </Button>
+          ) : (
+            <div>
+              <Button
+                disabled={!!finalizeBlock}
+                aria-describedby={finalizeBlock ? 'finalize-reason' : undefined}
+                onClick={() => setFinalizing(true)}
+              >
+                Finalize grades
+              </Button>
+              {finalizeBlock && (
+                <p id="finalize-reason" className="mt-1 text-xs text-ink-muted">
+                  {finalizeBlock}
+                </p>
+              )}
+            </div>
+          ))
+        }
         description={`${code.replace('-', ' · Section ')} — ${sec.course.title}, ${sec.term.name}`}
       />
       <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -399,7 +471,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 Percent
               </th>
               <th scope="col">Letter</th>
-              {/* L2c: Final column */}
+              {finalized && <th scope="col">Final</th>}
             </tr>
           </thead>
           <tbody>
@@ -442,6 +514,21 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 })}
                 <td className="text-right">{s.percent === undefined ? '—' : `${fmt2(s.percent)}%`}</td>
                 <td>{s.letter ?? '—'}</td>
+                {finalized && (
+                  <td>
+                    <FinalCell s={s} />
+                    {access.finalize && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Change final grade for ${personName(s)}`}
+                        onClick={() => setChanging(s)}
+                      >
+                        Change
+                      </Button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -453,6 +540,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
               </td>
               <td className="text-right">{stats.mean === undefined ? '—' : `${fmt2(stats.mean)}%`}</td>
               <td />
+              {finalized && <td />}
             </tr>
             <tr>
               <th scope="row">Median</th>
@@ -465,10 +553,55 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
               </td>
               <td className="text-right">{stats.median === undefined ? '—' : `${fmt2(stats.median)}%`}</td>
               <td />
+              {finalized && <td />}
             </tr>
           </tfoot>
         </Table>
       )}
+      {finalizing && scale && (
+        <FinalizeDialog
+          slug={slug}
+          sectionId={sectionId}
+          code={code}
+          gradebook={gq.data}
+          scale={scale}
+          onClose={() => setFinalizing(false)}
+          onDone={(m) => {
+            setFinalizing(false)
+            setPageError('')
+            setMessage(m)
+          }}
+        />
+      )}
+      {changing && scale && (
+        <OverrideDialog
+          slug={slug}
+          sectionId={sectionId}
+          student={changing}
+          scale={scale}
+          onClose={() => setChanging(undefined)}
+          onDone={(m) => {
+            setChanging(undefined)
+            setPageError('')
+            setMessage(m)
+          }}
+        />
+      )}
+      <RemoveDialog
+        open={reopening}
+        title={`Reopen grades for ${code}?`}
+        description={`This deletes the ${students.filter((s) => s.final).length} final grades. Students stop seeing their final letters until you finalize again. Scores and assessments are kept.`}
+        confirmLabel="Reopen grades"
+        pendingLabel="Reopening…"
+        pending={reopen.isPending}
+        error={reopen.error}
+        copy={finalizeCopy}
+        onConfirm={() => reopen.mutate()}
+        onClose={() => {
+          setReopening(false)
+          reopen.reset()
+        }}
+      />
       {importing && (
         <ScoresImportDialog
           slug={slug}

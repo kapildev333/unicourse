@@ -288,3 +288,41 @@ it('admin has no Import scores button', async () => {
   await screen.findByText('Weights total 90%')
   expect(screen.queryByRole('button', { name: 'Import scores' })).not.toBeInTheDocument()
 })
+
+const finalBook = () => ({
+  ...book([
+    stu('erin', 'Erin Moe', { a1: 30 }, { final: { status: 'graded', letter: 'B+', points: 3.3, percent: 88 } }),
+    stu('sam', 'Sam Lee', {}, { final: { status: 'incomplete', overrideReason: 'Medical leave' } }),
+  ]),
+})
+
+it('finalized gradebook shows the Final column, Change buttons and reopens', async () => {
+  const DEL = 'DELETE /universities/a/sections/s1/final-grades'
+  const fn = renderPage('instructor', { [DEL]: () => ({ status: 204 }) }, finalBook())
+  expect(await screen.findByText('B+')).toBeInTheDocument()
+  expect(screen.getByText('Incomplete')).toBeInTheDocument()
+  expect(screen.getByText('Changed')).toBeInTheDocument()
+  expect(screen.getByText(/Final grades are recorded/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Change final grade for Erin Moe' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Finalize grades' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Reopen grades' }))
+  expect(await screen.findByText(/This deletes the 2 final grades/)).toBeInTheDocument()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Reopen grades' })[1])
+  expect(await screen.findByText('Grades reopened. Finalize again when scores are ready.')).toBeInTheDocument()
+  expect(calls(fn, DEL)).toHaveLength(1)
+})
+
+it('Finalize grades is disabled with its reason until weights total 100', async () => {
+  renderPage('instructor')
+  const btn = await screen.findByRole('button', { name: 'Finalize grades' })
+  expect(btn).toBeDisabled()
+  expect(screen.getByText('Assessment weights must total 100%.')).toBeInTheDocument()
+})
+
+it('Finalize grades opens the dialog when weights total 100', async () => {
+  const b = book()
+  b.assessments[1] = asm('a2', 'Final exam', 100, 60)
+  renderPage('admin', {}, b)
+  fireEvent.click(await screen.findByRole('button', { name: 'Finalize grades' }))
+  expect(await screen.findByRole('heading', { name: 'Finalize grades for CS101-001' })).toBeInTheDocument()
+})
