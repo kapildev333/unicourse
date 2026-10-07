@@ -15,7 +15,7 @@ import { Table } from '../../components/table'
 import { formatDateTime } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useAllMembers } from './queries'
-import { TabHeader } from './tab-header'
+import { PageHeader } from '../../components/page-header'
 
 type Entry = components['schemas']['AuditEntry']
 type EntityType = Entry['entityType']
@@ -205,7 +205,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <TabHeader title="Audit log" description="Every change made in this university, newest first." />
+      <PageHeader as="h2" title="Audit log" description="Every change made in this university, newest first." />
       <form
         role="search"
         aria-label="Filter audit log"

@@ -16,7 +16,7 @@ import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useRefresh } from './queries'
-import { TabHeader } from './tab-header'
+import { PageHeader } from '../../components/page-header'
 
 type Department = components['schemas']['Department']
 
@@ -164,7 +164,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
     </Button>
   )
   const header = (
-    <TabHeader title="Departments" description="Departments group courses and department admins." action={create} />
+    <PageHeader as="h2" title="Departments" description="Departments group courses and department admins." action={create} />
   )
 
   let body: React.ReactNode

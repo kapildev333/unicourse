@@ -18,7 +18,7 @@ import { Badge } from '../../components/badge'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useRefresh } from './queries'
-import { TabHeader } from './tab-header'
+import { PageHeader } from '../../components/page-header'
 
 type Term = components['schemas']['Term']
 
@@ -160,7 +160,7 @@ export function TermsPage({ slug }: { slug: string }) {
       New term
     </Button>
   )
-  const header = <TabHeader title="Terms" description="Academic terms that sections belong to." action={create} />
+  const header = <PageHeader as="h2" title="Terms" description="Academic terms that sections belong to." action={create} />
 
   let body: React.ReactNode
   if (list.isPending) body = <Loading variant="table" columns={['Name', 'Starts', 'Ends', 'Status', '']} />
