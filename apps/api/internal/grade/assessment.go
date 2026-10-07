@@ -192,6 +192,7 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
+	emptyDue := false // "" is a 400 (null clears), collected with the other field errors
 	if in.Name.Set {
 		after.Name = in.Name.V
 	}
@@ -203,9 +204,7 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	}
 	if in.DueOn.Set {
 		after.DueOn = in.DueOn.V // null: V is "" and clears it
-		if !in.DueOn.Null && in.DueOn.V == "" {
-			return 0, nil, httpx.Validation(httpx.FieldError{Field: "dueOn", Message: "must be a date YYYY-MM-DD"})
-		}
+		emptyDue = !in.DueOn.Null && in.DueOn.V == ""
 	}
 	if in.Published.Set {
 		after.Published = in.Published.V
@@ -215,6 +214,9 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	}
 	// ponytail: a changed maxPoints does not re-check existing scores against 2 x max; validate on PATCH if it matters
 	v, d := assessmentFields(after.Name, after.MaxPoints, after.Weight, after.DueOn, &after.Position)
+	if emptyDue {
+		d = append(d, httpx.FieldError{Field: "dueOn", Message: "must be a date YYYY-MM-DD"})
+	}
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)
 	}

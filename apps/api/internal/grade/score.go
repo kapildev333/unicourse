@@ -34,7 +34,6 @@ type scoreAudit struct {
 	Points json.Number `json:"points,omitempty"` // omitted in after = deleted
 }
 
-// ponytail: json.Number also accepts a JSON string holding a number ("87.5"); a strict number type would reject it.
 // rat reads a numeric::text value; ok is always true for those (panics otherwise).
 func rat(n json.Number) *big.Rat {
 	r, ok := new(big.Rat).SetString(string(n))
@@ -62,6 +61,7 @@ func putScores(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err := grade(r, tx, s, secID); err != nil {
 		return 0, nil, err
 	}
+	// ponytail: json.Number also accepts a JSON string holding a number ("87.5"); a strict number type would reject it.
 	var in struct {
 		Scores []struct {
 			UserID string                  `json:"userId"`

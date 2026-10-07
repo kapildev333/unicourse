@@ -89,10 +89,11 @@ func TestAssessmentValidation(t *testing.T) {
 		body map[string]any
 		want []string
 	}{
-		"empty":    {map[string]any{}, []string{""}},
-		"null":     {map[string]any{"weight": nil}, []string{"weight"}},
-		"nulls":    {map[string]any{"name": nil, "weight": nil}, []string{"name", "weight"}},
-		"bad body": {map[string]any{"maxPoints": 0}, []string{"maxPoints"}},
+		"empty":     {map[string]any{}, []string{""}},
+		"null":      {map[string]any{"weight": nil}, []string{"weight"}},
+		"nulls":     {map[string]any{"name": nil, "weight": nil}, []string{"name", "weight"}},
+		"empty due": {map[string]any{"weight": 101, "dueOn": ""}, []string{"weight", "dueOn"}},
+		"bad body":  {map[string]any{"maxPoints": 0}, []string{"maxPoints"}},
 	} {
 		st, raw := e.call(e.Admin, "PATCH", e.aPath(id), c.body)
 		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, c.want) {
