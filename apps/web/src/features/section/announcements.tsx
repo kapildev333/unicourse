@@ -84,7 +84,7 @@ function Announcements({ slug, section, canEdit }: { slug: string; section: Sect
       <>
         {list.error && (
           <div className="mb-4">
-            <ErrorBanner title="Couldn't load announcements" onRetry={list.fetchNextPage}>
+            <ErrorBanner title="Couldn't load announcements" onRetry={list.hasNextPage ? list.fetchNextPage : list.refetch}>
               {errorMessage(list.error)}
             </ErrorBanner>
           </div>
