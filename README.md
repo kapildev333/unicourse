@@ -4,7 +4,7 @@ UniCourse is a multi-tenant platform for universities: each university hosts its
 
 ## Screenshots
 
-Northfield University, the demo dataset: My sections, Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh. Light on the left, dark on the right.
+Northfield University, the demo dataset as loaded by `seed-demo`: My sections, Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh. Light on the left, dark on the right.
 
 | Light | Dark |
 |---|---|
@@ -23,6 +23,8 @@ Prerequisites: Docker, Go 1.27, Node 22. Run the API steps from `apps/api`. The 
    cd apps/api
    docker compose up -d
    ```
+
+   If port 5432 is taken (a local Postgres or an older UniCourse container), stop that first; compose reports "port is already allocated".
 
 2. Set the environment (once per shell):
 
@@ -45,20 +47,20 @@ Prerequisites: Docker, Go 1.27, Node 22. Run the API steps from `apps/api`. The 
 
    Add `--reset` to replace an existing demo. Details: [Load the demo](apps/api/README.md#load-the-demo).
 
-4. Run the API (leave it running; it prints the sign-in links):
+4. Run the API (leave it running; its log shows the sign-in links you request):
 
    ```
    go run ./cmd/api
    ```
 
-5. In a second terminal, run the web app:
+5. In a second terminal, from the repository root, run the web app:
 
    ```
    cd apps/web
    npm install && npm run dev
    ```
 
-6. Open <http://localhost:5173>, go to Sign in, and request a magic link for a persona email below, for example `amara.okafor@northfield.edu`. No mail is sent: copy the link from the API log line with `"msg":"mail"` and open it in the browser, then press the sign-in button on the confirmation page. You land on `/northfield/me`.
+6. Open <http://localhost:5173>, go to Sign in, and request a magic link for a persona email below, for example `amara.okafor@northfield.edu`. No mail is sent: copy the link from the API log line with `"msg":"mail"` and open it in the browser, then press **Continue signing in** on the confirmation page. You land on `/northfield/me`.
 
 ## Demo personas
 
@@ -98,7 +100,7 @@ Web, from `apps/web`:
 ```
 npm run lint
 npm run typecheck
-npm test
+npm test -- --run
 npm run build
 ```
 
@@ -142,4 +144,4 @@ One Go binary serves the API and the built web app (`UNICOURSE_WEB_DIR`), agains
 
 ## Status
 
-Implemented: Spec 1 (platform core, sign-in, courses, sections, staffing, rosters), Spec 2 (student My sections and schedule), Spec 3 (design system, light and dark), Spec 4 (grading, scores, GPA), Spec 5 (UI/UX benchmark and the Phase 9 improvements), Spec 6 (section home, announcements, weekly materials). Spec 7 (demo seed and this README) is in progress. Pending work is in the [PLAN.md backlog](PLAN.md#backlog).
+Implemented: Spec 1 (platform core, sign-in, courses, sections, staffing, rosters), Spec 2 (student My sections and schedule), Spec 3 (design system, light and dark), Spec 4 (grading, scores, GPA), Spec 5 (UI/UX benchmark and the Phase 9 improvements), Spec 6 (section home, announcements, weekly materials). Spec 7 (demo seed and this README) is in progress, plus P4-L4 (live Google and Microsoft sign-in credentials). Pending work is in the [PLAN.md backlog](PLAN.md#backlog).
