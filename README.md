@@ -4,13 +4,13 @@ UniCourse is a multi-tenant platform for universities: each university hosts its
 
 ## Screenshots
 
-Northfield University, the demo dataset, as a student (Amara Okafor). Light on the left, dark on the right.
+Northfield University, the demo dataset: My sections, Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh. Light on the left, dark on the right.
 
 | Light | Dark |
 |---|---|
 | ![My sections, schedule view](docs/screens/my-sections-light.png) | ![My sections, schedule view](docs/screens/my-sections-dark.png) |
 | ![Catalog](docs/screens/catalog-light.png) | ![Catalog](docs/screens/catalog-dark.png) |
-| ![Section home with materials](docs/screens/section-home-light.png) | ![Section home with materials](docs/screens/section-home-dark.png) |
+| ![Section materials](docs/screens/section-home-light.png) | ![Section materials](docs/screens/section-home-dark.png) |
 | ![Gradebook](docs/screens/gradebook-light.png) | ![Gradebook](docs/screens/gradebook-dark.png) |
 
 ## Quick start
