@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { useRefresh } from '../admin/queries'
@@ -119,17 +119,17 @@ export function SectionDialog(props: {
           </FormField>
         )}
         <FormField label="Section number" name="number" hint="For example 001." error={fields.number}>
-          <input type="text" className={`${inputClass} font-mono`} value={number} onChange={(e) => setNumber(e.target.value)} />
+          <input type="text" className={inputClass} value={number} onChange={(e) => setNumber(e.target.value)} />
         </FormField>
         <MeetingsEditor rows={rows} onChange={setRows} fields={fields} sentKeys={sentKeys} />
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" disabled={m.isPending}>
             {m.isPending ? 'Saving…' : section ? 'Save changes' : 'Create section'}
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </Dialog>
   )

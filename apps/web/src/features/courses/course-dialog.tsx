@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { useAllDepartments, useRefresh } from '../admin/queries'
@@ -94,19 +94,19 @@ export function CourseDialog(props: {
           </select>
         </FormField>
         <FormField label="Code" name="code" hint="Up to 20 characters, e.g. CS101" error={fields.code}>
-          <input type="text" className={`${inputClass} font-mono`} value={code} onChange={(e) => setCode(e.target.value)} />
+          <input type="text" className={inputClass} value={code} onChange={(e) => setCode(e.target.value)} />
         </FormField>
         <FormField label="Title" name="title" error={fields.title}>
           <input type="text" className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
         </FormField>
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" disabled={m.isPending}>
             {m.isPending ? 'Saving…' : mode === 'create' ? 'Create course' : 'Save changes'}
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </Dialog>
   )

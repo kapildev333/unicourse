@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
@@ -142,6 +143,7 @@ export function MeetingsEditor(props: {
           disabled={rows.length >= MAX}
           onClick={() => onChange([...rows, newRow(rows.at(-1))])}
         >
+          <Plus />
           Add meeting time
         </Button>
         {rows.length >= MAX && <p className="mt-1 text-xs text-ink-muted">At most 20 meeting times.</p>}

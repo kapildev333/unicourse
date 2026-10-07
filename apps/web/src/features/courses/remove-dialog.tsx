@@ -1,5 +1,5 @@
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { FormErrors, type FieldCopy } from '../../components/form-errors'
 
 /** Confirm-and-destroy dialog; focus starts on Cancel (first focusable in DOM order). */
@@ -20,14 +20,14 @@ export function RemoveDialog(props: {
     <Dialog open={open} onClose={onClose} title={title} description={description}>
       <div className="flex flex-col gap-4">
         <FormErrors error={error} copy={copy} />
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button variant="danger" disabled={pending} onClick={onConfirm}>
             {pending ? pendingLabel : confirmLabel}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </Dialog>
   )
