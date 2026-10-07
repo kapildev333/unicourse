@@ -1,5 +1,4 @@
 import { CalendarRange, Info, Library, SearchX } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Badge, roleLabel } from '../../components/badge'
@@ -30,21 +29,6 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   const { query: termsQuery, terms, term, notInSession } = useTermChoice(slug, termId)
   const isAdmin = useMe().data?.memberships.find((m) => m.university.slug === slug)?.role === 'admin'
   const departments = useAllDepartments(slug).data?.items ?? []
-  const [text, setText] = useState(q ?? '')
-  // q changed from outside (nav click, back button): follow it, so the debounce below finds nothing to write
-  const [seenQ, setSeenQ] = useState(q)
-  if (seenQ !== q) {
-    setSeenQ(q)
-    if ((q ?? '') !== text.trim()) setText(q ?? '')
-  }
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const v = text.trim()
-      if (v !== (q ?? '')) onSearchChange({ q: v || undefined })
-    }, 300)
-    return () => clearTimeout(t)
-  }, [text, q, onSearchChange])
-
   const list = useCursorList<Section>(
     [slug, 'sections', 'catalog', { termId: term?.id, departmentId, q }],
     (cursor) =>
@@ -57,7 +41,6 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   )
   const mine = useMySections(slug).data?.terms.find((g) => g.term.id === term?.id)?.sections ?? []
   const clearFilters = () => {
-    setText('')
     onSearchChange({ departmentId: undefined, q: undefined })
   }
   const filtered = !!(q || departmentId)
@@ -170,20 +153,10 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
                 <option value="">All departments</option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.code} — {d.name}
+                    {d.code} · {d.name}
                   </option>
                 ))}
               </select>
-            </FormField>
-            <FormField label="Search" name="q">
-              <input
-                type="search"
-                maxLength={100}
-                placeholder="Course code or title"
-                className={`${inputClass} w-full md:w-64`}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-              />
             </FormField>
             {filtered && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
 import { Button } from './button'
@@ -30,6 +30,17 @@ function NavLink(props: { to: string; slug: string; match: RegExp; children: Rea
 function HeaderSearch({ slug }: { slug: string }) {
   const navigate = useNavigate()
   const input = useRef<HTMLInputElement>(null)
+  // the Catalog's q shows in the field (S5-01); keyed so back/clear resets it
+  const q = useRouterState({
+    select: (s) => (s.location.pathname.endsWith('/catalog') ? (s.location.search as { q?: string }).q : undefined),
+  })
+  // the field follows q when it changes from outside (back, clear), without remounting so focus stays
+  const [text, setText] = useState(q ?? '')
+  const [seenQ, setSeenQ] = useState(q)
+  if (seenQ !== q) {
+    setSeenQ(q)
+    setText(q ?? '')
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
@@ -58,6 +69,8 @@ function HeaderSearch({ slug }: { slug: string }) {
     >
       <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-muted" />
       <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
         ref={input}
         aria-keyshortcuts="/"
         title="Press / to search"

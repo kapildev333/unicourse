@@ -44,7 +44,7 @@ export const logLines = () => fs.readFileSync(apiLog, 'utf8').split('\n').length
 export async function signIn(page: Page, email: string, slug: string) {
   const before = logLines()
   await page.goto('/sign-in')
-  await page.getByLabel('Email', { exact: true }).fill(email)
+  await page.getByLabel('University email or university ID').fill(email)
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
   await page.goto(await latestMailLink(email, before - 1))

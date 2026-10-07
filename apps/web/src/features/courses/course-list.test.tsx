@@ -77,7 +77,7 @@ it('creates a course and shows a field error for a duplicate code', async () => 
   await screen.findByText('CS101')
   fireEvent.click(screen.getByRole('button', { name: 'New course' }))
   const dialog = await screen.findByRole('dialog', { name: 'New course', hidden: true })
-  await within(dialog).findByRole('option', { name: 'MATH — Mathematics' })
+  await within(dialog).findByRole('option', { name: 'MATH · Mathematics' })
   fireEvent.change(within(dialog).getByLabelText('Department'), { target: { value: 'd2' } })
   fireEvent.change(within(dialog).getByLabelText('Code'), { target: { value: ' MATH1 ' } })
   fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Calculus' } })

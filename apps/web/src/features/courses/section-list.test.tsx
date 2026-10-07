@@ -134,7 +134,7 @@ it('creates and deletes a section', async () => {
   await screen.findByText('CS101')
   fireEvent.click(screen.getByRole('button', { name: 'New section' }))
   const dlg = await screen.findByRole('dialog', { name: 'New section' })
-  await waitFor(() => expect(within(dlg).getByRole('option', { name: 'CS102 — CS102 title' })).toBeInTheDocument())
+  await waitFor(() => expect(within(dlg).getByRole('option', { name: 'CS102 · CS102 title' })).toBeInTheDocument())
   fireEvent.change(within(dlg).getByLabelText('Course'), { target: { value: 'c-CS102' } })
   fireEvent.change(within(dlg).getByLabelText('Section number'), { target: { value: ' 002 ' } })
   fireEvent.click(within(dlg).getByRole('button', { name: 'Create section' }))
@@ -187,7 +187,7 @@ it('requests only the department courses for a dept_admin with one department', 
   renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
   await screen.findByText('CS101')
   fireEvent.click(screen.getByRole('button', { name: 'New section' }))
-  await screen.findByRole('option', { name: 'CS102 — CS102 title' })
+  await screen.findByRole('option', { name: 'CS102 · CS102 title' })
   const u = fn.mock.calls.map((c) => new URL((c[0] as Request).url)).find((u) => u.pathname.endsWith('/courses'))!
   expect(u.searchParams.get('departmentId')).toBe('d1')
   expect(screen.queryByText(/Showing the first 200/)).toBeNull()

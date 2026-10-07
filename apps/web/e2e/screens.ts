@@ -94,7 +94,7 @@ test('capture every screen', async ({ browser, page }) => {
   await test.step('signed-out auth screens', async () => {
     await page.goto('/sign-in')
     await snap(page, '01-auth-sign-in-signedout', 'Sign-in page, nobody signed in')
-    await page.getByLabel('Email', { exact: true }).fill(`amara.okafor@${dom}`)
+    await page.getByLabel('University email or university ID').fill(`amara.okafor@${dom}`)
     await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
     await snap(page, '02-auth-check-email-signedout', 'Magic link sent, "Check your email", nobody signed in')
@@ -140,7 +140,7 @@ test('capture every screen', async ({ browser, page }) => {
     const p = await c.newPage()
     // invitations are not mailed (P1-L1 §8) and the web ignores the token, so the link shape is built by hand
     await p.goto(`/invite/${runId}?email=${encodeURIComponent(newHire)}`)
-    await expect(p.getByLabel('Email', { exact: true })).toHaveValue(newHire)
+    await expect(p.getByLabel('University email or university ID')).toHaveValue(newHire)
     await snap(p, '03-auth-invite-link-signedout', `Invitation link for ${newHire} opened signed out (lands on sign-in with the email filled)`)
     await c.close()
   })
@@ -212,7 +212,7 @@ test('capture every screen', async ({ browser, page }) => {
     await snap(page, '43-sections-list-admin', 'Sections list, admin signed in')
     await page.getByRole('button', { name: 'New section' }).first().click()
     const d = page.getByRole('dialog')
-    await d.getByLabel('Course').selectOption({ label: 'CS210 — Data Structures and Algorithms' })
+    await d.getByLabel('Course').selectOption({ label: 'CS210 · Data Structures and Algorithms' })
     await d.getByLabel('Section number').fill('002')
     await d.getByRole('button', { name: 'Add meeting time' }).click()
     const row = d.getByRole('group', { name: 'Meeting 1' })

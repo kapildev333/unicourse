@@ -105,35 +105,17 @@ it('notes clashes with my sections, not touching ones', async () => {
   expect(within(screen.getByText('CS203 title').closest('li')!).queryByText(/Clashes/)).toBeNull()
 })
 
-it('debounces search into one request with q and the term', async () => {
-  const fn = setup()
-  await screen.findByText('CS201 title')
-  const before = sectionUrls(fn).length
-  const input = screen.getByLabelText('Search')
-  for (const v of ['c', 'cs', 'cs2']) fireEvent.change(input, { target: { value: v } })
-  await waitFor(() => expect(sectionUrls(fn).length).toBe(before + 1))
-  const u = sectionUrls(fn).at(-1)!
-  expect(u.searchParams.get('q')).toBe('cs2')
-  expect(u.searchParams.get('termId')).toBe('t2')
-})
-
-it('clears the input when q is removed from outside and does not write it back', async () => {
-  const fn = setup(items, [fall], { q: 'cs2' })
-  const input = await screen.findByLabelText('Search')
-  expect(input).toHaveValue('cs2')
-  fireEvent.click(screen.getByText('outside-clear'))
-  await waitFor(() => expect(input).toHaveValue(''))
-  await new Promise((r) => setTimeout(r, 450))
-  expect(input).toHaveValue('')
-  expect(sectionUrls(fn).at(-1)!.searchParams.has('q')).toBe(false)
-})
-
-it("typing 'intro ' then waiting 450 ms keeps 'intro ' in the input", async () => {
+it('has no Search input of its own, only Term and Department', async () => {
   setup()
-  const input = await screen.findByLabelText('Search')
-  fireEvent.change(input, { target: { value: 'intro ' } })
-  await new Promise((r) => setTimeout(r, 450))
-  expect(input).toHaveValue('intro ')
+  await screen.findByText('CS201 title')
+  expect(screen.queryByLabelText('Search')).toBeNull()
+  expect(screen.getByLabelText('Department')).toBeInTheDocument()
+})
+
+it('sends q from the page params to the section request', async () => {
+  const fn = setup(items, [fall], { q: 'cs2' })
+  await screen.findByText('CS201 title')
+  await waitFor(() => expect(sectionUrls(fn).at(-1)!.searchParams.get('q')).toBe('cs2'))
 })
 
 it('choosing a department sends departmentId', async () => {

@@ -87,7 +87,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
           title={`${section.course.code} · Section ${section.number}`}
           description={
             <>
-              {section.course.title} — {section.term.name}
+              {section.course.title} · {section.term.name}
               {names.length > 0 && (
                 <span className="mt-1 flex items-center gap-2">
                   <Users />

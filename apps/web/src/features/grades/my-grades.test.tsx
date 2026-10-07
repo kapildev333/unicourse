@@ -131,8 +131,8 @@ it('lists published scores in a details and handles none', async () => {
   renderPage(grades())
   const c = await card('CS101-001')
   expect(within(c).getByText('Published scores (2)')).toBeInTheDocument()
-  expect(within(c).getByText(/^Midterm — 34 \/ 40 · 40% · Due /)).toBeInTheDocument()
-  expect(within(c).getByText('Final — Not graded yet · 60%')).toBeInTheDocument()
+  expect(within(c).getByText(/^Midterm · 34 \/ 40 · 40% · Due /)).toBeInTheDocument()
+  expect(within(c).getByText('Final · Not graded yet · 60%')).toBeInTheDocument()
   expect(within(await card('MA201-001')).getByText('No published scores yet.')).toBeInTheDocument()
 })
 
