@@ -112,7 +112,7 @@ func NoFields() error {
 	return httpx.Validation(httpx.FieldError{Field: "", Message: "no fields to update"})
 }
 
-const entityTypes = "department, term, membership, invitation, course, section, staff, enrollment, assessment, final_grade, grade_scale"
+const entityTypes = "department, term, membership, invitation, course, section, staff, enrollment, assessment, final_grade, grade_scale, announcement, week, material"
 
 // listAuditLog serves GET /audit-log (admin only); every filter error is reported at once.
 func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {

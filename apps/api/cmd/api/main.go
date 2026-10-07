@@ -13,6 +13,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/app"
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/config"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
@@ -65,6 +66,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	files, err := blob.New(cfg.FilesDir)
+	if err != nil {
+		logger.Error("files", "err", err)
+		os.Exit(1)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -99,7 +106,7 @@ func main() {
 		logger.Error("auth", "err", err)
 		os.Exit(1)
 	}
-	api := app.NewRouter(app.Deps{Auth: deps, BaseURL: cfg.BaseURL})
+	api := app.NewRouter(app.Deps{Auth: deps, BaseURL: cfg.BaseURL, Files: files})
 
 	var web http.Handler
 	if cfg.WebDir != "" {

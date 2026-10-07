@@ -15,6 +15,7 @@ const existing = {
   courseId: 'c1',
   termId: 't1',
   number: '001',
+  description: '',
   course,
   term,
   staff: [],

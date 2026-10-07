@@ -84,6 +84,17 @@ func CanReadSection(ctx context.Context, tx *sql.Tx, s Scope, sectionID string) 
 	return manageOr(ctx, tx, s, sectionID, `select exists(select 1 from section_staff where section_id = $1 and user_id = $2) or exists(select 1 from enrollments where section_id = $1 and user_id = $2)`)
 }
 
+// CanEditContent: admin, dept_admin of the section's department, instructor or TA of the section (spec 6 section 4).
+// The same set as CanReadRoster today; content calls only this name so the two can diverge.
+func CanEditContent(ctx context.Context, tx *sql.Tx, s Scope, sectionID string) (bool, error) {
+	return CanReadRoster(ctx, tx, s, sectionID)
+}
+
+// CanReadContent: CanEditContent or enrolled in the section (spec 6 section 4). The same set as CanReadSection today.
+func CanReadContent(ctx context.Context, tx *sql.Tx, s Scope, sectionID string) (bool, error) {
+	return CanReadSection(ctx, tx, s, sectionID)
+}
+
 func manageOr(ctx context.Context, tx *sql.Tx, s Scope, sectionID, q string) (bool, error) {
 	if ok, err := CanManageSection(ctx, tx, s, sectionID); ok || err != nil {
 		return ok, err

@@ -900,6 +900,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/sections/{id}/description": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set section description
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Plain text, trimmed, at most 10000 characters; empty clears it. Audited as section.update. Errors: description.
+         */
+        put: operations["updateSectionDescription"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List announcements
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Newest first, paginated.
+         */
+        get: operations["listAnnouncements"];
+        put?: never;
+        /**
+         * Post announcement
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. With email (default true) one mail per enrolled student and staff member other than the author is queued in the same transaction; emailed is false when nobody was mailed. Errors: title, body, email.
+         */
+        post: operations["createAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete announcement
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Never sends mail.
+         */
+        delete: operations["deleteAnnouncement"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit announcement
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section (any author's announcement). Never sends mail. Errors: title, body; {} is field "" (no fields to update).
+         */
+        patch: operations["updateAnnouncement"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/weeks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List weeks with materials
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student.
+         */
+        get: operations["listWeeks"];
+        put?: never;
+        /**
+         * Create week
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Appended last. Errors: title, notes; weeks when the section already has 100 weeks.
+         */
+        post: operations["createWeek"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/weeks/{weekId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete week
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Deletes its materials and their files; the remaining weeks are renumbered.
+         */
+        delete: operations["deleteWeek"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit or move week
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. position moves the week; the others are renumbered 1..n. Errors: title, notes, position; {} is field "".
+         */
+        patch: operations["updateWeek"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/weeks/{weekId}/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload material
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than 100 MB", "invalid multipart upload: <reason>"), title, materials when the week already holds 200 files.
+         */
+        post: operations["uploadMaterial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/materials/{materialId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete material
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. The file is removed after the deletion commits.
+         */
+        delete: operations["deleteMaterial"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename or move material
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Errors: title, weekId ("is not a week of this section", "week already holds 200 files"), position; {} is field "".
+         */
+        patch: operations["updateMaterial"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/materials/{materialId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download material
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag "<sha256>", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.
+         */
+        get: operations["downloadMaterial"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1134,7 +1314,7 @@ export interface components {
              * @example term
              * @enum {string}
              */
-            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale";
+            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
             /**
              * Format: uuid
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
@@ -1308,6 +1488,11 @@ export interface components {
             termId: string;
             /** @example 001 */
             number: string;
+            /**
+             * @description Plain text, line breaks kept; empty string when unset.
+             * @example Lectures Tuesday and Thursday. Office hours on Fridays.
+             */
+            description: string;
             course: components["schemas"]["Course"];
             term: components["schemas"]["Term"];
             staff: components["schemas"]["SectionStaff"][];
@@ -1937,6 +2122,188 @@ export interface components {
             /** @example 29 */
             cumulativeCredits: number;
         };
+        ContentAuthor: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * @description Empty when the user has not set a name.
+             * @example Dana Reyes
+             */
+            displayName: string;
+        };
+        SectionDescriptionUpdate: {
+            /**
+             * @description Plain text; trimmed; empty clears it.
+             * @example Lectures Tuesday and Thursday.
+             */
+            description: string;
+        };
+        Announcement: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            sectionId: string;
+            /** @example Midterm moved to Thursday */
+            title: string;
+            /**
+             * @example The midterm is now on Thursday in Room 101.
+             *     Bring a pencil.
+             */
+            body: string;
+            author: components["schemas"]["ContentAuthor"];
+            /**
+             * @description Whether mail was queued when it was posted.
+             * @example true
+             */
+            emailed: boolean;
+            /**
+             * Format: date-time
+             * @example 2026-10-05T14:03:22Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-05T14:03:22Z
+             */
+            updatedAt: string;
+        };
+        AnnouncementList: {
+            /** @description Newest first. */
+            items: components["schemas"]["Announcement"][];
+            /** @example eyJhIjoxfQ */
+            nextCursor?: string;
+        };
+        AnnouncementCreate: {
+            /**
+             * @description One line.
+             * @example Midterm moved to Thursday
+             */
+            title: string;
+            /** @example The midterm is now on Thursday in Room 101. */
+            body: string;
+            /**
+             * @description Omitted means true: mail everyone enrolled in or staffing the section, except the author.
+             * @example true
+             */
+            email?: boolean;
+        };
+        AnnouncementUpdate: {
+            /** @example Midterm moved to Thursday */
+            title?: string;
+            /** @example The midterm is now on Thursday in Room 101. */
+            body?: string;
+        };
+        Material: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            weekId: string;
+            /** @example Lecture 1 slides */
+            title: string;
+            /** @example lecture-1.pdf */
+            fileName: string;
+            /** @example application/pdf */
+            contentType: string;
+            /** @example 482113 */
+            sizeBytes: number;
+            /** @example 1 */
+            position: number;
+            uploadedBy: components["schemas"]["ContentAuthor"];
+            /**
+             * Format: date-time
+             * @example 2026-10-05T14:03:22Z
+             */
+            createdAt: string;
+        };
+        Week: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            sectionId: string;
+            /** @example Week 1 */
+            title: string;
+            /** @example Read chapter 1 before Tuesday. */
+            notes: string;
+            /** @example 1 */
+            position: number;
+            /** @description By position. */
+            materials: components["schemas"]["Material"][];
+        };
+        WeekList: {
+            /** @description By position; unpaginated (at most 100 weeks of at most 200 materials). */
+            items: components["schemas"]["Week"][];
+        };
+        WeekCreate: {
+            /**
+             * @description One line.
+             * @example Week 1
+             */
+            title: string;
+            /**
+             * @description Omitted means empty.
+             * @example Read chapter 1 before Tuesday.
+             */
+            notes?: string;
+        };
+        WeekUpdate: {
+            /** @example Week 1 */
+            title?: string;
+            /** @example Read chapter 1 before Tuesday. */
+            notes?: string;
+            /**
+             * @description 1 to the number of weeks; the others are renumbered.
+             * @example 2
+             */
+            position?: number;
+        };
+        MaterialUpload: {
+            /**
+             * Format: binary
+             * @description One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv.
+             */
+            file: string;
+            /**
+             * @description Omitted or blank means the file name.
+             * @example Lecture 1 slides
+             */
+            title?: string;
+        };
+        MaterialUpdate: {
+            /** @example Lecture 1 slides */
+            title?: string;
+            /**
+             * Format: uuid
+             * @description Another week of the same section; the file goes last unless position is given.
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            weekId?: string;
+            /**
+             * @description 1 to the number of files in the (target) week.
+             * @example 1
+             */
+            position?: number;
+        };
     };
     responses: {
         /** @description validation_failed */
@@ -2020,7 +2387,7 @@ export interface components {
         termId: string;
         courseId: string;
         departmentId: string;
-        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale";
+        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
         entityId: string;
         actorUserId: string;
         /** @description Inclusive. */
@@ -2030,6 +2397,9 @@ export interface components {
         /** @description Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q. */
         q: string;
         assessmentId: string;
+        announcementId: string;
+        weekId: string;
+        materialId: string;
     };
     requestBodies: never;
     headers: never;
@@ -3890,6 +4260,429 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MyGrades"];
                 };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateSectionDescription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionDescriptionUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Section"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAnnouncements: {
+        parameters: {
+            query?: {
+                /** @description Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit. */
+                limit?: components["parameters"]["limit"];
+                /** @description Opaque; corrupt is 400 field cursor. */
+                cursor?: components["parameters"]["cursor"];
+            };
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                announcementId: components["parameters"]["announcementId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                announcementId: components["parameters"]["announcementId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listWeeks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createWeek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WeekCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Week"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteWeek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                weekId: components["parameters"]["weekId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateWeek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                weekId: components["parameters"]["weekId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WeekUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Week"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    uploadMaterial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                weekId: components["parameters"]["weekId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["MaterialUpload"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Material"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteMaterial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                materialId: components["parameters"]["materialId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateMaterial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                materialId: components["parameters"]["materialId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Material"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    downloadMaterial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                materialId: components["parameters"]["materialId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Part of the file (Range request). */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Not modified (If-None-Match matched the ETag). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];

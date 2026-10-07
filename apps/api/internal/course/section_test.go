@@ -80,7 +80,7 @@ func TestSectionCreateAndShape(t *testing.T) {
 		t.Fatalf("create: %d %s", st, raw)
 	}
 	m := jmap(t, raw)
-	if len(m) != 9 || got.Number != "002" || got.Course.Code != "CS101" || got.Course.DepartmentID != e.Fx.DeptA ||
+	if len(m) != 10 || got.Number != "002" || got.Course.Code != "CS101" || got.Course.DepartmentID != e.Fx.DeptA ||
 		got.Term.Name != "Spring 2027" || got.Term.StartsOn != "2027-01-15" || got.Term.EndsOn != "2027-05-20" {
 		t.Fatalf("shape: %s", raw)
 	}
@@ -398,6 +398,24 @@ func TestPendingStaffMasking(t *testing.T) {
 	}{{e.Stud, "/enrollments"}, {e.Other, "/enrollments"}, {e.Other, "/staff"}} {
 		if st, _ := e.call(c.ck, "GET", "/sections/"+e.SectionA+c.path, nil); st != 403 {
 			t.Errorf("%s: %d", c.path, st)
+		}
+	}
+}
+
+func TestSectionDescriptionField(t *testing.T) {
+	e := newEnv(t)
+	st, raw := e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
+	if st != 200 || !strings.Contains(string(raw), `"description":""`) {
+		t.Fatalf("empty: %d %s", st, raw)
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update sections set description = 'Hi' where id = $1`, e.SectionA)
+		return err
+	})
+	for _, path := range []string{"/sections", "/sections/" + e.SectionA, "/me/sections"} {
+		st, raw := e.call(e.Stud, "GET", path, nil)
+		if st != 200 || !strings.Contains(string(raw), `"description":"Hi"`) {
+			t.Errorf("%s: %d %s", path, st, raw)
 		}
 	}
 }

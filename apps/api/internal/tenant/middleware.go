@@ -9,6 +9,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
@@ -16,7 +17,8 @@ import (
 type Deps struct {
 	DB       *sql.DB
 	Sessions *auth.SessionStore
-	BaseURL  string // cfg.BaseURL, used for invitation URLs
+	BaseURL  string   // cfg.BaseURL, used for invitation URLs
+	Files    blob.Dir // UNICOURSE_FILES_DIR; zero in tests that never touch files
 }
 
 // Handler is a tenant-scoped handler. tx is the request's only transaction (RLS = s.UniversityID).

@@ -127,6 +127,8 @@ func TestTruthTable(t *testing.T) {
 		{name: "CanManageTAs", tx: authz.CanManageTAs, want: [8]bool{true, true, false, true}},
 		{name: "CanReadSection", tx: authz.CanReadSection, want: [8]bool{true, true, false, true, true, true}},
 		{name: "CanReadRoster", tx: authz.CanReadRoster, want: [8]bool{true, true, false, true, true}},
+		{name: "CanEditContent", tx: authz.CanEditContent, want: [8]bool{true, true, false, true, true}},
+		{name: "CanReadContent", tx: authz.CanReadContent, want: [8]bool{true, true, false, true, true, true}},
 	}
 	must(pg.WithTx(ctx, db, uni, func(tx *sql.Tx) error {
 		for _, row := range rows {

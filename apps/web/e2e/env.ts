@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const tmpDir = path.join(here, '.tmp')
+export const filesDir = path.join(tmpDir, 'files')
 export const apiLog = path.join(tmpDir, 'api.log')
 export const adminBin = path.join(tmpDir, 'unicourse-admin')
 export const apiBin = path.join(tmpDir, 'unicourse-api')
@@ -23,6 +24,7 @@ export const e2eEnv = {
   UNICOURSE_ADDR: '127.0.0.1:18180',
   UNICOURSE_BASE_URL: 'http://localhost:18180',
   UNICOURSE_SESSION_SECRET: 'e2e-session-secret-at-least-32-bytes-long',
+  UNICOURSE_FILES_DIR: filesDir,
   UNICOURSE_WEB_DIR: webDir,
   UNICOURSE_SMTP_URL: '',
 }
