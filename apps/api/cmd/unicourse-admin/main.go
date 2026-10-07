@@ -305,8 +305,7 @@ func seedDemo(ctx context.Context, args []string, env func(string) string, open 
 
 // pruneFiles lists, or with --delete removes, committed blobs no materials row references (skipping
 // blobs under an hour old: an upload between rename and commit looks orphaned, and .tmp/ files under
-// a day old), and lists materials
-// whose file is missing. Missing files are only reported; the rows stay.
+// a day old), and lists materials whose file is missing. Missing files are only reported; the rows stay.
 func pruneFiles(ctx context.Context, args []string, env func(string) string, open func() (*sql.DB, error), stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("prune-files", flag.ContinueOnError)
 	fs.SetOutput(stderr)

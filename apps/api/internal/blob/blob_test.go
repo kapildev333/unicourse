@@ -264,9 +264,12 @@ func TestRemoveUniversity(t *testing.T) {
 	d := newDir(t)
 	commit(t, d, uni1, idA)
 	commit(t, d, uni2, idB)
-	tmp, _ := d.Put(uni1, strings.NewReader("x")) // leaves a .tmp file
-	_ = tmp
-	os.MkdirAll(filepath.Join(d.Root, "not-a-uuid"), 0o750)
+	if _, err := d.Put(uni1, strings.NewReader("x")); err != nil { // leaves a .tmp file
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(d.Root, "not-a-uuid"), 0o750); err != nil {
+		t.Fatal(err)
+	}
 	if err := d.RemoveUniversity(uni1); err != nil {
 		t.Fatal(err)
 	}
@@ -292,10 +295,20 @@ func TestRemoveUniversity(t *testing.T) {
 func TestWalkTempAndRemoveTemp(t *testing.T) {
 	d := newDir(t)
 	commit(t, d, uni1, idA)
-	tmp, _ := d.Put(uni1, strings.NewReader("x"))
+	tmp, err := d.Put(uni1, strings.NewReader("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	name := filepath.Base(tmp.path)
-	os.MkdirAll(filepath.Join(d.Root, "not-a-uuid", ".tmp"), 0o750)
-	os.WriteFile(filepath.Join(d.Root, "not-a-uuid", ".tmp", "up-1"), nil, 0o600)
+	if err := os.MkdirAll(filepath.Join(d.Root, "not-a-uuid", ".tmp"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.Root, "not-a-uuid", ".tmp", "up-1"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(d.Root, uni1, ".tmp", "subdir"), 0o750); err != nil { // not a regular file: skipped
+		t.Fatal(err)
+	}
 	var got []string
 	if err := d.WalkTemp(func(u, n string, _ time.Time) error { got = append(got, u+"/"+n); return nil }); err != nil {
 		t.Fatal(err)
@@ -312,7 +325,7 @@ func TestWalkTempAndRemoveTemp(t *testing.T) {
 	if err := d.RemoveTemp(uni1, name); err != nil {
 		t.Fatalf("missing: %v", err)
 	}
-	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 0 {
+	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 1 || n[0] != "subdir" {
 		t.Fatalf(".tmp = %v", n)
 	}
 	if _, err := os.Stat(filepath.Join(d.Root, uni1, idA)); err != nil {
