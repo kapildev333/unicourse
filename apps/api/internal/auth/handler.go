@@ -362,6 +362,25 @@ var confirmPage = template.Must(template.New("confirm").Parse(`<!doctype html>
 </body></html>
 `))
 
+// origin returns scheme://host[:port] of s, or "" when s does not parse.
+func origin(s string) string {
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+// formAction is the CSP form-action source list: Chrome checks the redirect target of a form POST
+// against it, and the consume handler redirects to the web origin, so a separate web origin must be listed.
+func (d Deps) formAction() string {
+	web := origin(d.WebBase)
+	if web == "" || d.Magic == nil || web == origin(d.Magic.BaseURL) {
+		return "'self'"
+	}
+	return "'self' " + web
+}
+
 // confirmMagicLink never consumes the token: mail scanners and link previews issue GETs.
 func (d Deps) confirmMagicLink(w http.ResponseWriter, r *http.Request) error {
 	action := "/api/v1/auth/magic-link/" + url.PathEscape(r.PathValue("token"))
@@ -373,7 +392,7 @@ func (d Deps) confirmMagicLink(w http.ResponseWriter, r *http.Request) error {
 	h.Set("Cache-Control", "no-store")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Frame-Options", "DENY")
-	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
+	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action "+d.formAction()+"; frame-ancestors 'none'")
 	return confirmPage.Execute(w, map[string]string{"Action": action})
 }
 

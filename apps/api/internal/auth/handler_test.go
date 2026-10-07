@@ -396,11 +396,22 @@ func TestMagicLinkNoFetchMetadataStillWorks(t *testing.T) {
 }
 
 func TestConfirmPageFramingHeaders(t *testing.T) {
-	x := newHX(t)
-	w := x.do("GET", x.link("admin@a.edu", ""), "")
-	if w.Header().Get("X-Frame-Options") != "DENY" ||
-		w.Header().Get("Content-Security-Policy") != "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'" {
-		t.Fatalf("headers: %v", w.Header())
+	for name, c := range map[string]struct{ web, want string }{
+		"different origin": {webBase + "/ignored/path", "'self' " + webBase},
+		"same origin":      {"http://api.test", "'self'"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := newHX(t)
+			x.d.WebBase = c.web
+			rt := httpx.NewRouter()
+			Register(rt, x.d)
+			x.h = rt
+			w := x.do("GET", x.link("admin@a.edu", ""), "")
+			want := "default-src 'none'; style-src 'unsafe-inline'; form-action " + c.want + "; frame-ancestors 'none'"
+			if w.Header().Get("X-Frame-Options") != "DENY" || w.Header().Get("Content-Security-Policy") != want {
+				t.Fatalf("headers: %v want CSP %q", w.Header(), want)
+			}
+		})
 	}
 }
 
