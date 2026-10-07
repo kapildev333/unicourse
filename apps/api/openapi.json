@@ -5531,13 +5531,19 @@
               "$ref": "#/components/schemas/MyAssessment"
             },
             "description": "Published assessments only, by position."
+          },
+          "unpublishedCount": {
+            "type": "integer",
+            "example": 1,
+            "description": "How many of the section's assessments are not published (and so absent from assessments)."
           }
         },
         "required": [
           "section",
           "course",
           "credits",
-          "assessments"
+          "assessments",
+          "unpublishedCount"
         ]
       },
       "MyGradesTerm": {

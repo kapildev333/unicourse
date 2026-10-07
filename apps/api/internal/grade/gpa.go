@@ -51,6 +51,8 @@ type myGradesSection struct {
 	Final       *finalSummary  `json:"final,omitempty"`
 	Running     *runningGrade  `json:"running,omitempty"`
 	Assessments []myAssessment `json:"assessments"`
+	// UnpublishedCount counts the section's assessments not yet published (hidden from Assessments).
+	UnpublishedCount int `json:"unpublishedCount"`
 }
 
 type myGradesTerm struct {
@@ -151,10 +153,12 @@ func getMyGrades(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			}
 			parts[sec] = append(parts[sec], part{rat(a.Weight), rat(a.MaxPoints), rat(a.Points)})
 		}
+		k := where[sec]
+		x := &out.Terms[k.term].Sections[k.sec]
 		if published {
-			k := where[sec]
-			x := &out.Terms[k.term].Sections[k.sec]
 			x.Assessments = append(x.Assessments, a)
+		} else {
+			x.UnpublishedCount++
 		}
 	}
 	rows.Close()

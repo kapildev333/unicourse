@@ -2100,6 +2100,11 @@ export interface components {
             running?: components["schemas"]["RunningGrade"];
             /** @description Published assessments only, by position. */
             assessments: components["schemas"]["MyAssessment"][];
+            /**
+             * @description How many of the section's assessments are not published (and so absent from assessments).
+             * @example 1
+             */
+            unpublishedCount: number;
         };
         MyGradesTerm: {
             term: components["schemas"]["Term"];
