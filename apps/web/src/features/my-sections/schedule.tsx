@@ -45,7 +45,7 @@ const byTime = (a: { s: MySection; m: Meeting }, b: { s: MySection; m: Meeting }
 const linkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 /** Phone view: one region per weekday that has meetings, one link per meeting. */
-function Agenda({ slug, id, sections }: { slug: string; id: string; sections: MySection[] }) {
+function Agenda({ slug, id, sections, todayDay }: { slug: string; id: string; sections: MySection[]; todayDay?: number }) {
   return (
     <div className="flex flex-col gap-6">
       {days.map((d) => {
@@ -53,8 +53,12 @@ function Agenda({ slug, id, sections }: { slug: string; id: string; sections: My
         if (items.length === 0) return null
         return (
           <section key={d} aria-labelledby={`${id}-a${d}`}>
-            <h3 id={`${id}-a${d}`} className="mb-2 text-base font-bold">
-              {dayLong[d - 1]}
+            <h3
+              aria-current={d === todayDay ? 'date' : undefined}
+              className="mb-2 flex items-center gap-2 text-base font-bold"
+            >
+              <span id={`${id}-a${d}`}>{dayLong[d - 1]}</span>
+              {d === todayDay && <Badge tone="accent">Today</Badge>}
             </h3>
             <ol className="flex flex-col gap-2">
               {items.map(({ s, m }) => {
@@ -120,7 +124,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
       {timed.length === 0 ? (
         <p className="mb-4 text-sm text-ink-muted">None of your sections in {term.name} has meeting times yet.</p>
       ) : !wide ? (
-        <Agenda slug={slug} id={id} sections={timed} />
+        <Agenda slug={slug} id={id} sections={timed} todayDay={inTerm ? todayDay : undefined} />
       ) : (
         <div className="overflow-x-auto rounded border border-line bg-surface">
           <div
