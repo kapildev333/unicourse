@@ -94,8 +94,8 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 				w.Header().Set("Content-Disposition", `attachment; filename="`+raw.Filename+`"`)
 			}
 			w.WriteHeader(status)
-			_, err := w.Write(raw.Body)
-			return err
+			_, _ = w.Write(raw.Body) // headers are sent; a write error is a client disconnect, not a 500
+			return nil
 		}
 		httpx.WriteJSON(w, status, body)
 		return nil
