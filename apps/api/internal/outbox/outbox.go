@@ -11,7 +11,8 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
-// Mail is one plain-text message. Urgent mail (sign-in links) is sent before other mail.
+// Mail is one plain-text message. Urgent mail is a sign-in link: sent before other mail, and given up unsent 15 minutes after creation
+// (the link TTL in auth/magic.go). Do not mark other mail urgent.
 type Mail struct {
 	To, Subject, Text string
 	Urgent            bool
@@ -99,10 +100,12 @@ func (s *Sender) sendOne(ctx context.Context) (claimed bool, err error) {
 	err = pg.WithPlatformTx(ctx, s.DB, func(tx *sql.Tx) error {
 		var id, to, subject, body string
 		var attempts int
-		err := tx.QueryRowContext(ctx, `select id, recipient, subject, body, attempts from outbox_mails
+		var expired bool
+		err := tx.QueryRowContext(ctx, `select id, recipient, subject, body, attempts,
+  urgent and created_at <= now() - interval '15 minutes' from outbox_mails
 where failed_at is null and next_attempt_at <= now()
 order by urgent desc, next_attempt_at, id
-limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts)
+limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts, &expired)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
@@ -110,6 +113,12 @@ limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts)
 			return err
 		}
 		claimed = true
+		if expired {
+			// Urgent mail is a sign-in link, expired 15 minutes after creation (TTL in auth/magic.go).
+			s.Log.Warn("mail gave up: magic link expired", "id", id)
+			_, err = tx.ExecContext(ctx, `update outbox_mails set failed_at = now(), body = '', last_error = 'magic link expired' where id = $1`, id)
+			return err
+		}
 		// ponytail: one send at a time per process (add goroutines when delivery rate matters).
 		// ponytail: at-least-once: a crash between SMTP accept and commit re-sends.
 		sendErr := s.Mailer.Send(ctx, to, subject, body)

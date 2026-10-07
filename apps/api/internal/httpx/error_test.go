@@ -3,6 +3,7 @@ package httpx
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -96,9 +97,18 @@ func TestWriteErrorCanceled(t *testing.T) {
 	cancel()
 	rec := httptest.NewRecorder()
 	WriteError(rec, httptest.NewRequest("GET", "/x", nil).WithContext(ctx), err)
-	if rec.Code != 499 || rec.Body.Len() != 0 || buf.Len() != 0 {
+	if rec.Code != 499 || rec.Body.Len() != 0 || strings.Contains(buf.String(), `"ERROR"`) || !strings.Contains(buf.String(), `"msg":"client aborted"`) || !strings.Contains(buf.String(), `"requestId"`) || strings.Contains(buf.String(), `"/x"`) {
 		t.Fatal(rec.Code, rec.Body, buf.String())
 	}
+
+	// database/sql rolls the tx back when the context ends, so the commit fails with ErrTxDone.
+	buf.Reset()
+	rec = httptest.NewRecorder()
+	WriteError(rec, httptest.NewRequest("GET", "/me", nil).WithContext(ctx), fmt.Errorf("commit: %w", sql.ErrTxDone))
+	if rec.Code != 499 || strings.Contains(buf.String(), "internal") || !strings.Contains(buf.String(), `"requestId"`) || strings.Contains(buf.String(), `/me`) {
+		t.Fatal(rec.Code, rec.Body, buf.String())
+	}
+	buf.Reset()
 
 	rec = httptest.NewRecorder()
 	WriteError(rec, httptest.NewRequest("GET", "/x", nil), err)

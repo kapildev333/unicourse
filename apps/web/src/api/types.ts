@@ -1705,6 +1705,11 @@ export interface components {
             items: components["schemas"]["AuditEntry"][];
             /** @example eyJhIjoxfQ */
             nextCursor?: string;
+            /**
+             * @description Entries matching the current filters, ignoring the cursor and limit.
+             * @example 42
+             */
+            total: number;
         };
         GradeScaleRow: {
             /** @example A- */

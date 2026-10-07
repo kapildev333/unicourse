@@ -4,6 +4,7 @@ package httpx
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -70,8 +71,11 @@ type envelope struct {
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *Error
 	switch {
-	case errors.Is(err, context.Canceled) && r.Context().Err() != nil:
-		w.WriteHeader(499) // client closed the request; not a server fault, so no error log and no body
+	case r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, sql.ErrTxDone)):
+		// Client closed the request (a commit then fails with ErrTxDone: database/sql rolled the tx back).
+		// Not a server fault: info log, no body, nobody to read it.
+		slog.Info("client aborted", "requestId", RequestID(r.Context()))
+		w.WriteHeader(499)
 		return
 	case errors.As(err, &e) && e != nil:
 	case errors.Is(err, pg.ErrNotFound):

@@ -163,5 +163,12 @@ func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err != nil {
 		return 0, nil, err
 	}
-	return http.StatusOK, out, nil
+	total, err := audit.Count(r.Context(), tx, f)
+	if err != nil {
+		return 0, nil, err
+	}
+	return http.StatusOK, struct {
+		httpx.List[audit.Row]
+		Total int `json:"total"`
+	}{out, total}, nil
 }
