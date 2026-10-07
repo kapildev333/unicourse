@@ -1,6 +1,6 @@
 // Generates the Postman collection from the OpenAPI spec and normalises it so the output is byte-stable.
 // Rules: docs/design/P12-L1.md section 4.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import converter from 'openapi-to-postmanv2'
 
@@ -60,7 +60,7 @@ export async function buildCollection(specText) {
   return collection
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const [spec, out] = process.argv.slice(2)
   if (!out) {
     console.error('usage: postman.mjs <openapi.json> <out.json>')

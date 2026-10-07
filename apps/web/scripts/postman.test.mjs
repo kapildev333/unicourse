@@ -1,20 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { buildCollection } from './postman.mjs'
 
-const spec = (withConsume = true) => ({
+const spec = (withConsume = true, withRequest = true) => ({
   openapi: '3.1.0',
   info: { title: 't', version: '1' },
   servers: [{ url: '/api/v1' }],
   security: [{ session: [] }],
   components: { securitySchemes: { session: { type: 'apiKey', in: 'cookie', name: 'unicourse_session' } } },
   paths: {
-    '/auth/magic-link': {
+    ...(withRequest ? { '/auth/magic-link': {
       post: {
         summary: 'Request a magic link',
         requestBody: {
           content: { 'application/json': { schema: { type: 'object', properties: { email: { type: 'string' } } }, example: { email: 'a@b.c' } } },
         },
         responses: { 202: { description: 'ok', content: { 'application/json': { example: { ok: true } } } } },
+      },
+    } } : {}),
+    '/things/{id}': {
+      get: {
+        summary: 'Get a thing',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'ok' } },
       },
     },
     ...(withConsume
@@ -70,6 +77,11 @@ describe('buildCollection', () => {
     expect(r.url.query[0]).toMatchObject({ key: 'termId', value: '', disabled: true })
   })
 
+  it('blanks other path variables', async () => {
+    const c = await buildCollection(text)
+    expect(find(c, 'GET', 'things/:id').request.url.variable[0].value).toBe('')
+  })
+
   it('sets the magic-link body to the email variable', async () => {
     const c = await buildCollection(text)
     expect(JSON.parse(find(c, 'POST', 'auth/magic-link').request.body.raw)).toEqual({ email: '{{email}}' })
@@ -92,5 +104,9 @@ describe('buildCollection', () => {
 
   it('rejects when the consume route is missing', async () => {
     await expect(buildCollection(JSON.stringify(spec(false)))).rejects.toThrow(/not found in the spec/)
+  })
+
+  it('rejects when the request route is missing', async () => {
+    await expect(buildCollection(JSON.stringify(spec(true, false)))).rejects.toThrow(/not found in the spec/)
   })
 })
