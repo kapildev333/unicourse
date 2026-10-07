@@ -8,6 +8,8 @@ import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
+import { formatMeeting } from '../../lib/schedule'
+import { useMySections } from '../my-sections/my-sections'
 import { useMe, useUniversity } from '../auth/use-me'
 import { sectionAccess } from './access'
 import { Roster } from './roster'
@@ -21,8 +23,13 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
   const q = useQuery<Section, ApiError>({
     queryKey: [slug, 'sections', 'detail', sectionId],
     queryFn: () =>
-      unwrap(api.GET('/universities/{slug}/sections/{id}', { params: { path: { slug, id: sectionId } } })),
+      unwrap(
+        api.GET('/universities/{slug}/sections/{id}', {
+          params: { path: { slug, id: sectionId } },
+        }),
+      ),
   })
+  const mine = useMySections(slug).data
   const canList = membership.role === 'admin' || membership.role === 'dept_admin'
   const back = canList ? (
     <Link
@@ -59,7 +66,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
   const section = q.data
   const access = sectionAccess(membership, me.user.id, section)
   const label = `${section.course.code} section ${section.number}`
-  const ownRole = access.staffRole ?? (membership.role === 'member' ? 'student' : undefined)
+  const ownRole = access.staffRole ?? mine?.terms.flatMap((g) => g.sections).find((s) => s.id === section.id)?.myRole
   return (
     <>
       {back}
@@ -75,6 +82,20 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
           )
         }
       />
+      <section aria-labelledby="meetings-h" className="mb-8">
+        <h2 id="meetings-h" className="mb-3 text-base font-semibold">
+          Meeting times
+        </h2>
+        {section.meetings.length > 0 ? (
+          <ul className="text-sm">
+            {section.meetings.map((m) => (
+              <li key={m.id}>{formatMeeting(m, true)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-ink-muted">No meeting times yet.</p>
+        )}
+      </section>
       <section aria-labelledby="staff-h">
         <h2 id="staff-h" className="mb-3 text-base font-semibold">
           Staff

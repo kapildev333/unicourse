@@ -40,6 +40,7 @@ const section = (id: string, code: string, departmentId: string, extra = {}) => 
   term: terms[0],
   staff: [],
   pendingStaff: [],
+  meetings: [],
   ...extra,
 })
 const dana = { userId: 'u1', email: 'dana@a.edu', displayName: 'Dana Poe', role: 'instructor' }
@@ -100,6 +101,16 @@ it('only shows Delete for the dept_admin own departments', async () => {
   await screen.findByText('CS101')
   expect(screen.getByRole('button', { name: 'Delete CS101 section 001' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Delete MATH1 section 001' })).toBeNull()
+})
+
+it('Edit opens the section dialog in edit mode only for managed departments', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({ [T]: () => ({ body: { items: terms } }), [L]: () => ({ body: { items: [s1, s2] } }) })
+  renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
+  await screen.findByText('CS101')
+  expect(screen.queryByRole('button', { name: 'Edit MATH1 section 001' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Edit CS101 section 001' }))
+  expect(await screen.findByRole('dialog', { name: 'Edit CS101-001' })).toBeInTheDocument()
 })
 
 it('creates and deletes a section', async () => {
