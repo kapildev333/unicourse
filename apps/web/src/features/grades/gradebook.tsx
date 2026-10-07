@@ -399,7 +399,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <span className="text-sm">Weights total {fmtNum(total)}%</span>
         {!totalsHundred(assessments) && <Badge tone="warning">Must total 100% to finalize</Badge>}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
           {editing && newButton}
           {access.scores && assessments.length > 0 && (
             <Button variant="secondary" onClick={() => setImporting(true)}>
@@ -453,7 +453,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
           action={editing ? newButton : undefined}
         />
       ) : (
-        <Table caption={`Gradebook for ${code}`}>
+        <Table caption={`Gradebook for ${code}`} className="relative">
           <thead>
             <tr>
               <th scope="col" title="Student" className={`sticky left-0 z-10 w-auto bg-canvas ${capName}`}>

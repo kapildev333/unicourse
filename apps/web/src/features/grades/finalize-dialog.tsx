@@ -145,7 +145,7 @@ export function FinalizeDialog(props: {
           {tally.map(([l, n]) => `${l} ${n}`).join(' · ') || '—'}
         </p>
         <div className="max-h-[55vh] overflow-y-auto rounded border-b border-line">
-          <Table caption="Preview of final grades">
+          <Table caption="Preview of final grades" className="relative">
             <thead>
               <tr>
                 <th scope="col" title="Student" className={capName}>

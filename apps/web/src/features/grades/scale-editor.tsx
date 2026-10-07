@@ -237,7 +237,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
           )}
         </div>
         <StatusMessage message={dirty ? 'Unsaved changes' : ''} />
-        <Table caption="Grade scale">
+        <Table caption="Grade scale" className="relative">
           <thead>
             <tr>
               <th scope="col">Letter</th>
