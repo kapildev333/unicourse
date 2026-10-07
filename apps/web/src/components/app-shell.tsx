@@ -29,13 +29,15 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
   return (
     <>
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-8 py-2">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 lg:flex-nowrap px-8 py-2">
+          <div className="flex min-w-0 items-center gap-3">
             <span className="font-serif text-2xl leading-none tracking-tight text-ink">UniCourse</span>
             <span aria-hidden="true" className="h-5 w-px bg-line" />
-            <span className="text-sm text-ink-muted">{membership.university.name}</span>
+            <span className="min-w-0 max-w-48 truncate text-sm text-ink-muted" title={membership.university.name}>
+              {membership.university.name}
+            </span>
           </div>
-          <nav aria-label="Main" className="flex flex-wrap gap-1">
+          <nav aria-label="Main" className="flex shrink-0 flex-wrap gap-1">
             <Link to="/$slug/me" params={{ slug }} {...navLink}>
               <CalendarDays size={20} />
               My sections
@@ -57,7 +59,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
               </Link>
             )}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             {me.memberships.length > 1 && (
               <select
                 aria-label="University"
@@ -78,7 +80,9 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
               </select>
             )}
             <ThemeSwitch />
-            <span className="hidden text-sm text-ink-muted lg:inline">{me.user.email}</span>
+            <span className="hidden min-w-0 max-w-56 truncate text-sm text-ink-muted xl:inline" title={me.user.email}>
+              {me.user.email}
+            </span>
             <Button variant="secondary" size="sm" onClick={() => void signOut(queryClient)}>
               <LogOut />
               Sign out
