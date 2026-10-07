@@ -14,7 +14,9 @@ import (
 
 var ctx = context.Background()
 
-type ids struct{ dept, term, course, section, user, inv string }
+type ids struct{ dept, term, course, section, user, inv, assessment string }
+
+const assessmentInsert = "insert into assessments (university_id, section_id, name, max_points, weight) values ('{U}', '{S}', 'Midterm', 100, 40)"
 
 // rest are the insert statements for the remaining tenant tables; {U} is the university id.
 var rest = map[string]string{
@@ -27,10 +29,13 @@ var rest = map[string]string{
 	"pending_enrollments":   `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', '{INV}', '{S}')`,
 	"section_meetings":      `insert into section_meetings (university_id, section_id, weekday, starts_at, ends_at) values ('{U}', '{S}', 1, '10:00', '11:00')`,
 	"audit_log":             `insert into audit_log (university_id, action, entity_type, entity_id) values ('{U}', 'create', 'section', '{S}')`,
+	"grade_scales":          `insert into grade_scales (university_id, letter, min_percent, points) values ('{U}', 'A', 93, 4)`,
+	"scores":                `insert into scores (university_id, assessment_id, user_id, points, graded_by) values ('{U}', '{A}', '{USR}', 1, '{USR}')`,
+	"final_grades":          `insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ('{U}', '{S}', '{USR}', 'incomplete', 3, '{USR}')`,
 }
 
 func sub(q, uni string, i ids) string {
-	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv).Replace(q)
+	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment).Replace(q)
 }
 
 // populate fills every tenant table for uni inside an open WithTx(uni) transaction.
@@ -46,6 +51,7 @@ func populate(t *testing.T, tx *sql.Tx, uni, user string) ids {
 	q(&i.term, `insert into terms (university_id, name, starts_on, ends_on) values ('`+uni+`', 'T', '2026-01-01', '2026-06-01') returning id`)
 	q(&i.course, `insert into courses (university_id, department_id, code, title) values ('`+uni+`', '`+i.dept+`', 'C1', 'C') returning id`)
 	q(&i.section, `insert into sections (university_id, course_id, term_id, number) values ('`+uni+`', '`+i.course+`', '`+i.term+`', '001') returning id`)
+	q(&i.assessment, sub(assessmentInsert, uni, i)+" returning id")
 	q(&i.inv, sub(rest["invitations"], uni, i)+` returning id`)
 	for name, stmt := range rest {
 		if name == "invitations" {
@@ -101,6 +107,7 @@ func TestWithTxIsolatesUniversities(t *testing.T) {
 		"terms":       `insert into terms (university_id, name, starts_on, ends_on) values ('{U}', 'T', '2026-01-01', '2026-06-01')`,
 		"courses":     `insert into courses (university_id, department_id, code, title) values ('{U}', '{D}', 'ZZ', 'C')`,
 		"sections":    `insert into sections (university_id, course_id, term_id, number) values ('{U}', (select id from courses limit 1), (select id from terms limit 1), '002')`,
+		"assessments": assessmentInsert,
 	}
 	for k, v := range rest {
 		attempts[k] = v
@@ -275,6 +282,9 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"pending_enrollments->sections":      `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', (select id from invitations limit 1), '{S}')`,
 		"pending_enrollments->both":          rest["pending_enrollments"],
 		"pending_enrollments->invitations":   `insert into pending_enrollments (university_id, invitation_id, section_id) values ('{U}', '{INV}', (select id from sections limit 1))`,
+		"assessments->sections":              assessmentInsert,
+		"scores->assessments":                rest["scores"],
+		"final_grades->sections":             rest["final_grades"],
 		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
 	}
 	// A-side parents so the "limit 1" subselects resolve
