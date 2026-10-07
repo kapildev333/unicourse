@@ -1,0 +1,4518 @@
+{
+  "item": [
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "oidc/{provider}",
+          "item": [
+            {
+              "name": "Start OIDC sign-in",
+              "request": {
+                "name": "Start OIDC sign-in",
+                "description": {
+                  "content": "Who: anyone.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "auth",
+                    "oidc",
+                    ":provider",
+                    "start"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "",
+                      "key": "provider",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"slug\": \"<string>\",\n  \"email\": \"<email>\",\n  \"next\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "OIDC callback",
+              "request": {
+                "name": "OIDC callback",
+                "description": {
+                  "content": "Who: anyone. Browser navigation. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "auth",
+                    "oidc",
+                    ":provider",
+                    "callback"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "code",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "state",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "error",
+                      "value": ""
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "",
+                      "key": "provider",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "magic-link",
+          "item": [
+            {
+              "name": "Request a magic link",
+              "request": {
+                "name": "Request a magic link",
+                "description": {
+                  "content": "Who: anyone.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "auth",
+                    "magic-link"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{token}",
+              "item": [
+                {
+                  "name": "Magic-link confirm page",
+                  "request": {
+                    "name": "Magic-link confirm page",
+                    "description": {
+                      "content": "Who: anyone.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "auth",
+                        "magic-link",
+                        ":token"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{token}}",
+                          "key": "token",
+                          "description": "(Required) Magic-link token (base64url)."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "text/html"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Consume a magic link",
+                  "request": {
+                    "name": "Consume a magic link",
+                    "description": {
+                      "content": "Who: anyone. Browser form post. Failures redirect to /sign-in?error=<code>, code one of validation_failed, forbidden, unauthenticated, rate_limited, no_membership.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "auth",
+                        "magic-link",
+                        ":token"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{token}}",
+                          "key": "token",
+                          "description": "(Required) Magic-link token (base64url)."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST"
+                  },
+                  "response": [],
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "const c = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('unicourse_session=') && !v.startsWith('unicourse_session=;'));",
+                          "pm.test('signed in (302 with a session cookie)', () => { pm.expect(pm.response.code).to.equal(302); pm.expect(c, 'no session cookie: token used, expired or wrong').to.be.a('string'); });",
+                          "if (c) pm.environment.set('session', c.split(';')[0].slice('unicourse_session='.length));"
+                        ]
+                      }
+                    }
+                  ],
+                  "protocolProfileBehavior": {
+                    "followRedirects": false
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "Sign out",
+          "request": {
+            "name": "Sign out",
+            "description": {
+              "content": "Who: signed in.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "auth",
+                "sign-out"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST"
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    },
+    {
+      "name": "me",
+      "item": [
+        {
+          "name": "Current user and active memberships",
+          "request": {
+            "name": "Current user and active memberships",
+            "description": {
+              "content": "Who: signed in.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "name": "Set the current user's display name",
+          "request": {
+            "name": "Set the current user's display name",
+            "description": {
+              "content": "Who: signed in, for their own name only. displayName is trimmed; 1-100 characters. The name is the person's across every university. Audited as membership.update (before/after displayName) in each university where the user has an active membership; no change, no audit.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "me"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"<string>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    },
+    {
+      "name": "universities/{slug}",
+      "item": [
+        {
+          "name": "me",
+          "item": [
+            {
+              "name": "My sections",
+              "request": {
+                "name": "My sections",
+                "description": {
+                  "content": "Who: member.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "me",
+                    "sections"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "My grades",
+              "request": {
+                "name": "My grades",
+                "description": {
+                  "content": "Who: member. The caller's sections (enrolled, or holding a final grade) with term and cumulative GPA. Published assessments only.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "me",
+                    "grades"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "departments",
+          "item": [
+            {
+              "name": "List Departments",
+              "request": {
+                "name": "List Departments",
+                "description": {
+                  "content": "Who: any active member.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "departments"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create Department",
+              "request": {
+                "name": "Create Department",
+                "description": {
+                  "content": "Who: admin.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "departments"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"code\": \"<string>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{id}",
+              "item": [
+                {
+                  "name": "Update Department",
+                  "request": {
+                    "name": "Update Department",
+                    "description": {
+                      "content": "Who: admin.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "departments",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"<string>\",\n  \"code\": \"<string>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Delete Department",
+                  "request": {
+                    "name": "Delete Department",
+                    "description": {
+                      "content": "Who: admin. 409 when the department still has courses or department admins.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "departments",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "terms",
+          "item": [
+            {
+              "name": "List Terms",
+              "request": {
+                "name": "List Terms",
+                "description": {
+                  "content": "Who: any active member.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "terms"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create Term",
+              "request": {
+                "name": "Create Term",
+                "description": {
+                  "content": "Who: admin. 409 when the term name already exists.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "terms"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"startsOn\": \"<date>\",\n  \"endsOn\": \"<date>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{id}",
+              "item": [
+                {
+                  "name": "Update Term",
+                  "request": {
+                    "name": "Update Term",
+                    "description": {
+                      "content": "Who: admin. 409 when the term name already exists.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "terms",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"<string>\",\n  \"startsOn\": \"<date>\",\n  \"endsOn\": \"<date>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Delete Term",
+                  "request": {
+                    "name": "Delete Term",
+                    "description": {
+                      "content": "Who: admin. 409 when the term still has sections.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "terms",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "invitations",
+          "item": [
+            {
+              "name": "List invitations",
+              "request": {
+                "name": "List invitations",
+                "description": {
+                  "content": "Who: admin; dept_admin for member invitations only.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "invitations"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create invitation",
+              "request": {
+                "name": "Create invitation",
+                "description": {
+                  "content": "Who: admin; dept_admin for member invitations only.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "invitations"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"<string>\",\n  \"departmentIds\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Delete invitation",
+              "request": {
+                "name": "Delete invitation",
+                "description": {
+                  "content": "Who: admin; dept_admin for member invitations only. 409 if already accepted.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "invitations",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    },
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "",
+                      "key": "id",
+                      "description": "(Required) "
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "memberships",
+          "item": [
+            {
+              "name": "List memberships",
+              "request": {
+                "name": "List memberships",
+                "description": {
+                  "content": "Who: admin.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "memberships"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{id}",
+              "item": [
+                {
+                  "name": "Update membership",
+                  "request": {
+                    "name": "Update membership",
+                    "description": {
+                      "content": "Who: admin. 409 when demoting the last admin.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "memberships",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"role\": \"<string>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Delete membership",
+                  "request": {
+                    "name": "Delete membership",
+                    "description": {
+                      "content": "Who: admin. 409 for the last admin.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "memberships",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "List audit log, newest first",
+          "request": {
+            "name": "List audit log, newest first",
+            "description": {
+              "content": "Who: admin.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "universities",
+                ":slug",
+                "audit-log"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": true,
+                  "key": "limit",
+                  "value": "",
+                  "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                },
+                {
+                  "disabled": true,
+                  "key": "cursor",
+                  "value": "",
+                  "description": "Opaque; corrupt is 400 field cursor."
+                },
+                {
+                  "disabled": true,
+                  "key": "entityType",
+                  "value": ""
+                },
+                {
+                  "disabled": true,
+                  "key": "entityId",
+                  "value": ""
+                },
+                {
+                  "disabled": true,
+                  "key": "actorUserId",
+                  "value": ""
+                },
+                {
+                  "disabled": true,
+                  "key": "from",
+                  "value": "",
+                  "description": "Inclusive."
+                },
+                {
+                  "disabled": true,
+                  "key": "to",
+                  "value": "",
+                  "description": "Exclusive."
+                }
+              ],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "{{slug}}",
+                  "key": "slug",
+                  "description": "(Required) University slug."
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "name": "courses",
+          "item": [
+            {
+              "name": "List Courses",
+              "request": {
+                "name": "List Courses",
+                "description": {
+                  "content": "Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "courses"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "departmentId",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "q",
+                      "value": "",
+                      "description": "Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create Course",
+              "request": {
+                "name": "Create Course",
+                "description": {
+                  "content": "Who: admin, dept_admin (own departments).",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "courses"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"departmentId\": \"<uuid>\",\n  \"code\": \"<string>\",\n  \"title\": \"<string>\",\n  \"credits\": \"<number>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{id}",
+              "item": [
+                {
+                  "name": "Update Course",
+                  "request": {
+                    "name": "Update Course",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments).",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "courses",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"departmentId\": \"<uuid>\",\n  \"code\": \"<string>\",\n  \"title\": \"<string>\",\n  \"credits\": \"<number>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Delete Course",
+                  "request": {
+                    "name": "Delete Course",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). 409 when the course still has sections.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "courses",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            },
+            {
+              "name": "import",
+              "item": [
+                {
+                  "name": "Import courses",
+                  "request": {
+                    "name": "Import courses",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title; optional credits (0 to 20, one decimal; empty means 3.0; ignored for existing courses). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"code is required\", \"title is required\", \"code must be at most 20 characters\", \"title must be at most 200 characters\", \"unknown department code <X>\", \"department <X> is not managed by you\", \"credits must be a number\", \"credits must have at most 1 decimal\", \"credits must be between 0 and 20\". Existing rows are never updated.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "courses",
+                        "import"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "multipart/form-data"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "description": "(Required) Same bytes as previewed."
+                        },
+                        {
+                          "key": "checksum",
+                          "value": "<string>",
+                          "type": "text",
+                          "description": "(Required) "
+                        }
+                      ]
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Preview courses import",
+                  "request": {
+                    "name": "Preview courses import",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required departmentCode, code, title; optional credits (0 to 20, one decimal; empty means 3.0; ignored for existing courses). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"code is required\", \"title is required\", \"code must be at most 20 characters\", \"title must be at most 200 characters\", \"unknown department code <X>\", \"department <X> is not managed by you\", \"credits must be a number\", \"credits must have at most 1 decimal\", \"credits must be between 0 and 20\". Existing rows are never updated.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "courses",
+                        "import",
+                        "preview"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "multipart/form-data"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "description": "(Required) CSV, max 5 MiB."
+                        }
+                      ]
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "sections",
+          "item": [
+            {
+              "name": "List Sections",
+              "request": {
+                "name": "List Sections",
+                "description": {
+                  "content": "Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "sections"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [
+                    {
+                      "disabled": true,
+                      "key": "limit",
+                      "value": "",
+                      "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "cursor",
+                      "value": "",
+                      "description": "Opaque; corrupt is 400 field cursor."
+                    },
+                    {
+                      "disabled": true,
+                      "key": "termId",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "courseId",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "departmentId",
+                      "value": ""
+                    },
+                    {
+                      "disabled": true,
+                      "key": "q",
+                      "value": "",
+                      "description": "Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q."
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Create Section",
+              "request": {
+                "name": "Create Section",
+                "description": {
+                  "content": "Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings); per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. \"must be after startsAt\".",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "sections"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"<uuid>\",\n  \"termId\": \"<uuid>\",\n  \"number\": \"<string>\",\n  \"meetings\": [\n    {\n      \"weekday\": \"<integer>\",\n      \"startsAt\": \"<string>\",\n      \"endsAt\": \"<string>\",\n      \"location\": \"<string>\"\n    },\n    {\n      \"weekday\": \"<integer>\",\n      \"startsAt\": \"<string>\",\n      \"endsAt\": \"<string>\",\n      \"location\": \"<string>\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "{id}",
+              "item": [
+                {
+                  "name": "Update Section",
+                  "request": {
+                    "name": "Update Section",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). meetings, when present, replaces the whole list; [] clears it; omitted (or null) keeps it. Validation as on create.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"number\": \"<string>\",\n  \"meetings\": [\n    {\n      \"weekday\": \"<integer>\",\n      \"startsAt\": \"<string>\",\n      \"endsAt\": \"<string>\",\n      \"location\": \"<string>\"\n    },\n    {\n      \"weekday\": \"<integer>\",\n      \"startsAt\": \"<string>\",\n      \"endsAt\": \"<string>\",\n      \"location\": \"<string>\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Delete Section",
+                  "request": {
+                    "name": "Delete Section",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments).",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Get section",
+                  "request": {
+                    "name": "Get section",
+                    "description": {
+                      "content": "Who: member. Any active member reads a section; rosters stay staff-only. pendingStaff is [] for a plain member who is not staff on the section.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "staff",
+                  "item": [
+                    {
+                      "name": "List section staff",
+                      "request": {
+                        "name": "List section staff",
+                        "description": {
+                          "content": "Who: admin, dept_admin of the course's department, staff and enrolled members. Accepted staff only; invited staff are in Section.pendingStaff.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "staff"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [
+                            {
+                              "disabled": true,
+                              "key": "limit",
+                              "value": "",
+                              "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                            },
+                            {
+                              "disabled": true,
+                              "key": "cursor",
+                              "value": "",
+                              "description": "Opaque; corrupt is 400 field cursor."
+                            }
+                          ],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Add section staff",
+                      "request": {
+                        "name": "Add section staff",
+                        "description": {
+                          "content": "Who: admin, dept_admin; instructor of the section for ta rows. Instructors may only send role ta. 409: already staff; invitation already pending for this section; user is already a member (invited membership).",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "staff"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "POST",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"<string>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Remove section staff",
+                      "request": {
+                        "name": "Remove section staff",
+                        "description": {
+                          "content": "Who: admin, dept_admin; instructor of the section for ta rows.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "staff",
+                            ":userId"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "userId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "DELETE"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "Cancel a pending staff assignment",
+                  "request": {
+                    "name": "Cancel a pending staff assignment",
+                    "description": {
+                      "content": "Who: admin, dept_admin; instructor of the section for ta rows. Deletes only the pending row for this section; the invitation stays (revoke it with deleteInvitation). 404 when the invitation has no pending row on this section.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id",
+                        "pending-staff",
+                        ":invitationId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "invitationId",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "enrollments",
+                  "item": [
+                    {
+                      "name": "List enrollments",
+                      "request": {
+                        "name": "List enrollments",
+                        "description": {
+                          "content": "Who: admin, dept_admin; staff of the section (instructors and TAs).",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "enrollments"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [
+                            {
+                              "disabled": true,
+                              "key": "limit",
+                              "value": "",
+                              "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                            },
+                            {
+                              "disabled": true,
+                              "key": "cursor",
+                              "value": "",
+                              "description": "Opaque; corrupt is 400 field cursor."
+                            }
+                          ],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Remove enrollment",
+                      "request": {
+                        "name": "Remove enrollment",
+                        "description": {
+                          "content": "Who: admin, dept_admin.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "enrollments",
+                            ":userId"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "userId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "DELETE"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "import",
+                      "item": [
+                        {
+                          "name": "Import enrollments",
+                          "request": {
+                            "name": "Import enrollments",
+                            "description": {
+                              "content": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\", \"displayName must be at most 100 characters\".",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "enrollments",
+                                "import"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "multipart/form-data"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "POST",
+                            "body": {
+                              "mode": "formdata",
+                              "formdata": [
+                                {
+                                  "key": "file",
+                                  "type": "file",
+                                  "description": "(Required) Same bytes as previewed."
+                                },
+                                {
+                                  "key": "checksum",
+                                  "value": "<string>",
+                                  "type": "text",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "Preview enrollments import",
+                          "request": {
+                            "name": "Preview enrollments import",
+                            "description": {
+                              "content": "Who: admin, dept_admin. CSV header row required, case-insensitive. Columns: required email; optional displayName. Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. displayName (optional, at most 100 characters) fills an empty name and never replaces a set one: on commit an added member's own name, or the invitation's name for an invited person, applied when they first sign in. Rows that already exist change nothing. Row messages: \"invalid email\", \"membership is not active\", \"domain not allowed\", \"displayName must be at most 100 characters\".",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "enrollments",
+                                "import",
+                                "preview"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "multipart/form-data"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "POST",
+                            "body": {
+                              "mode": "formdata",
+                              "formdata": [
+                                {
+                                  "key": "file",
+                                  "type": "file",
+                                  "description": "(Required) CSV, max 5 MiB."
+                                }
+                              ]
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        }
+                      ],
+                      "event": []
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "assessments",
+                  "item": [
+                    {
+                      "name": "List assessments",
+                      "request": {
+                        "name": "List assessments",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published assessments only.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "assessments"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Create assessment",
+                      "request": {
+                        "name": "Create assessment",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor of the section. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "assessments"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "POST",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"name\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<date>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "{assessmentId}",
+                      "item": [
+                        {
+                          "name": "Update assessment",
+                          "request": {
+                            "name": "Update assessment",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor of the section. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "assessments",
+                                ":assessmentId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "assessmentId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "PATCH",
+                            "body": {
+                              "mode": "raw",
+                              "raw": "{\n  \"name\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<string,null-date>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                              "options": {
+                                "raw": {
+                                  "language": "json"
+                                }
+                              }
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "Delete assessment",
+                          "request": {
+                            "name": "Delete assessment",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor of the section. Deletes its scores too; final grades do not change.",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "assessments",
+                                ":assessmentId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "assessmentId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "DELETE"
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "scores",
+                          "item": [
+                            {
+                              "name": "Set scores",
+                              "request": {
+                                "name": "Set scores",
+                                "description": {
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Upserts 1 to 500 scores in one transaction: any bad row fails the request. Errors: scores (count), scores[<i>].userId (\"must be a uuid\", \"duplicate userId\", \"is not enrolled in this section\"), scores[<i>].points (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <2 x maxPoints>\"); points null deletes that score (no error when there was none). Final grades never change. Returns every score of the assessment.",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "scores"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                  },
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "PUT",
+                                "body": {
+                                  "mode": "raw",
+                                  "raw": "{\n  \"scores\": [\n    {\n      \"userId\": \"<uuid>\",\n      \"points\": \"<number,null>\"\n    }\n  ]\n}",
+                                  "options": {
+                                    "raw": {
+                                      "language": "json"
+                                    }
+                                  }
+                                }
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            },
+                            {
+                              "name": "import",
+                              "item": [
+                                {
+                                  "name": "Import scores",
+                                  "request": {
+                                    "name": "Import scores",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. CSV header row required, case-insensitive. Columns: required email, points. Max 5 MiB. Rows: add (no score yet), update (score changes; message \"<old> → <new>\"), exists (same score), error. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"invalid email\", \"unknown email\", \"not enrolled in this section\", \"points is required\", \"points must be a number\", \"points must have at most 2 decimals\", \"points must be between 0 and <2 x maxPoints>\", \"duplicate of line <n>\".",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "scores",
+                                        "import"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Content-Type",
+                                        "value": "multipart/form-data"
+                                      },
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "POST",
+                                    "body": {
+                                      "mode": "formdata",
+                                      "formdata": [
+                                        {
+                                          "key": "file",
+                                          "type": "file",
+                                          "description": "(Required) Same bytes as previewed."
+                                        },
+                                        {
+                                          "key": "checksum",
+                                          "value": "<string>",
+                                          "type": "text",
+                                          "description": "(Required) "
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                },
+                                {
+                                  "name": "Preview scores import",
+                                  "request": {
+                                    "name": "Preview scores import",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. CSV header row required, case-insensitive. Columns: required email, points. Max 5 MiB. Rows: add (no score yet), update (score changes; message \"<old> → <new>\"), exists (same score), error. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"invalid email\", \"unknown email\", \"not enrolled in this section\", \"points is required\", \"points must be a number\", \"points must have at most 2 decimals\", \"points must be between 0 and <2 x maxPoints>\", \"duplicate of line <n>\".",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "scores",
+                                        "import",
+                                        "preview"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Content-Type",
+                                        "value": "multipart/form-data"
+                                      },
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "POST",
+                                    "body": {
+                                      "mode": "formdata",
+                                      "formdata": [
+                                        {
+                                          "key": "file",
+                                          "type": "file",
+                                          "description": "(Required) CSV, max 5 MiB."
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                }
+                              ],
+                              "event": []
+                            }
+                          ],
+                          "event": []
+                        }
+                      ],
+                      "event": []
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "Gradebook",
+                  "request": {
+                    "name": "Gradebook",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. With Accept: text/csv the response is text/csv; charset=utf-8 (UTF-8 BOM, attachment gradebook.csv): header email, displayName, one column per assessment name (by position), percent, letter, final; one row per student; empty cell when absent; final is the final letter, or incomplete / withdrawn, or empty.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id",
+                        "gradebook"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "final-grades",
+                  "item": [
+                    {
+                      "name": "List final grades",
+                      "request": {
+                        "name": "List final grades",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "final-grades"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Finalize section",
+                      "request": {
+                        "name": "Finalize section",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor of the section. Gives every enrolled student a final grade: weights must sum to 100.00 (else field weights), every assessment becomes published, a missing score counts as 0, the letter comes from the unrounded percent, percent is stored rounded half up to 2 decimals. Overrides apply in the same transaction (fields overrides[<i>].userId, .status, .letter, .reason). 409 when the section is already finalized (reopen first). Body may be {}.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "final-grades"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "POST",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"overrides\": [\n    {\n      \"userId\": \"<uuid>\",\n      \"reason\": \"<string>\",\n      \"status\": \"<string>\",\n      \"letter\": \"<string>\"\n    },\n    {\n      \"userId\": \"<uuid>\",\n      \"reason\": \"<string>\",\n      \"status\": \"<string>\",\n      \"letter\": \"<string>\"\n    }\n  ]\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Reopen section",
+                      "request": {
+                        "name": "Reopen section",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor of the section. Deletes every final grade of the section; assessments stay published. 404 when it has none.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "final-grades"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "DELETE"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Override final grade",
+                      "request": {
+                        "name": "Override final grade",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field \"\" (\"no fields to update\").",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "final-grades",
+                            ":userId"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "userId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "PATCH",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"reason\": \"<string>\",\n  \"status\": \"<string>\",\n  \"letter\": \"<string>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "Set section description",
+                  "request": {
+                    "name": "Set section description",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Plain text, trimmed, at most 10000 characters; empty clears it. Audited as section.update. Errors: description.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        ":id",
+                        "description"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PUT",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"description\": \"<string>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "announcements",
+                  "item": [
+                    {
+                      "name": "List announcements",
+                      "request": {
+                        "name": "List announcements",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Newest first, paginated.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "announcements"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [
+                            {
+                              "disabled": true,
+                              "key": "limit",
+                              "value": "",
+                              "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                            },
+                            {
+                              "disabled": true,
+                              "key": "cursor",
+                              "value": "",
+                              "description": "Opaque; corrupt is 400 field cursor."
+                            }
+                          ],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Post announcement",
+                      "request": {
+                        "name": "Post announcement",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. With email (default true) one mail per enrolled student and staff member other than the author is queued in the same transaction; emailed is false when nobody was mailed. Errors: title, body, email.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "announcements"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "POST",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"email\": \"<boolean>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "{announcementId}",
+                      "item": [
+                        {
+                          "name": "Edit announcement",
+                          "request": {
+                            "name": "Edit announcement",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section (any author's announcement). Never sends mail. Errors: title, body; {} is field \"\" (no fields to update).",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "announcements",
+                                ":announcementId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "announcementId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "PATCH",
+                            "body": {
+                              "mode": "raw",
+                              "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\"\n}",
+                              "options": {
+                                "raw": {
+                                  "language": "json"
+                                }
+                              }
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "Delete announcement",
+                          "request": {
+                            "name": "Delete announcement",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Never sends mail.",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "announcements",
+                                ":announcementId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "announcementId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "DELETE"
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        }
+                      ],
+                      "event": []
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "weeks",
+                  "item": [
+                    {
+                      "name": "List weeks with materials",
+                      "request": {
+                        "name": "List weeks with materials",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "weeks"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Create week",
+                      "request": {
+                        "name": "Create week",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Appended last. Errors: title, notes; weeks when the section already has 100 weeks.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "weeks"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "POST",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"title\": \"<string>\",\n  \"notes\": \"<string>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "{weekId}",
+                      "item": [
+                        {
+                          "name": "Edit or move week",
+                          "request": {
+                            "name": "Edit or move week",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. position moves the week; the others are renumbered 1..n. Errors: title, notes, position; {} is field \"\".",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "weeks",
+                                ":weekId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "weekId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "PATCH",
+                            "body": {
+                              "mode": "raw",
+                              "raw": "{\n  \"title\": \"<string>\",\n  \"notes\": \"<string>\",\n  \"position\": \"<integer>\"\n}",
+                              "options": {
+                                "raw": {
+                                  "language": "json"
+                                }
+                              }
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "Delete week",
+                          "request": {
+                            "name": "Delete week",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Deletes its materials and their files; the remaining weeks are renumbered.",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "weeks",
+                                ":weekId"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "weekId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "DELETE"
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        },
+                        {
+                          "name": "Upload material",
+                          "request": {
+                            "name": "Upload material",
+                            "description": {
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than 100 MB\", \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
+                              "type": "text/plain"
+                            },
+                            "url": {
+                              "path": [
+                                "universities",
+                                ":slug",
+                                "sections",
+                                ":id",
+                                "weeks",
+                                ":weekId",
+                                "materials"
+                              ],
+                              "host": [
+                                "{{baseUrl}}"
+                              ],
+                              "query": [],
+                              "variable": [
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "{{slug}}",
+                                  "key": "slug",
+                                  "description": "(Required) University slug."
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "id",
+                                  "description": "(Required) "
+                                },
+                                {
+                                  "disabled": false,
+                                  "type": "any",
+                                  "value": "",
+                                  "key": "weekId",
+                                  "description": "(Required) "
+                                }
+                              ]
+                            },
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "multipart/form-data"
+                              },
+                              {
+                                "key": "Accept",
+                                "value": "application/json"
+                              }
+                            ],
+                            "method": "POST",
+                            "body": {
+                              "mode": "formdata",
+                              "formdata": [
+                                {
+                                  "key": "file",
+                                  "type": "file",
+                                  "description": "(Required) One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv."
+                                },
+                                {
+                                  "key": "title",
+                                  "value": "<string>",
+                                  "type": "text",
+                                  "description": "Omitted or blank means the file name."
+                                }
+                              ]
+                            }
+                          },
+                          "response": [],
+                          "event": [],
+                          "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                          }
+                        }
+                      ],
+                      "event": []
+                    }
+                  ],
+                  "event": []
+                },
+                {
+                  "name": "materials/{materialId}",
+                  "item": [
+                    {
+                      "name": "Rename or move material",
+                      "request": {
+                        "name": "Rename or move material",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Errors: title, weekId (\"is not a week of this section\", \"week already holds 200 files\"), position; {} is field \"\".",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "materials",
+                            ":materialId"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "materialId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "PATCH",
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"title\": \"<string>\",\n  \"weekId\": \"<uuid>\",\n  \"position\": \"<integer>\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        }
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Delete material",
+                      "request": {
+                        "name": "Delete material",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. The file is removed after the deletion commits.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "materials",
+                            ":materialId"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "materialId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/json"
+                          }
+                        ],
+                        "method": "DELETE"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    },
+                    {
+                      "name": "Download material",
+                      "request": {
+                        "name": "Download material",
+                        "description": {
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, enrolled student. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag \"<sha256>\", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.",
+                          "type": "text/plain"
+                        },
+                        "url": {
+                          "path": [
+                            "universities",
+                            ":slug",
+                            "sections",
+                            ":id",
+                            "materials",
+                            ":materialId",
+                            "download"
+                          ],
+                          "host": [
+                            "{{baseUrl}}"
+                          ],
+                          "query": [],
+                          "variable": [
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "{{slug}}",
+                              "key": "slug",
+                              "description": "(Required) University slug."
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "id",
+                              "description": "(Required) "
+                            },
+                            {
+                              "disabled": false,
+                              "type": "any",
+                              "value": "",
+                              "key": "materialId",
+                              "description": "(Required) "
+                            }
+                          ]
+                        },
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "application/octet-stream"
+                          }
+                        ],
+                        "method": "GET"
+                      },
+                      "response": [],
+                      "event": [],
+                      "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                      }
+                    }
+                  ],
+                  "event": []
+                }
+              ],
+              "event": []
+            },
+            {
+              "name": "import",
+              "item": [
+                {
+                  "name": "Import sections",
+                  "request": {
+                    "name": "Import sections",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots \"Mon 10:00-11:15 @ Room 101\"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; \"@ location\" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"number is required\", \"number must be at most 20 characters\", \"unknown course code <X>\", \"unknown term <X>\", \"course <X> is not in a department you manage\", \"invalid email <raw>\", \"<email> listed as both instructor and ta\", \"<email>: membership is not active\", \"meeting \\\"<slot>\\\" must look like Mon 10:00-11:15 @ Room 101\", \"meeting \\\"<slot>\\\": unknown weekday <X>\", \"meeting \\\"<slot>\\\": <field> <message>\", \"at most 20 meetings\". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message \"section exists; adds staff\"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message \"section exists; adds meetings\"); an existing section's meetings are never changed (message \"section exists; keeps meetings\").",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        "import"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "multipart/form-data"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "description": "(Required) Same bytes as previewed."
+                        },
+                        {
+                          "key": "checksum",
+                          "value": "<string>",
+                          "type": "text",
+                          "description": "(Required) "
+                        }
+                      ]
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Preview sections import",
+                  "request": {
+                    "name": "Preview sections import",
+                    "description": {
+                      "content": "Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots \"Mon 10:00-11:15 @ Room 101\"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; \"@ location\" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: \"number is required\", \"number must be at most 20 characters\", \"unknown course code <X>\", \"unknown term <X>\", \"course <X> is not in a department you manage\", \"invalid email <raw>\", \"<email> listed as both instructor and ta\", \"<email>: membership is not active\", \"meeting \\\"<slot>\\\" must look like Mon 10:00-11:15 @ Room 101\", \"meeting \\\"<slot>\\\": unknown weekday <X>\", \"meeting \\\"<slot>\\\": <field> <message>\", \"at most 20 meetings\". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message \"section exists; adds staff\"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message \"section exists; adds meetings\"); an existing section's meetings are never changed (message \"section exists; keeps meetings\").",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "sections",
+                        "import",
+                        "preview"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "multipart/form-data"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "description": "(Required) CSV, max 5 MiB."
+                        }
+                      ]
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "name": "grade-scale",
+          "item": [
+            {
+              "name": "Grade scale",
+              "request": {
+                "name": "Grade scale",
+                "description": {
+                  "content": "Who: member.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "grade-scale"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "Replace grade scale",
+              "request": {
+                "name": "Replace grade scale",
+                "description": {
+                  "content": "Who: admin. Replaces every row. Errors: rows (count 1 to 50, or \"must include a row with minPercent 0\"), rows[<i>].letter, rows[<i>].minPercent, rows[<i>].points, including \"duplicate letter\" and \"duplicate minPercent\". Existing final grades never change. 409 when a concurrent replace won.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "grade-scale"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rows\": [\n    {\n      \"letter\": \"<string>\",\n      \"minPercent\": \"<number>\",\n      \"points\": \"<number>\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ],
+          "event": []
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const s = pm.environment.get('session');",
+          "if (s) pm.request.headers.upsert({ key: 'Cookie', value: 'unicourse_session=' + s });"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "info": {
+    "name": "UniCourse API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "",
+      "type": "text/plain"
+    }
+  }
+}
