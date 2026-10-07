@@ -56,7 +56,6 @@ function TermCards({ slug, term, sections }: { slug: string; term: Term; section
                   >
                     <TableIcon aria-hidden="true" />
                     Gradebook
-                    <span className="sr-only"> for {classCode(s)}</span>
                   </Link>
                 ) : undefined
               }

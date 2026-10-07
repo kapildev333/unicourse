@@ -130,8 +130,17 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
               gridTemplateColumns: `3.5rem ${days.map((d) => (d > 5 && !dayItems[d].length ? 'minmax(0,0.5fr)' : 'minmax(0,1fr)')).join(' ')}`,
             }}
           >
-            <div aria-hidden="true">
+            <div aria-hidden="true" className="relative">
               <div className="h-8 border-b border-line bg-canvas" />
+              {inTerm && nowMin >= start && nowMin < end && (
+                <span
+                  data-now-label
+                  className="absolute right-0 z-10 -translate-y-1/2 bg-surface pr-2 text-xs text-ink-muted"
+                  style={{ top: `${2 + (nowMin - start) * 0.1}rem` }}
+                >
+                  {hh(now.getHours())}:{hh(now.getMinutes())}
+                </span>
+              )}
               {hours.map((h) => (
                 <div key={h} className="h-24 pr-2 text-right text-xs text-ink-muted">
                   {hh(h)}:00
@@ -169,11 +178,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                         data-now-line
                         className="pointer-events-none absolute inset-x-0 z-10 border-t border-line-strong"
                         style={{ top: `${(nowMin - start) * 0.1}rem` }}
-                      >
-                        <span className="absolute right-0 bottom-0 bg-surface px-1 text-xs text-ink-muted">
-                          {hh(now.getHours())}:{hh(now.getMinutes())}
-                        </span>
-                      </li>
+                      ></li>
                     )}
                     {items.map(({ s, m }, i) => {
                       const clash = clashesFor({ id: s.id, meetings: [m] }, sections)

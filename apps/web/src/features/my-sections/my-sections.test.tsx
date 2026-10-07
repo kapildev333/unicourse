@@ -243,7 +243,7 @@ it("grid marks today's column and draws the time line only there", async () => {
   expect(head).toHaveTextContent('Today')
   expect(document.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
   expect(document.querySelectorAll('[data-now-line]')).toHaveLength(1)
-  expect(tue.querySelector('[data-now-line]')).toHaveTextContent('10:30')
+  expect(document.querySelector('[data-now-label]')).toHaveTextContent('10:30')
 })
 
 it('own instructor entry reads You', async () => {
@@ -262,8 +262,8 @@ it('instructor and TA cards link to the gradebook; students get none', async () 
   ok()
   renderPage()
   const ta = (await screen.findByText('CS101-001')).closest('li')!
-  expect(within(ta).getByRole('link', { name: /^Gradebook/ })).toHaveAttribute('href', '/a/sections/s1/grades')
-  expect(within(screen.getByText('CS102-001').closest('li')!).getByRole('link', { name: /^Gradebook/ })).toBeInTheDocument()
+  expect(within(ta).getByRole('link', { name: 'Gradebook' })).toHaveAttribute('href', '/a/sections/s1/grades')
+  expect(within(screen.getByText('CS102-001').closest('li')!).getByRole('link', { name: 'Gradebook' })).toBeInTheDocument()
   expect(within(screen.getByText('CS300-001').closest('li')!).queryByRole('link', { name: /Gradebook/ })).toBeNull()
 })
 
