@@ -24,10 +24,12 @@ export function AssessmentDialog(props: {
   sectionId: string
   assessment?: Assessment
   scoredCount: number
+  /** Sum of the weights of the section's other assessments. */
+  otherWeight: number
   onClose: () => void
   onSaved: (message: string) => void
 }) {
-  const { slug, sectionId, assessment, scoredCount, onClose, onSaved } = props
+  const { slug, sectionId, assessment, scoredCount, otherWeight, onClose, onSaved } = props
   const refresh = useGradesRefresh(slug)
   const [name, setName] = useState(assessment?.name ?? '')
   const [maxPoints, setMax] = useState(assessment ? fmtNum(assessment.maxPoints) : '')
@@ -147,7 +149,7 @@ export function AssessmentDialog(props: {
         <FormField
           label="Weight (%)"
           name="weight"
-          hint="Share of the section grade. All weights must total 100 to finalize."
+          hint={`Share of the section grade. All weights must total 100 to finalize. Other assessments total ${fmtNum(otherWeight)}%.`}
           error={fields.weight}
         >
           <input

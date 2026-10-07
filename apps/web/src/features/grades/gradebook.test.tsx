@@ -355,7 +355,7 @@ it('Finalize grades opens the dialog when weights total 100', async () => {
   expect(await screen.findByRole('heading', { name: 'Finalize grades for CS101-001' })).toBeInTheDocument()
 })
 
-const pub = (students: ReturnType<typeof stu>[], final = false) => ({
+const pub = (students: Record<string, unknown>[], final = false) => ({
   assessments: [asm('a1', 'Midterm', 40, 40, true), asm('a2', 'Final exam', 100, 60, false)],
   students: final
     ? students.map((s) => ({ ...s, final: { status: 'graded', letter: 'B', points: 3, percent: 85 } }))
@@ -372,8 +372,8 @@ it('caps the Student cells and keeps the full name in the title', async () => {
 })
 
 it('flags missing scores of published assessments and shows one email line for unnamed students', async () => {
-  const { displayName: _n, ...bare } = stu('zed', '')
-  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 30 }, { percent: 75 }), stu('sam', 'Sam Lee', {}, { percent: 10 }), bare as never]))
+  const bare = { ...stu('zed', ''), displayName: undefined }
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 30 }, { percent: 75 }), stu('sam', 'Sam Lee', {}, { percent: 10 }), bare]))
   await screen.findByText('Letters: A 1 · B 1')
   const sam = screen.getByRole('row', { name: /Sam Lee/ })
   expect(within(sam).getByText('Missing')).toBeInTheDocument()

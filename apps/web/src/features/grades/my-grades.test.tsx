@@ -163,3 +163,20 @@ it('a student-only viewer sees no Gradebooks heading', async () => {
   await card('CS101-001')
   expect(screen.queryByRole('heading', { name: 'Gradebooks' })).not.toBeInTheDocument()
 })
+
+it('explains Graded credits with the in-progress credits from the cards, and uses Disclosure chevrons', async () => {
+  renderPage(grades())
+  expect(await screen.findByText('Graded credits')).toBeInTheDocument()
+  expect(screen.getByText(/Counts finalized sections only\. 6\.0 credits in progress\./)).toBeInTheDocument()
+  const c = await card('CS101-001')
+  const summary = within(c).getByText('Published scores (2)')
+  expect(summary.closest('summary')).toHaveClass('list-none')
+  expect(summary.closest('summary')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.getByText('How letters and grade points are assigned').closest('summary')).toHaveClass('list-none')
+})
+
+it('gives every card the same fixed-height grade block', async () => {
+  renderPage(grades())
+  const c = await card('PH110-001')
+  expect(within(c).getByText('Current B').parentElement).toHaveClass('min-h-14')
+})

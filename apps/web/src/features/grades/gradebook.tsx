@@ -18,7 +18,7 @@ import { personName } from '../courses/access'
 import { RemoveDialog } from '../courses/remove-dialog'
 import { AssessmentDialog } from './assessment-dialog'
 import { FinalizeDialog, finalizeCopy, OverrideDialog } from './finalize-dialog'
-import { fmt2, fmtNum, gradebookAccess, parsePoints, sentence, totalsHundred, weightTotal } from './grade'
+import { fmt2, fmtNum, gradebookAccess, parsePoints, round2, sentence, totalsHundred, weightTotal } from './grade'
 import {
   downloadGradebookCsv,
   putScores,
@@ -388,7 +388,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
             {finalized && (
               <>
                 {' '}
-                <Badge tone="success" className="align-middle">
+                <Badge tone="neutral" className="align-middle">
                   Finalized
                 </Badge>
               </>
@@ -658,6 +658,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
           sectionId={sectionId}
           assessment={dialog === 'new' ? undefined : dialog}
           scoredCount={dialog === 'new' ? 0 : scoredCount(dialog)}
+          otherWeight={dialog === 'new' ? total : round2(total - dialog.weight)}
           onClose={() => setDialog(null)}
           onSaved={(m) => {
             setDialog(null)

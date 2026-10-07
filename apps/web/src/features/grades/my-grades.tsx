@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useId } from 'react'
+import { Disclosure } from '../../components/disclosure'
 import { roleLabel } from '../../components/badge'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
@@ -54,14 +55,13 @@ function SectionCard({ slug, s }: { slug: string; s: GradeSection }) {
         <span className="block font-bold text-ink">{s.course.title}</span>
       </h3>
       <p className="text-sm text-ink-muted">{fmt1(s.credits)} credits</p>
-      <div className="mt-3">
+      <div className="mt-3 min-h-14">
         <GradeBlock s={s} />
       </div>
       {s.assessments.length === 0 ? (
         <p className="mt-3 text-sm text-ink-muted">No published scores yet.</p>
       ) : (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm font-bold">Published scores ({s.assessments.length})</summary>
+        <Disclosure className="mt-3 text-sm" summary={`Published scores (${s.assessments.length})`}>
           <ul className="mt-2 flex flex-col gap-1 text-sm">
             {s.assessments.map((a) => (
               <li key={a.id}>
@@ -72,7 +72,7 @@ function SectionCard({ slug, s }: { slug: string; s: GradeSection }) {
               </li>
             ))}
           </ul>
-        </details>
+        </Disclosure>
       )}
     </li>
   )
@@ -129,18 +129,19 @@ function Gradebooks({ slug }: { slug: string }) {
 function ScaleDisclosure({ slug }: { slug: string }) {
   const q = useGradeScale(slug)
   return (
-    <details className="mt-8">
-      <summary className="cursor-pointer text-sm font-bold">How letters and grade points are assigned</summary>
+    <Disclosure className="mt-8 text-sm" summary="How letters and grade points are assigned">
       <div className="mt-3">
         {q.isPending ? (
           <Loading />
         ) : q.error ? (
-          <ErrorBanner onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
+          <ErrorBanner title="Couldn't load the grade scale" onRetry={() => void q.refetch()}>
+            {errorMessage(q.error)}
+          </ErrorBanner>
         ) : (
           <ScaleTable rows={q.data.rows} caption="Grade scale" />
         )}
       </div>
-    </details>
+    </Disclosure>
   )
 }
 
@@ -148,11 +149,12 @@ export function MyGradesPage({ slug }: { slug: string }) {
   const q = useMyGrades(slug)
   const header = <PageHeader title="My grades" description="Final grades, published scores and GPA for every term." />
   let body
-  if (q.isPending) body = <Loading />
-  else if (q.error) body = <ErrorBanner onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
+  if (q.isPending) body = <Loading variant="cards" label="Loading your grades…" />
+  else if (q.error) body = <ErrorBanner title="Couldn't load your grades" onRetry={() => void q.refetch()}>{errorMessage(q.error)}</ErrorBanner>
   else {
     const g = q.data
     const terms = [...g.terms].sort((a, b) => b.term.startsOn.localeCompare(a.term.startsOn))
+    const inProgress = terms.flatMap((t) => t.sections).filter((s) => !s.final).reduce((n, s) => n + s.credits, 0)
     body =
       terms.length === 0 ? (
         <EmptyState
@@ -166,19 +168,23 @@ export function MyGradesPage({ slug }: { slug: string }) {
         />
       ) : (
         <>
-          <div className="mb-8 rounded border border-line bg-surface p-4">
+          <div className="mb-8 w-fit max-w-full rounded border border-line bg-surface p-4">
             <dl className="flex flex-wrap gap-x-12 gap-y-2">
               <div>
                 <dt className="text-sm text-ink-muted">Cumulative GPA</dt>
                 <dd className="text-3xl font-bold">{g.cumulativeGpa === undefined ? '—' : fmt2(g.cumulativeGpa)}</dd>
               </div>
               <div>
-                <dt className="text-sm text-ink-muted">Credits</dt>
+                <dt className="text-sm text-ink-muted">Graded credits</dt>
                 <dd className="text-3xl font-bold">{fmt1(g.cumulativeCredits)}</dd>
               </div>
             </dl>
+            <p className="mt-2 text-sm text-ink-muted">
+              Counts finalized sections only.
+              {inProgress > 0 && ` ${fmt1(inProgress)} credits in progress.`}
+            </p>
             {g.cumulativeGpa === undefined && (
-              <p className="mt-2 text-sm text-ink-muted">Your GPA appears once a section has a final grade.</p>
+              <p className="mt-1 text-sm text-ink-muted">Your GPA appears once a section has a final grade.</p>
             )}
           </div>
           {terms.map((t) => (
