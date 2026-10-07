@@ -241,12 +241,12 @@ func coursesImport(d tenant.Deps, _ *http.Request, _ *sql.Tx, s authz.Scope) (cs
 	if plainMember(s) {
 		return csvimport.Spec{}, nil, nil, httpx.Forbidden()
 	}
-	spec := csvimport.Spec{Required: []string{"departmentcode", "code", "title"},
+	spec := csvimport.Spec{Required: []string{"departmentcode", "code", "title"}, Optional: []string{"credits"},
 		Key: func(m map[string]string) string { return strings.TrimSpace(m["code"]) }}
 	return spec, courseClassifier(s), courseApplier(s), nil
 }
 
-type courseRef struct{ DeptID, Code, Title string }
+type courseRef struct{ DeptID, Code, Title, Credits string }
 
 func courseClassifier(s authz.Scope) csvimport.Classifier {
 	return func(ctx context.Context, tx *sql.Tx, recs []csvimport.Record) ([]csvimport.Verdict, error) {
@@ -266,6 +266,11 @@ func courseClassifier(s authz.Scope) csvimport.Classifier {
 		for i, rc := range recs {
 			code, title, dc := rc.Data["code"], rc.Data["title"], rc.Data["departmentcode"]
 			d, known := depts[dc]
+			credits := "3.0"
+			var cfe *httpx.FieldError
+			if c := strings.TrimSpace(rc.Data["credits"]); c != "" {
+				credits, cfe = tenant.Decimal("credits", json.Number(c), 1, "0", "20")
+			}
 			switch {
 			case code == "":
 				out[i] = verr("code is required")
@@ -275,6 +280,8 @@ func courseClassifier(s authz.Scope) csvimport.Classifier {
 				out[i] = verr("code must be at most 20 characters")
 			case utf8.RuneCountInString(title) > 200:
 				out[i] = verr("title must be at most 200 characters")
+			case cfe != nil:
+				out[i] = verr("credits " + cfe.Message)
 			case !known:
 				out[i] = verr("unknown department code " + dc)
 			case !authz.CanManageDepartment(s, d[0]):
@@ -282,7 +289,7 @@ func courseClassifier(s authz.Scope) csvimport.Classifier {
 			case have[code]:
 				out[i] = csvimport.Verdict{Action: csvimport.Exists}
 			default:
-				out[i] = csvimport.Verdict{Action: csvimport.Add, Ref: courseRef{d[0], code, title}}
+				out[i] = csvimport.Verdict{Action: csvimport.Add, Ref: courseRef{d[0], code, title, credits}}
 			}
 		}
 		return out, nil
@@ -291,20 +298,20 @@ func courseClassifier(s authz.Scope) csvimport.Classifier {
 
 func courseApplier(s authz.Scope) csvimport.Applier {
 	return func(ctx context.Context, tx *sql.Tx, rows []csvimport.Row) error {
-		var ds, cs, ts []string
+		var ds, cs, ts, crs []string
 		for _, row := range rows {
 			ref := row.Ref.(courseRef)
-			ds, cs, ts = append(ds, ref.DeptID), append(cs, ref.Code), append(ts, ref.Title)
+			ds, cs, ts, crs = append(ds, ref.DeptID), append(cs, ref.Code), append(ts, ref.Title), append(crs, ref.Credits)
 		}
-		res, err := tx.QueryContext(ctx, `insert into courses (university_id, department_id, code, title)
-			select $1, d, c, t from unnest($2::uuid[], $3::text[], $4::text[]) as x(d, c, t) returning id, department_id, code, title`, s.UniversityID, ds, cs, ts)
+		res, err := tx.QueryContext(ctx, `insert into courses (university_id, department_id, code, title, credits)
+			select $1, d, c, t, cr::numeric from unnest($2::uuid[], $3::text[], $4::text[], $5::text[]) as x(d, c, t, cr) returning id, department_id, code, title, credits::text`, s.UniversityID, ds, cs, ts, crs)
 		if err != nil {
 			return courseWriteErr(err)
 		}
 		var es []audit.Entry
 		for res.Next() {
 			var c Course
-			if err := res.Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title); err != nil {
+			if err := res.Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title, &c.Credits); err != nil {
 				res.Close()
 				return err
 			}

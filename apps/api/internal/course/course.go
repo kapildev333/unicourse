@@ -2,6 +2,7 @@ package course
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -17,10 +18,11 @@ import (
 
 // Course is the contract resource; createdAt only feeds the list cursor.
 type Course struct {
-	ID           string `json:"id"`
-	DepartmentID string `json:"departmentId"`
-	Code         string `json:"code"`
-	Title        string `json:"title"`
+	ID           string      `json:"id"`
+	DepartmentID string      `json:"departmentId"`
+	Code         string      `json:"code"`
+	Title        string      `json:"title"`
+	Credits      json.Number `json:"credits"`
 	createdAt    time.Time
 }
 
@@ -57,6 +59,11 @@ func courseFields(c Course) (Course, error) {
 	if c.Title, fe = tenant.TrimLen("title", c.Title, 200); fe != nil {
 		details = append(details, *fe)
 	}
+	cr, fe := tenant.Decimal("credits", c.Credits, 1, "0", "20")
+	if fe != nil {
+		details = append(details, *fe)
+	}
+	c.Credits = json.Number(cr)
 	if len(details) > 0 {
 		return c, httpx.Validation(details...)
 	}
@@ -78,8 +85,8 @@ func loadCourse(r *http.Request, tx *sql.Tx, id string) (Course, error) {
 	if !tenant.IsUUID(id) {
 		return c, httpx.NotFound("course")
 	}
-	err := tx.QueryRowContext(r.Context(), `select id, department_id, code, title, created_at from courses where id = $1 for update`, id).
-		Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title, &c.createdAt)
+	err := tx.QueryRowContext(r.Context(), `select id, department_id, code, title, credits::text, created_at from courses where id = $1 for update`, id).
+		Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title, &c.Credits, &c.createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return c, httpx.NotFound("course")
 	}
@@ -107,7 +114,7 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if len(details) > 0 {
 		return 0, nil, httpx.Validation(details...)
 	}
-	rows, err := tx.QueryContext(r.Context(), `select id, department_id, code, title, created_at from courses
+	rows, err := tx.QueryContext(r.Context(), `select id, department_id, code, title, credits::text, created_at from courses
 		where ($4::uuid is null or department_id = $4) and ($5::text is null or code ilike $5 or title ilike $5)
 		and ($1::timestamptz is null or (created_at, id) > ($1, $2::uuid))
 		order by created_at, id limit $3`, after, afterID, p.Limit+1, dept, q)
@@ -119,7 +126,7 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	var last Course
 	for rows.Next() {
 		var c Course
-		if err := rows.Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title, &c.createdAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.DepartmentID, &c.Code, &c.Title, &c.Credits, &c.createdAt); err != nil {
 			return 0, nil, err
 		}
 		if len(out.Items) == p.Limit {
@@ -140,22 +147,27 @@ func createCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		DepartmentID string `json:"departmentId"`
-		Code         string `json:"code"`
-		Title        string `json:"title"`
+		DepartmentID string       `json:"departmentId"`
+		Code         string       `json:"code"`
+		Title        string       `json:"title"`
+		Credits      *json.Number `json:"credits"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	c, err := courseFields(Course{DepartmentID: in.DepartmentID, Code: in.Code, Title: in.Title})
+	credits := json.Number("3.0")
+	if in.Credits != nil {
+		credits = *in.Credits
+	}
+	c, err := courseFields(Course{DepartmentID: in.DepartmentID, Code: in.Code, Title: in.Title, Credits: credits})
 	if err != nil {
 		return 0, nil, err
 	}
 	if !authz.CanManageDepartment(s, c.DepartmentID) {
 		return 0, nil, httpx.Forbidden()
 	}
-	if err := tx.QueryRowContext(r.Context(), `insert into courses (university_id, department_id, code, title) values ($1,$2,$3,$4) returning id, created_at`,
-		s.UniversityID, c.DepartmentID, c.Code, c.Title).Scan(&c.ID, &c.createdAt); err != nil {
+	if err := tx.QueryRowContext(r.Context(), `insert into courses (university_id, department_id, code, title, credits) values ($1,$2,$3,$4,$5::numeric) returning id, credits::text, created_at`,
+		s.UniversityID, c.DepartmentID, c.Code, c.Title, c.Credits).Scan(&c.ID, &c.Credits, &c.createdAt); err != nil {
 		return 0, nil, courseWriteErr(err)
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "course.create", EntityType: "course", EntityID: c.ID, After: c}); err != nil {
@@ -173,17 +185,26 @@ func updateCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		DepartmentID tenant.OptStr `json:"departmentId"`
-		Code         tenant.OptStr `json:"code"`
-		Title        tenant.OptStr `json:"title"`
+		DepartmentID tenant.OptStr           `json:"departmentId"`
+		Code         tenant.OptStr           `json:"code"`
+		Title        tenant.OptStr           `json:"title"`
+		Credits      tenant.Opt[json.Number] `json:"credits"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	if err := tenant.PatchNulls(tenant.Named("departmentId", in.DepartmentID), tenant.Named("code", in.Code), tenant.Named("title", in.Title)); err != nil {
-		return 0, nil, err
+	nullErr := tenant.PatchNulls(tenant.Named("departmentId", in.DepartmentID), tenant.Named("code", in.Code), tenant.Named("title", in.Title))
+	if in.Credits.Null {
+		var d []httpx.FieldError
+		if ve, ok := nullErr.(*httpx.Error); ok {
+			d = ve.Details
+		}
+		nullErr = httpx.Validation(append(d, httpx.FieldError{Field: "credits", Message: "must be a number"})...)
 	}
-	if !in.DepartmentID.Set && !in.Code.Set && !in.Title.Set {
+	if nullErr != nil {
+		return 0, nil, nullErr
+	}
+	if !in.DepartmentID.Set && !in.Code.Set && !in.Title.Set && !in.Credits.Set {
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
@@ -196,14 +217,17 @@ func updateCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if in.Title.Set {
 		after.Title = in.Title.V
 	}
+	if in.Credits.Set {
+		after.Credits = in.Credits.V
+	}
 	if after, err = courseFields(after); err != nil {
 		return 0, nil, err
 	}
 	if !authz.CanManageDepartment(s, after.DepartmentID) {
 		return 0, nil, httpx.Forbidden()
 	}
-	if _, err := tx.ExecContext(r.Context(), `update courses set department_id = $2, code = $3, title = $4 where id = $1`,
-		after.ID, after.DepartmentID, after.Code, after.Title); err != nil {
+	if _, err := tx.ExecContext(r.Context(), `update courses set department_id = $2, code = $3, title = $4, credits = $5::numeric where id = $1`,
+		after.ID, after.DepartmentID, after.Code, after.Title, after.Credits); err != nil {
 		return 0, nil, courseWriteErr(err)
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "course.update", EntityType: "course", EntityID: after.ID, Before: before, After: after}); err != nil {

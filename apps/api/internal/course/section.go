@@ -52,7 +52,7 @@ type sectionAudit struct {
 // sectionCols and sectionFrom are the one select used wherever a Section is read (staff and
 // pending staff aggregated per row by correlated subqueries on indexed section_id: no N+1).
 const sectionCols = `s.id, s.course_id, s.term_id, s.number, s.created_at,
-	c.id, c.department_id, c.code, c.title,
+	c.id, c.department_id, c.code, c.title, c.credits::text,
 	t.id, t.name, to_char(t.starts_on, 'YYYY-MM-DD'), to_char(t.ends_on, 'YYYY-MM-DD'),
 	coalesce((select json_agg(json_build_object('userId', u.id, 'email', u.email, 'displayName', u.display_name, 'role', ss.role)
 		order by ss.role <> 'instructor', u.email)
@@ -299,6 +299,9 @@ func deleteSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Forbidden()
 	}
 	if _, err := tx.ExecContext(r.Context(), `delete from sections where id = $1`, before.ID); err != nil {
+		if err = pg.MapDeleteError(err); errors.Is(err, pg.ErrConflict) {
+			return 0, nil, httpx.Conflict("section has final grades")
+		}
 		return 0, nil, err
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.delete", EntityType: "section", EntityID: before.ID, Before: before}); err != nil {
