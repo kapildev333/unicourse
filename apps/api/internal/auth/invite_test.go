@@ -682,3 +682,19 @@ func TestSignInInvitationNameOldestWithName(t *testing.T) {
 		t.Fatalf("name %q", got)
 	}
 }
+
+func TestSignInInvitationNameOldestOfTwoNamed(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	a := insertInvitation(t, db, fx.UniversityA, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	b := insertInvitation(t, db, fx.UniversityB, "dana@a.edu", "member", nil, time.Now().Add(time.Hour))
+	texec(t, db, fx.UniversityA, `update invitations set display_name = 'First' where id = $1`, a)
+	texec(t, db, fx.UniversityB, `update invitations set display_name = 'Second' where id = $1`, b)
+	uid, err := SignIn(context.Background(), db, "dana@a.edu", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := userName(t, db, uid); got != "First" {
+		t.Fatalf("name %q, want First", got)
+	}
+}

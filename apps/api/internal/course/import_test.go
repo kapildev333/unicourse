@@ -524,6 +524,11 @@ func TestRosterImportNamesFillOnlyIfEmpty(t *testing.T) {
 	e.blankName("inst@a.edu")
 	e.commit(p1, "email,displayName\nnew3@a.edu,First\ninst@a.edu,Ann\n")
 	e.commit(p2, "email,displayName\nnew3@a.edu,Second\ninst@a.edu,Bea\n")
+	e.commit(p1, "email,displayName\nnew4@a.edu,\n")
+	e.commit(p2, "email,displayName\nnew4@a.edu,Late\n")
+	if g := e.invName("new4@a.edu"); g != "Late" {
+		t.Fatalf("existing unnamed invitation not filled: %q", g)
+	}
 	if e.invName("new3@a.edu") != "First" || e.userName(e.UserID["inst@a.edu"]) != "Ann" {
 		t.Fatalf("overwritten: %q %q", e.invName("new3@a.edu"), e.userName(e.UserID["inst@a.edu"]))
 	}
