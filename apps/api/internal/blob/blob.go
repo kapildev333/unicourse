@@ -106,12 +106,22 @@ func (t Temp) Remove() {
 	}
 }
 
-// Commit renames the temp file to <root>/<universityID>/<id>.
+// Commit renames the temp file to <root>/<universityID>/<id> and fsyncs <root>/<universityID>, so a
+// committed row never points at a rename lost to a power cut.
 func (d Dir) Commit(t Temp, universityID, id string) error {
 	if err := d.check(universityID, id); err != nil {
 		return err
 	}
-	return os.Rename(t.path, filepath.Join(d.Root, universityID, id))
+	dir := filepath.Join(d.Root, universityID)
+	if err := os.Rename(t.path, filepath.Join(dir, id)); err != nil {
+		return err
+	}
+	df, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+	return df.Sync()
 }
 
 // Open opens a committed blob; a missing blob is an error matching fs.ErrNotExist.
