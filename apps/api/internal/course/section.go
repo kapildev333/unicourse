@@ -130,7 +130,7 @@ func loadForWrite(r *http.Request, tx *sql.Tx, id string) (a sectionAudit, dept 
 }
 
 func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	p, after, afterID, err := tenant.Page(r)
+	p, _, afterID, err := tenant.Page(r)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -156,10 +156,12 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		return 0, nil, httpx.Validation(details...)
 	}
 	rows, err := tx.QueryContext(r.Context(), `select `+sectionCols+sectionFrom+`
-		where ($4::uuid is null or s.term_id = $4) and ($5::uuid is null or s.course_id = $5)
-		and ($6::uuid is null or c.department_id = $6) and ($7::text is null or c.code ilike $7 or c.title ilike $7)
-		and ($1::timestamptz is null or (s.created_at, s.id) > ($1, $2::uuid))
-		order by s.created_at, s.id limit $3`, after, afterID, p.Limit+1, term, course, dept, q)
+		where ($3::uuid is null or s.term_id = $3) and ($4::uuid is null or s.course_id = $4)
+		and ($5::uuid is null or c.department_id = $5) and ($6::text is null or c.code ilike $6 or c.title ilike $6)
+		and ($1::uuid is null or (c.code, s.number, t.starts_on, s.id) > (
+			select c2.code, s2.number, t2.starts_on, s2.id from sections s2
+			join courses c2 on c2.id = s2.course_id join terms t2 on t2.id = s2.term_id where s2.id = $1))
+		order by c.code, s.number, t.starts_on, s.id limit $2`, afterID, p.Limit+1, term, course, dept, q)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -94,7 +94,7 @@ func loadCourse(r *http.Request, tx *sql.Tx, id string) (Course, error) {
 }
 
 func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	p, after, afterID, err := tenant.Page(r)
+	p, _, afterID, err := tenant.Page(r)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -114,10 +114,11 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if len(details) > 0 {
 		return 0, nil, httpx.Validation(details...)
 	}
+	// ponytail: cursor names the last row; if it is deleted between pages the next page is empty
 	rows, err := tx.QueryContext(r.Context(), `select id, department_id, code, title, credits::text, created_at from courses
-		where ($4::uuid is null or department_id = $4) and ($5::text is null or code ilike $5 or title ilike $5)
-		and ($1::timestamptz is null or (created_at, id) > ($1, $2::uuid))
-		order by created_at, id limit $3`, after, afterID, p.Limit+1, dept, q)
+		where ($3::uuid is null or department_id = $3) and ($4::text is null or code ilike $4 or title ilike $4)
+		and ($1::uuid is null or (code, id) > (select code, id from courses where id = $1))
+		order by code, id limit $2`, afterID, p.Limit+1, dept, q)
 	if err != nil {
 		return 0, nil, err
 	}

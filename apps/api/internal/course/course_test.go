@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -96,7 +97,7 @@ func TestCourseListFiltersAndPaging(t *testing.T) {
 			select $1, $2, 'M' || g, 'Math ' || g, '2026-01-01T00:00:00Z' from generate_series(1,5) g`, e.Fx.UniversityA, e.DeptA2)
 		return err
 	})
-	var seen []string
+	var seen, codes []string
 	cursor := ""
 	for i := 0; i < 10; i++ {
 		st, raw := e.call(e.DaOut, "GET", "/courses?limit=2"+cursor, nil)
@@ -109,6 +110,7 @@ func TestCourseListFiltersAndPaging(t *testing.T) {
 		}
 		for _, it := range l.Items {
 			seen = append(seen, it["id"].(string))
+			codes = append(codes, it["code"].(string))
 		}
 		if l.NextCursor == "" {
 			break
@@ -121,6 +123,9 @@ func TestCourseListFiltersAndPaging(t *testing.T) {
 	}
 	if len(seen) != 6 || len(uniq) != 6 {
 		t.Fatalf("paging saw %d rows, %d distinct (want 6)", len(seen), len(uniq))
+	}
+	if !sort.StringsAreSorted(codes) {
+		t.Errorf("courses not in code order: %v", codes)
 	}
 	st, raw := e.call(e.Admin, "GET", "/courses?departmentId="+e.DeptA2, nil)
 	var l struct{ Items []map[string]any }
