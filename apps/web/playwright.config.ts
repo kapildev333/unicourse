@@ -11,5 +11,8 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   outputDir: 'test-results',
   use: { baseURL: 'http://localhost:18180', trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'screens', testMatch: 'screens.ts', use: { browserName: 'chromium', actionTimeout: 15_000 } },
+  ],
 })
