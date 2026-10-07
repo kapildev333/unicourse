@@ -3,6 +3,7 @@ package tenant
 import (
 	"database/sql"
 	"encoding/json"
+	"math/big"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -60,11 +61,58 @@ func TrimLen(field, v string, max int) (string, *httpx.FieldError) {
 	return v, nil
 }
 
+var decimalRe = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
+
+// Decimal validates n (a JSON number or a CSV cell) as a decimal with at most places decimals in
+// [min, max] (decimal strings) and returns it formatted with exactly places decimals ("3" -> "3.0"
+// for places 1). Exact (math/big); exponents and fractions are rejected.
+func Decimal(field string, n json.Number, places int, min, max string) (string, *httpx.FieldError) {
+	bad := func(m string) (string, *httpx.FieldError) {
+		return "", &httpx.FieldError{Field: field, Message: m}
+	}
+	v := strings.TrimSpace(string(n))
+	if v == "" {
+		return bad("is required")
+	}
+	if !decimalRe.MatchString(v) {
+		return bad("must be a number")
+	}
+	r, _ := new(big.Rat).SetString(v)
+	scaled := new(big.Rat).Mul(r, new(big.Rat).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(places)), nil)))
+	if !scaled.IsInt() {
+		if places == 1 {
+			return bad("must have at most 1 decimal")
+		}
+		return bad("must have at most " + strconv.Itoa(places) + " decimals")
+	}
+	lo, _ := new(big.Rat).SetString(min)
+	hi, _ := new(big.Rat).SetString(max)
+	if r.Cmp(lo) < 0 || r.Cmp(hi) > 0 {
+		return bad("must be between " + min + " and " + max)
+	}
+	return r.FloatString(places), nil
+}
+
+// Opt is a PATCH field of any JSON type that tells absent from explicit null (D27); OptStr predates it.
+type Opt[T any] struct {
+	Set, Null bool
+	V         T
+}
+
+func (o *Opt[T]) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Null = true
+		return nil
+	}
+	return json.Unmarshal(b, &o.V)
+}
+
 func NoFields() error {
 	return httpx.Validation(httpx.FieldError{Field: "", Message: "no fields to update"})
 }
 
-const entityTypes = "department, term, membership, invitation, course, section, staff, enrollment"
+const entityTypes = "department, term, membership, invitation, course, section, staff, enrollment, assessment, final_grade, grade_scale"
 
 // listAuditLog serves GET /audit-log (admin only); every filter error is reported at once.
 func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
