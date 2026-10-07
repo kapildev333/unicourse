@@ -38,6 +38,18 @@ go run ./cmd/unicourse-admin create-university --name "Example" --slug example \
 No mail is sent. The command prints the admin invitation URL (`<base>/invite/<token>?email=...`); send it to
 the admin, who signs in with that email and becomes the university's admin. `create-university -h` lists all flags. Usage output (no arguments, `-h`, unknown command) exits 2 and needs no database. Reserved slugs (`api`, `assets`, `invite`, `sign-in`, ...) are rejected.
 
+## Load the demo
+
+    export UNICOURSE_OWNER_DATABASE_URL=... UNICOURSE_BASE_URL=http://localhost:8080 UNICOURSE_FILES_DIR=$PWD/data/files
+    go run ./cmd/unicourse-admin migrate
+    go run ./cmd/unicourse-admin seed-demo            # --reset to replace it, --slug to load a second copy
+
+Loads Northfield University from `internal/seed/demo.json` (edit the file to change the dataset; `<year>`,
+`<year+1>` and `<domain>` are substituted) through the API's own handlers, so every write is validated and
+audited like a user's. Prints one line per persona: sign in at `/sign-in` with that email and copy the magic
+link from the API log (`UNICOURSE_SMTP_URL` empty). No mail is queued. `--reset` deletes only the university
+with that slug and its files. For local databases only.
+
 ## Environment
 
 Environment only. A missing required variable fails startup with the list of what is missing.
