@@ -85,6 +85,18 @@ Prerequisites: Docker, Go 1.27, Node 22. Run the API steps from `apps/api`. The 
 
 CS101 is finalised (with one override); CS210 is open. Ingrid's invitation expires after 14 days; `--reset` gives a fresh one.
 
+## Explore the API with Postman
+
+The API is described by `apps/api/openapi.json` (OpenAPI 3.1, checked against the routes in CI). A Postman
+collection generated from it lives in `docs/postman/` (`npm run postman` in `apps/web` regenerates it; CI fails
+when it is stale).
+
+1. In Postman, import `docs/postman/unicourse.postman_collection.json` and `docs/postman/unicourse.postman_environment.json`, and select the "UniCourse local" environment.
+2. With the API running and the demo seeded, send **auth / magic-link / Request a magic link** (it uses `{{email}}`, Elena Marsh by default).
+3. Copy the token from the link in the API log (`.../auth/magic-link/<token>`) into the environment variable `token`.
+4. Send **auth / magic-link / {token} / Consume a magic link**. Its test stores the session in `session`, and every later request sends it.
+5. Try **universities/{slug} / me / My sections** or any other request. Path ids are blank: paste an id from a previous response.
+
 ## Tests and gates
 
 API, from `apps/api` (needs `UNICOURSE_TEST_DATABASE_URL` and `UNICOURSE_TEST_OWNER_DATABASE_URL`, see [apps/api/README.md](apps/api/README.md)):

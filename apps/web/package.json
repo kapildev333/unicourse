@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p e2e",
     "test": "vitest --exclude \"e2e/**\" --exclude \"node_modules/**\" --exclude \"dist/**\"",
     "generate": "openapi-typescript ../api/openapi.json -o src/api/types.ts",
+    "postman": "node scripts/postman.mjs ../api/openapi.json ../../docs/postman/unicourse.postman_collection.json",
     "e2e": "playwright test --project chromium",
     "screens": "playwright test --project screens"
   },
@@ -36,6 +37,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^26.1.0",
+    "openapi-to-postmanv2": "6.4.0",
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.9",
