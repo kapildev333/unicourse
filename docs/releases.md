@@ -5,7 +5,7 @@
 - One GitHub release per completed phase, tagged `v0.<phase>.<patch>` while nothing deploys (D112). Minor = the phase that completed; patch = a fix-only batch after it. `v1.0.0` is the first real university.
 - The orchestrator cuts it at phase close, after the PLAN.md status PR is merged. A lane never tags or releases (D116).
 - No artifacts yet (D115); a bundle workflow comes with the first deployment target.
-- Notes = a Highlights section written by the orchestrator + the generated PR list. `.github/release.yml` drops PRs labelled `chore` and Dependabot. Label `PLAN.md:`, `ci:` and flaky-test PRs `chore` when opening them.
+- Notes = a Highlights section written by the orchestrator + the generated PR list. `.github/release.yml` drops PRs labelled `chore` and Dependabot. Label `PLAN.md:`, `ci:`, spec/plan/design-doc and flaky-test PRs `chore` when opening them.
 
 ## Highlights template
 
@@ -24,7 +24,7 @@ Source: the spec's section 1 and the phase outcome in PLAN.md.
 
 ## Phase close
 
-`--notes-file` is prepended to the generated notes when combined with `--generate-notes`.
+`--generate-notes` prepends the notes you pass (`--notes` or `--notes-file`) to the generated list; verified on the first release.
 
 ```
 git checkout main && git pull --ff-only

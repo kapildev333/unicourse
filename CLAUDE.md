@@ -57,7 +57,7 @@ Rules that span these files:
 - Lanes commit on their branch and never push. The orchestrator pushes, opens the PR from `.github/pull_request_template.md`, waits for `ci`, squash-merges with branch deletion, removes the worktree.
 - `ci` (`.github/workflows/ci.yml`): `api` job runs gofmt, `go vet`, `go test` against a Postgres service; `web` job runs lint, typecheck, tests, build. Both no-op until the app is scaffolded, so the required checks stay green on an empty tree.
 - Dependabot updates Go modules, npm and Actions weekly; its PRs go through the same `ci`.
-- Releases: one per completed phase, tagged `v0.<phase>.<patch>`, created by the orchestrator at phase close after the PLAN.md status PR (never by a lane); notes are a highlights section plus the generated PR list; chore PRs (`PLAN.md:`, `ci:`) carry the `chore` label so they stay out of the list; details in `docs/releases.md`.
+- Releases: one per completed phase, tagged `v0.<phase>.<patch>`, created by the orchestrator at phase close after the PLAN.md status PR (never by a lane); notes are a highlights section plus the generated PR list; chore PRs (`PLAN.md:`, `ci:`, spec/plan/design-doc, flaky-test) carry the `chore` label so they stay out of the list; details in `docs/releases.md`.
 - Not used on purpose: GitHub Projects and Issues for planning (`PLAN.md` is the single plan; mirroring it is double bookkeeping), Wiki and Discussions.
 
 ## UI conventions (Spec 3, binding for every web change)
