@@ -2,7 +2,7 @@ const tones = {
   accent: 'border-accent/30 bg-accent-soft text-accent',
   neutral: 'border-line-strong bg-surface text-ink-muted',
   danger: 'border-danger/30 bg-danger-soft text-danger',
-  warning: 'border-[#b54708]/30 bg-[#fffaeb] text-[#93370d]',
+  warning: 'border-warning/30 bg-warning-soft text-warning',
 }
 
 export function Badge(props: { tone: keyof typeof tones; className?: string; children: React.ReactNode }) {

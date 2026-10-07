@@ -4,6 +4,7 @@ import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
 import { Button } from './button'
 import { inputClass } from './form-field'
+import { ThemeSwitch } from './theme-switch'
 
 const navBase =
   'rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-focus'
@@ -57,6 +58,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
               ))}
             </select>
           )}
+          <ThemeSwitch />
           <span className="text-sm text-ink-muted">{me.user.email}</span>
           <Button variant="secondary" size="sm" onClick={() => void signOut(queryClient)}>
             Sign out
