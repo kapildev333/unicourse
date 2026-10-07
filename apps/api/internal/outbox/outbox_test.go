@@ -339,3 +339,32 @@ func TestHousekeep(t *testing.T) {
 		t.Fatalf("log %q", l)
 	}
 }
+
+func TestExpiredMagicLinkMailIsGivenUpUnsent(t *testing.T) {
+	r := &rec{}
+	s, db, buf := setup(t, r)
+	// Urgent mail is the sign-in link, valid 15 minutes from its creation.
+	for _, q := range []string{
+		`insert into outbox_mails (recipient, subject, body, urgent, created_at) values ('old@a.edu', 's', 'secret-url', true, now() - interval '16 minutes')`,
+		`insert into outbox_mails (recipient, subject, body, urgent, created_at) values ('fresh@a.edu', 's', 't', true, now() - interval '14 minutes')`,
+		`insert into outbox_mails (recipient, subject, body, created_at) values ('inv@a.edu', 's', 't', now() - interval '2 days')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Drain(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if c := r.calls(); len(c) != 2 || c[0].to == "old@a.edu" || c[1].to == "old@a.edu" {
+		t.Fatalf("calls %+v", c)
+	}
+	var failed bool
+	var body string
+	if err := db.QueryRow(`select failed_at is not null, body from outbox_mails where recipient = 'old@a.edu'`).Scan(&failed, &body); err != nil {
+		t.Fatal(err)
+	}
+	if !failed || body != "" || !strings.Contains(buf.String(), "magic link expired") {
+		t.Fatalf("row %v %q log %q", failed, body, buf.String())
+	}
+}
