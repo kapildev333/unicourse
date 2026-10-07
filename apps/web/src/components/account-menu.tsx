@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { UserRound } from 'lucide-react'
+import { LogOut, UserRound } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../api/client'
+import { signOut } from '../features/auth/sign-out'
 import type { Me } from '../features/auth/use-me'
 import { Button } from './button'
 import { Dialog, DialogFooter } from './dialog'
@@ -54,6 +55,11 @@ function NameForm({ user, onClose }: { user: Me['user']; onClose: () => void }) 
         />
       </FormField>
       <DialogFooter>
+        {/* phones only: the header's Sign out is hidden below md to keep the bar on one row */}
+        <Button variant="ghost-danger" className="mr-auto md:hidden" onClick={() => void signOut(queryClient)}>
+          <LogOut />
+          Sign out
+        </Button>
         <Button variant="secondary" onClick={onClose}>
           Cancel
         </Button>

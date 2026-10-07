@@ -1,8 +1,11 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { signOut } from '../features/auth/sign-out'
 import type { Me } from '../features/auth/use-me'
 import { mockApi, renderWithQuery } from '../test-utils'
 import { AccountMenu } from './account-menu'
+
+vi.mock('../features/auth/sign-out', () => ({ signOut: vi.fn() }))
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -50,4 +53,14 @@ it('shows the server error and keeps the dialog open', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByText(/Something went wrong on our side/)).toBeInTheDocument()
   expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
+
+it('has a Sign out in the dialog footer (the phone way out) that calls the shared sign-out', () => {
+  const { client } = renderWithQuery(<AccountMenu user={me} />)
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull() // closed
+  fireEvent.click(screen.getByRole('button', { name: /^Account/ }))
+  const btn = screen.getByRole('button', { name: 'Sign out' })
+  expect(btn).toHaveClass('md:hidden')
+  fireEvent.click(btn)
+  expect(signOut).toHaveBeenCalledWith(client)
 })

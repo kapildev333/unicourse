@@ -162,7 +162,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
               variant="secondary"
               aria-label="Sign out"
               title={`Sign out (${me.user.email})`}
-              className="max-md:w-10 max-md:px-0"
+              className="max-md:hidden"
               onClick={() => void signOut(queryClient)}
             >
               <LogOut />
