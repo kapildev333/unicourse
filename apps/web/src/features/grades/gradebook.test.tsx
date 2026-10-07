@@ -414,7 +414,7 @@ it('flags missing scores of published assessments and shows one email line for u
   await screen.findByText('Letters: A 1 · B 1')
   const sam = screen.getByRole('row', { name: /Sam Lee/ })
   expect(within(sam).getByText('Missing')).toBeInTheDocument()
-  expect(within(sam).getByText('(1 missing)')).toBeInTheDocument()
+  expect(within(sam).getByText('(1 missing, 2 at finalize)')).toBeInTheDocument()
   expect(within(screen.getByRole('row', { name: /Erin Moe/ })).queryByText('Missing')).not.toBeInTheDocument()
   const zed = screen.getByRole('rowheader', { name: 'zed@a.edu' })
   expect(zed.querySelectorAll('span')).toHaveLength(0)
