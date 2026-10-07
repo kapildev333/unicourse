@@ -128,7 +128,8 @@ func TestGradebookAuthz(t *testing.T) {
 			t.Errorf("%s: %d, want %d", role, st, want[role])
 		}
 	}
-	if st, _ := e.raw(e.Admin, "GET", "/sections/"+e.Fx.UniversityB+"/gradebook", nil); st != 404 {
+	bSec, _ := e.foreign()
+	if st, _ := e.raw(e.Admin, "GET", "/sections/"+bSec+"/gradebook", nil); st != 404 {
 		t.Errorf("foreign id: %d", st)
 	}
 }

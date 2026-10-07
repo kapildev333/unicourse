@@ -321,3 +321,17 @@ func TestFinalAuthz(t *testing.T) {
 		}
 	}
 }
+
+// A same-letter override keeps the recorded points even after the scale moved on (snapshot).
+func TestOverrideSameLetterKeepsPoints(t *testing.T) {
+	e := newEnv(t)
+	e.finalized() // stud2: 86.00 B, 3.00
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update grade_scales set points = 3.50 where letter = 'B'`)
+		return err
+	})
+	st, body := e.patchFinal(e.Inst, "stud2@a.edu", map[string]any{"letter": "B", "reason": "confirmed"})
+	if st != 200 || !strings.Contains(body, `"points":3.00`) || !strings.Contains(body, `"overrideReason":"confirmed"`) {
+		t.Fatal(st, body)
+	}
+}

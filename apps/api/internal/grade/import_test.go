@@ -140,8 +140,11 @@ func TestScoresImport(t *testing.T) {
 	if n != 1 || !strings.Contains(before.String, "80.00") || !strings.Contains(after.String, "75.00") {
 		t.Fatalf("audit: %d %s %s", n, before.String, after.String)
 	}
-	if st, raw := e.upload(e.Admin, e.importPath("00000000-0000-0000-0000-000000000000")+"/preview", clean, ""); st != 404 {
-		t.Errorf("unknown assessment: %d %s", st, raw)
+	bSec, bAssessment := e.foreign() // another university's assessment, under its own section and under A's
+	for _, path := range []string{e.importPath(bAssessment), "/sections/" + bSec + "/assessments/" + bAssessment + "/scores/import"} {
+		if st, raw := e.upload(e.Admin, path+"/preview", clean, ""); st != 404 {
+			t.Errorf("foreign assessment %s: %d %s", path, st, raw)
+		}
 	}
 }
 

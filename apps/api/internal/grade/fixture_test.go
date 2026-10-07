@@ -250,3 +250,17 @@ func (e *env) callAccept(c *http.Cookie, path, accept string) (int, http.Header,
 	raw, _ := io.ReadAll(res.Body)
 	return res.StatusCode, res.Header, raw
 }
+
+// foreign inserts a section and an assessment in university B (invisible to A under RLS) and returns their ids.
+func (e *env) foreign() (sectionID, assessmentID string) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityB, func(tx *sql.Tx) error {
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,'1') returning id`,
+			e.Fx.UniversityB, e.CourseB, e.TermB).Scan(&sectionID); err != nil {
+			return err
+		}
+		return tx.QueryRow(`insert into assessments (university_id, section_id, name, max_points, weight, position)
+			values ($1, $2, 'Foreign', 100, 100, 0) returning id`, e.Fx.UniversityB, sectionID).Scan(&assessmentID)
+	})
+	return
+}

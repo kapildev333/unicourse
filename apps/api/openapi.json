@@ -1015,7 +1015,7 @@
       "get": {
         "operationId": "listCourses",
         "summary": "List Courses",
-        "description": "Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND.",
+        "description": "Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND. Ordered by code, then id.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1302,7 +1302,7 @@
       "get": {
         "operationId": "listSections",
         "summary": "List Sections",
-        "description": "Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.",
+        "description": "Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND. Ordered by course code, then section number, then term start, then id.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -2597,7 +2597,7 @@
       "patch": {
         "operationId": "updateFinalGrade",
         "summary": "Override final grade",
-        "description": "Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field \"\" (\"no fields to update\").",
+        "description": "Who: admin, dept_admin (own departments), instructor of the section. reason is required. letter must be on the scale and needs status graded; points follow the scale row. Switching incomplete or withdrawn back to graded recomputes percent from the current scores (missing = 0) and, without letter, its letter. Body with only reason is 400 field \"\" (\"no fields to update\"); an unchanged letter keeps its recorded points.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -5177,6 +5177,7 @@
       },
       "FinalGradeUpdate": {
         "type": "object",
+        "description": "Set status, letter or both; an unchanged letter keeps its recorded points.",
         "properties": {
           "status": {
             "type": "string",
@@ -5531,13 +5532,19 @@
               "$ref": "#/components/schemas/MyAssessment"
             },
             "description": "Published assessments only, by position."
+          },
+          "unpublishedCount": {
+            "type": "integer",
+            "example": 1,
+            "description": "How many of the section's assessments are not published (and so absent from assessments)."
           }
         },
         "required": [
           "section",
           "course",
           "credits",
-          "assessments"
+          "assessments",
+          "unpublishedCount"
         ]
       },
       "MyGradesTerm": {

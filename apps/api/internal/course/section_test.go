@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -194,7 +195,7 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 			select $1, $2, $3, 'P' || g, '2026-01-01T00:00:00Z' from generate_series(1,5) g`, e.Fx.UniversityA, e.CourseA, e.TermA2)
 		return err
 	})
-	var ids []string
+	var ids, keys []string
 	cursor := ""
 	for i := 0; i < 10; i++ {
 		var p struct {
@@ -207,6 +208,7 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 		}
 		for _, s := range p.Items {
 			ids = append(ids, s.ID)
+			keys = append(keys, s.Course.Code+"|"+s.Number)
 		}
 		if p.NextCursor == "" {
 			break
@@ -222,6 +224,9 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 	}
 	if len(ids) != 7 {
 		t.Fatalf("paging returned %d sections, want 7", len(ids))
+	}
+	if !sort.StringsAreSorted(keys) {
+		t.Errorf("sections not in code, number order: %v", keys)
 	}
 }
 

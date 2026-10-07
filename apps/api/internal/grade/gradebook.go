@@ -7,8 +7,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"math/big"
+	"mime"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
@@ -194,10 +196,34 @@ func getGradebook(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 			}
 		}
 	}
-	if strings.Contains(r.Header.Get("Accept"), "text/csv") { // ponytail: substring match, no q-values
+	if wantsCSV(r.Header.Get("Accept")) {
 		return http.StatusOK, tenant.Raw{ContentType: "text/csv; charset=utf-8", Filename: "gradebook.csv", Body: gradebookCSV(m)}, nil
 	}
 	return http.StatusOK, Gradebook{Assessments: m.assessments, Students: m.students, Stats: stats(m.students, m.scale)}, nil
+}
+
+// wantsCSV reports whether Accept prefers text/csv over application/json by q-value (a tie goes to CSV).
+// Wildcards never select CSV, so a client sending */* keeps the JSON default.
+// ponytail: no specificity rules beyond the two exact types; add them if another body type appears.
+func wantsCSV(accept string) bool {
+	var csvQ, jsonQ float64
+	for _, part := range strings.Split(accept, ",") {
+		mt, params, err := mime.ParseMediaType(strings.TrimSpace(part))
+		if err != nil {
+			continue
+		}
+		q := 1.0
+		if v, err := strconv.ParseFloat(params["q"], 64); err == nil {
+			q = v
+		}
+		switch mt {
+		case "text/csv":
+			csvQ = max(csvQ, q)
+		case "application/json":
+			jsonQ = max(jsonQ, q)
+		}
+	}
+	return csvQ > 0 && csvQ >= jsonQ
 }
 
 type part struct{ weight, max, points *big.Rat }

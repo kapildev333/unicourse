@@ -45,7 +45,7 @@ func TestMyGradesPublishedOnly(t *testing.T) {
 		}
 		return body
 	}
-	if body := get(); strings.Contains(body, "Hidden quiz") || strings.Contains(body, `"running"`) {
+	if body := get(); strings.Contains(body, "Hidden quiz") || strings.Contains(body, `"running"`) || !strings.Contains(body, `"unpublishedCount":1`) {
 		t.Errorf("unpublished leaked: %s", body)
 	}
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
@@ -53,18 +53,18 @@ func TestMyGradesPublishedOnly(t *testing.T) {
 		return err
 	})
 	body := get()
-	if !strings.Contains(body, "Hidden quiz") || !strings.Contains(body, `"points":5.00`) || !strings.Contains(body, `"running":{"percent":50.00,"letter":"F"}`) {
+	if !strings.Contains(body, "Hidden quiz") || !strings.Contains(body, `"points":5.00`) || !strings.Contains(body, `"running":{"percent":50.00,"letter":"F"}`) || !strings.Contains(body, `"unpublishedCount":0`) {
 		t.Errorf("published: %s", body)
 	}
 	// an unpublished assessment without a score does not block running
 	e.assessment("Draft", "10", "10")
-	if body := get(); !strings.Contains(body, `"running"`) || strings.Contains(body, "Draft") {
+	if body := get(); !strings.Contains(body, `"running"`) || strings.Contains(body, "Draft") || !strings.Contains(body, `"unpublishedCount":1`) {
 		t.Errorf("draft: %s", body)
 	}
 	// a scored unpublished one does
 	draft := e.assessment("Draft 2", "10", "10")
 	e.score(draft, "stud@a.edu", "10")
-	if body := get(); strings.Contains(body, `"running"`) || strings.Contains(body, "Draft 2") {
+	if body := get(); strings.Contains(body, `"running"`) || strings.Contains(body, "Draft 2") || !strings.Contains(body, `"unpublishedCount":2`) {
 		t.Errorf("scored draft: %s", body)
 	}
 }
