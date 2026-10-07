@@ -979,7 +979,7 @@
       "get": {
         "operationId": "listCourses",
         "summary": "List Courses",
-        "description": "Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections).",
+        "description": "Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections). Filters: departmentId, q (code or title); combined with AND.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -992,6 +992,9 @@
           },
           {
             "$ref": "#/components/parameters/departmentId"
+          },
+          {
+            "$ref": "#/components/parameters/q"
           }
         ],
         "responses": {
@@ -1263,7 +1266,7 @@
       "get": {
         "operationId": "listSections",
         "summary": "List Sections",
-        "description": "Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections).",
+        "description": "Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections). Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1279,6 +1282,12 @@
           },
           {
             "$ref": "#/components/parameters/courseId"
+          },
+          {
+            "$ref": "#/components/parameters/departmentId"
+          },
+          {
+            "$ref": "#/components/parameters/q"
           }
         ],
         "responses": {
@@ -1312,7 +1321,7 @@
       "post": {
         "operationId": "createSection",
         "summary": "Create Section",
-        "description": "Who: admin, dept_admin (own departments).",
+        "description": "Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings); per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. \"must be after startsAt\".",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -1364,7 +1373,7 @@
       "patch": {
         "operationId": "updateSection",
         "summary": "Update Section",
-        "description": "Who: admin, dept_admin (own departments).",
+        "description": "Who: admin, dept_admin (own departments). meetings, when present, replaces the whole list; [] clears it; omitted (or null) keeps it. Validation as on create.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -2586,6 +2595,81 @@
         ],
         "description": "Staff invited by email who have not signed in yet."
       },
+      "Meeting": {
+        "type": "object",
+        "description": "One weekly slot; wall-clock time in the university's timezone.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "weekday": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "example": 1,
+            "description": "ISO weekday: 1 = Monday ... 7 = Sunday."
+          },
+          "startsAt": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "10:00"
+          },
+          "endsAt": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "11:15"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Room 101",
+            "description": "Free text; \"\" when none."
+          }
+        },
+        "required": [
+          "id",
+          "weekday",
+          "startsAt",
+          "endsAt",
+          "location"
+        ]
+      },
+      "MeetingInput": {
+        "type": "object",
+        "description": "endsAt must be after startsAt. Location is trimmed; omitted means \"\".",
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "example": 1,
+            "description": "ISO weekday: 1 = Monday ... 7 = Sunday."
+          },
+          "startsAt": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "10:00"
+          },
+          "endsAt": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "11:15"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Room 101"
+          }
+        },
+        "required": [
+          "weekday",
+          "startsAt",
+          "endsAt"
+        ],
+        "additionalProperties": false
+      },
       "Section": {
         "type": "object",
         "properties": {
@@ -2626,6 +2710,13 @@
             "items": {
               "$ref": "#/components/schemas/PendingStaff"
             }
+          },
+          "meetings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Meeting"
+            },
+            "description": "Ordered by weekday, then startsAt."
           }
         },
         "required": [
@@ -2636,7 +2727,8 @@
           "course",
           "term",
           "staff",
-          "pendingStaff"
+          "pendingStaff",
+          "meetings"
         ]
       },
       "SectionCreate": {
@@ -2657,6 +2749,14 @@
             "example": "001",
             "minLength": 1,
             "maxLength": 20
+          },
+          "meetings": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/MeetingInput"
+            },
+            "description": "The section's weekly meetings; omitted means none."
           }
         },
         "required": [
@@ -2674,6 +2774,14 @@
             "example": "001",
             "minLength": 1,
             "maxLength": 20
+          },
+          "meetings": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/MeetingInput"
+            },
+            "description": "When present, replaces the whole list ([] clears). Omitted keeps the current meetings."
           }
         },
         "additionalProperties": false
@@ -3297,6 +3405,16 @@
           "format": "date-time"
         },
         "description": "Exclusive."
+      },
+      "q": {
+        "name": "q",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "description": "Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q."
       }
     },
     "responses": {
