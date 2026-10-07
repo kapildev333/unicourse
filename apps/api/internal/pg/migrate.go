@@ -10,7 +10,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/migrations"
 )
 
-const migrateLockKey = 7263550 // advisory lock: two API processes starting together must not race
+const migrateLockKey = 7263550 // advisory lock: the CLI and testdb must not migrate concurrently
 
 // Migrate applies migrations/*.sql in name order, each in its own transaction together with its
 // schema_migrations row. Already-applied files are skipped.
