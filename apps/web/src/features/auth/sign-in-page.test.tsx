@@ -170,3 +170,12 @@ it('focuses the banner on magic-link 429', async () => {
   const banner = await screen.findByRole('alert')
   await waitFor(() => expect(banner).toHaveFocus())
 })
+
+it('does not record Last used when the provider start fails', async () => {
+  mockApi({ 'POST /auth/oidc/google/start': () => ({ status: 404, body: notFound }) })
+  renderWithQuery(<SignInPage />)
+  fireEvent.change(idField(), { target: { value: 'nowhere' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+  await screen.findByRole('alert')
+  expect(localStorage.getItem('unicourse:last-sign-in')).toBeNull()
+})

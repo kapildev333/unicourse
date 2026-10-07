@@ -87,9 +87,26 @@ it('the header search opens the catalog filtered by the typed text', async () =>
   expect(router.state.location.search).toEqual({ q: 'MA201' })
 })
 
-it('the header search shows the Catalog q and is empty elsewhere', async () => {
+it('the header search shows the Catalog q', async () => {
   await shell(mk(['member']), '/u0/catalog?q=MA201')
   expect(screen.getByRole('searchbox', { name: 'Find a course' })).toHaveValue('MA201')
+})
+
+it('the header search is empty on other pages even with q in the URL', async () => {
+  await shell(mk(['admin']), '/u0/grade-scale?q=x')
+  expect(screen.getByRole('searchbox', { name: 'Find a course' })).toHaveValue('')
+})
+
+it.each(['/u0/catalog', '/u0/grade-scale'])('keeps focus in the header search after submitting from %s', async (at) => {
+  const router = await shell(mk(['admin']), at)
+  const box = screen.getByRole('searchbox', { name: 'Find a course' })
+  box.focus()
+  fireEvent.change(box, { target: { value: 'MA201' } })
+  fireEvent.submit(screen.getByRole('search', { name: 'Catalog' }))
+  await waitFor(() => expect(router.state.location.search).toEqual({ q: 'MA201' }))
+  await act(async () => {})
+  expect(screen.getByRole('searchbox', { name: 'Find a course' })).toHaveValue('MA201')
+  expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Find a course' }))
 })
 
 it('marks Courses current on a section detail page', async () => {

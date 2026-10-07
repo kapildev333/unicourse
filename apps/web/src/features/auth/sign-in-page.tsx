@@ -80,10 +80,10 @@ export function SignInPage(props: { next?: string; error?: string; email?: strin
     setClientError(null)
     setProvValue(v)
     setPending(provider)
-    writeLast(provider)
     try {
       const body = v.includes('@') ? { email: v, next } : { slug: v.toLowerCase(), next }
       const { url } = await unwrap(api.POST('/auth/oidc/{provider}/start', { params: { path: { provider } }, body }))
+      writeLast(provider)
       window.location.assign(url)
     } catch (e) {
       setProvError(e)
@@ -104,9 +104,9 @@ export function SignInPage(props: { next?: string; error?: string; email?: strin
     }
     setClientError(null)
     setPending('magic')
-    writeLast('magic')
     try {
       await post(v)
+      writeLast('magic')
       setSentTo(v)
     } catch (err) {
       setMagicError(err)

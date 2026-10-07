@@ -45,7 +45,7 @@ export function MagicLinkSent(props: { email: string; onBack: () => void; onRese
         <button
           type="button"
           onClick={onBack}
-          className="font-medium text-accent underline underline-offset-2 hover:text-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="text-accent underline"
         >
           use a different email
         </button>
