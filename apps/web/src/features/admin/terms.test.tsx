@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { TermsPage } from './terms'
@@ -78,4 +78,42 @@ it('shows the empty state', async () => {
   mockApi({ [L]: () => ({ body: { items: [] } }) })
   renderWithQuery(<TermsPage slug="x" />)
   expect(await screen.findByText('No terms yet')).toBeInTheDocument()
+})
+
+it('stacks rows on phones and shows Current, Upcoming and Past from the dates', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 7))
+  try {
+    mockApi({
+      [L]: () => ({
+        body: {
+          items: [
+            fall,
+            { id: '2', name: 'Spring 2027', startsOn: '2027-01-10', endsOn: '2027-05-01' },
+            { id: '4', name: 'Starts today', startsOn: '2026-10-07', endsOn: '2026-12-01' },
+            { id: '5', name: 'Ends today', startsOn: '2026-08-01', endsOn: '2026-10-07' },
+            { id: '3', name: 'Spring 2026', startsOn: '2026-01-10', endsOn: '2026-05-01' },
+          ],
+        },
+      }),
+    })
+    renderWithQuery(<TermsPage slug="x" />)
+    await screen.findByText('Fall 2026')
+    const row = (n: string) => screen.getByText(n).closest('tr')!
+    expect(within(row('Fall 2026')).getByText('Current')).toBeInTheDocument()
+    expect(within(row('Spring 2027')).getByText('Upcoming')).toBeInTheDocument()
+    expect(within(row('Spring 2026')).getByText('Past')).toBeInTheDocument()
+    expect(within(row('Starts today')).getByText('Current')).toBeInTheDocument()
+    expect(within(row('Ends today')).getByText('Current')).toBeInTheDocument()
+    expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+    expect(screen.getByText('Fall 2026')).toHaveAttribute('data-label', 'Name')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('names what failed to load', async () => {
+  mockApi({ [L]: () => err(500, 'internal') })
+  renderWithQuery(<TermsPage slug="x" />)
+  expect(await screen.findByText("Couldn't load terms")).toBeInTheDocument()
 })

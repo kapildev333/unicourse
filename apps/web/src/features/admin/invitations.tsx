@@ -11,6 +11,7 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
+import { ListCount } from './list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -175,8 +176,8 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Email', 'Role', 'Departments', 'Status', 'Expires', '']} />
+  else if (list.error) body = <ErrorBanner title="Couldn't load invitations" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -189,7 +190,8 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
   else
     body = (
       <>
-        <Table caption="Invitations">
+        <ListCount shown={list.items.length} />
+        <Table caption="Invitations" stack>
           <thead>
             <tr>
               <th scope="col">Email</th>
@@ -207,21 +209,23 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
               const status = statusOf(i)
               return (
                 <tr key={i.id}>
-                  <td>{i.email}</td>
-                  <td>
+                  <td data-label="Email">{i.email}</td>
+                  <td data-label="Role">
                     <RoleBadge role={i.role} />
                   </td>
-                  <td>
+                  <td data-label="Departments">
                     {i.departmentIds.length === 0
                       ? '—'
                       : i.departmentIds.map((id) => deptCode.get(id) ?? 'Unknown').join(', ')}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <Badge tone={status === 'pending' ? 'warning' : 'neutral'}>
                       {status === 'accepted' ? 'Accepted' : status === 'expired' ? 'Expired' : 'Pending'}
                     </Badge>
                   </td>
-                  <td>{formatDate(i.expiresAt)}</td>
+                  <td data-label="Expires">
+                    {status === 'accepted' ? <span className="text-ink-muted">—</span> : formatDate(i.expiresAt)}
+                  </td>
                   <td className="text-right whitespace-nowrap">
                     {status === 'pending' && (
                       <Button
@@ -244,6 +248,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )

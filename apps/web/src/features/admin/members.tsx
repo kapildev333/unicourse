@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -12,6 +12,7 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
+import { ListCount } from './list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -159,13 +160,14 @@ export function MembersPage({ slug }: { slug: string }) {
   }
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Role', 'Departments', 'Status', '']} />
+  else if (list.error) body = <ErrorBanner title="Couldn't load members" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0) body = <EmptyState icon={Users} title="No members yet" body="Invite people from Invitations." />
   else
     body = (
       <>
-        <Table caption="Members">
+        <ListCount shown={list.items.length} />
+        <Table caption="Members" stack>
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -180,19 +182,25 @@ export function MembersPage({ slug }: { slug: string }) {
           <tbody>
             {list.items.map((x) => (
               <tr key={x.id}>
-                <td>
-                  {x.displayName || <span className="text-ink-muted">—</span>}
-                  <div className="text-xs text-ink-muted">{x.email}</div>
+                <td data-label="Name">
+                  {x.displayName ? (
+                    <>
+                      {x.displayName}
+                      <div className="text-xs font-normal text-ink-muted">{x.email}</div>
+                    </>
+                  ) : (
+                    x.email
+                  )}
                 </td>
-                <td>
+                <td data-label="Role">
                   <RoleBadge role={x.role} />
                 </td>
-                <td>
+                <td data-label="Departments">
                   {x.departmentIds.length === 0
                     ? '—'
                     : x.departmentIds.map((id) => deptCode.get(id) ?? 'Unknown').join(', ')}
                 </td>
-                <td>
+                <td data-label="Status">
                   <Badge tone={x.status === 'active' ? 'neutral' : 'warning'}>
                     {x.status === 'active' ? 'Active' : 'Invited'}
                   </Badge>
@@ -224,6 +232,7 @@ export function MembersPage({ slug }: { slug: string }) {
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )
@@ -232,7 +241,15 @@ export function MembersPage({ slug }: { slug: string }) {
     <>
       <PageHeader
         title="Members"
-        description="People with access to this university. Invite new people from Invitations."
+        description={
+          <>
+            People with access to this university. Invite new people from{' '}
+            <Link to="/$slug/admin/invitations" params={{ slug }} className="text-accent hover:underline">
+              Invitations
+            </Link>
+            .
+          </>
+        }
       />
       <StatusMessage message={notice} />
       {body}

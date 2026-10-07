@@ -10,15 +10,24 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
+import { ListCount } from './list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
+import { Badge } from '../../components/badge'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useRefresh } from './queries'
 
 type Term = components['schemas']['Term']
+
+// ISO dates compare as strings; both bounds inclusive, local today.
+function termState(t: Term): 'Current' | 'Upcoming' | 'Past' {
+  const n = new Date()
+  const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+  return today < t.startsOn ? 'Upcoming' : today > t.endsOn ? 'Past' : 'Current'
+}
 
 const formCopy = {
   'conflict:name': 'A term with this name already exists.',
@@ -154,8 +163,8 @@ export function TermsPage({ slug }: { slug: string }) {
   const header = <PageHeader title="Terms" description="Academic terms that sections belong to." action={create} />
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Starts', 'Ends', 'Status', '']} />
+  else if (list.error) body = <ErrorBanner title="Couldn't load terms" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -168,12 +177,14 @@ export function TermsPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <Table caption="Terms">
+        <ListCount shown={list.items.length} />
+        <Table caption="Terms" stack>
           <thead>
             <tr>
               <th scope="col">Name</th>
               <th scope="col">Starts</th>
               <th scope="col">Ends</th>
+              <th scope="col">Status</th>
               <th scope="col">
                 <span className="sr-only">Actions</span>
               </th>
@@ -182,9 +193,12 @@ export function TermsPage({ slug }: { slug: string }) {
           <tbody>
             {list.items.map((d) => (
               <tr key={d.id}>
-                <td>{d.name}</td>
-                <td>{formatDate(d.startsOn)}</td>
-                <td>{formatDate(d.endsOn)}</td>
+                <td data-label="Name">{d.name}</td>
+                <td data-label="Starts">{formatDate(d.startsOn)}</td>
+                <td data-label="Ends">{formatDate(d.endsOn)}</td>
+                <td data-label="Status">
+                  <Badge tone="neutral">{termState(d)}</Badge>
+                </td>
                 <td className="text-right whitespace-nowrap">
                   <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
                     Edit
@@ -207,6 +221,7 @@ export function TermsPage({ slug }: { slug: string }) {
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )

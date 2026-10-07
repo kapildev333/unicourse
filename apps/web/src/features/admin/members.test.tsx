@@ -7,6 +7,7 @@ const navigate = vi.fn()
 vi.mock('@tanstack/react-router', async (orig) => ({
   ...(await orig<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigate,
+  Link: ({ children }: { children: React.ReactNode }) => <a href="/invitations">{children}</a>,
 }))
 
 afterEach(() => {
@@ -115,4 +116,26 @@ it("changing someone else's role neither navigates nor refetches me", async () =
   expect(await screen.findByText(/bob@a.edu is now/)).toBeInTheDocument()
   expect(navigate).not.toHaveBeenCalled()
   expect(fn.mock.calls.filter((c) => new URL((c[0] as Request).url).pathname.endsWith('/me'))).toHaveLength(1)
+})
+
+it('shows a nameless member as one email line without a dash, and stacks rows', async () => {
+  mockApi({
+    ...base,
+    [L]: () => ({
+      body: { items: [{ ...bob, displayName: '' }, { ...bob, id: 'm2', email: 'c@a.edu', displayName: 'Cy Lee' }] },
+    }),
+  })
+  renderWithQuery(<MembersPage slug="x" />)
+  const cell = (await screen.findByText('bob@a.edu')).closest('td')!
+  expect(cell).toHaveTextContent(/^bob@a\.edu$/)
+  expect(cell).toHaveAttribute('data-label', 'Name')
+  expect(screen.getByText('c@a.edu').closest('td')).toHaveTextContent('Cy Leec@a.edu')
+  expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+  expect(screen.getByRole('link', { name: 'Invitations' })).toBeInTheDocument()
+})
+
+it('names what failed to load', async () => {
+  mockApi({ ...base, [L]: () => ({ status: 500, body: { error: { code: 'internal', message: 'm', details: [] } } }) })
+  renderWithQuery(<MembersPage slug="x" />)
+  expect(await screen.findByText("Couldn't load members")).toBeInTheDocument()
 })

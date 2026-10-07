@@ -119,3 +119,12 @@ it('edits sending only changed fields and sends nothing when unchanged', async (
   await waitFor(() => expect(patches()).toHaveLength(1))
   expect(await patches()[0].clone().json()).toEqual({ name: 'X' })
 })
+
+it('stacks the table with labelled cells', async () => {
+  mockApi({
+    'GET /universities/x/departments': () => ({ body: { items: [{ id: 'd1', name: 'Computer Science', code: 'CS' }] } }),
+  })
+  renderWithQuery(<DepartmentsPage slug="x" />)
+  expect(await screen.findByText('CS')).toHaveAttribute('data-label', 'Code')
+  expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+})

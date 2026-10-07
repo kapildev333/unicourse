@@ -10,6 +10,7 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
+import { ListCount } from './list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -167,8 +168,8 @@ export function DepartmentsPage({ slug }: { slug: string }) {
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Code', '']} />
+  else if (list.error) body = <ErrorBanner title="Couldn't load departments" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -181,7 +182,8 @@ export function DepartmentsPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <Table caption="Departments">
+        <ListCount shown={list.items.length} />
+        <Table caption="Departments" stack>
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -194,8 +196,8 @@ export function DepartmentsPage({ slug }: { slug: string }) {
           <tbody>
             {list.items.map((d) => (
               <tr key={d.id}>
-                <td>{d.name}</td>
-                <td>{d.code}</td>
+                <td data-label="Name">{d.name}</td>
+                <td data-label="Code">{d.code}</td>
                 <td className="text-right whitespace-nowrap">
                   <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
                     Edit
@@ -218,6 +220,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )
