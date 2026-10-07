@@ -77,12 +77,12 @@ function renderPage(role: Role, routes: Parameters<typeof mockApi>[0] = {}, gb: 
   const root = createRootRoute()
   const r = createRoute({
     getParentRoute: () => root,
-    path: '$slug',
+    path: '$slug/sections/$id/grades',
     component: () => <GradebookPage slug="a" sectionId="s1" />,
   })
   const router = createRouter({
     routeTree: root.addChildren([r]),
-    history: createMemoryHistory({ initialEntries: ['/a'] }),
+    history: createMemoryHistory({ initialEntries: ['/a/sections/s1/grades'] }),
   })
   render(
     <QueryClientProvider client={client}>
@@ -115,6 +115,14 @@ it('renders under the section band and tab strip with one h1', async () => {
   expect(screen.getByRole('heading', { level: 2, name: 'Gradebook' })).toBeInTheDocument()
   const tabs = screen.getByRole('navigation', { name: 'Section pages' })
   expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('href', '/a/sections/s1/grades')
+  expect(within(tabs).getByRole('link', { name: 'Grades' })).toHaveAttribute('aria-current', 'page')
+})
+
+it('says plain "(1 missing)" when every unscored assessment is published', async () => {
+  const b = book([stu('sam', 'Sam Lee', { a1: 30 })])
+  b.assessments = [asm('a1', 'Midterm', 40, 40, true), asm('a2', 'Final exam', 100, 60, true)]
+  renderPage('instructor', {}, b)
+  expect(await screen.findByText('(1 missing)')).toBeInTheDocument()
 })
 
 it('labels published-only missing against the count Finalize uses', async () => {

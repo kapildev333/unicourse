@@ -158,7 +158,6 @@ function Gradebook({ slug, sectionId, sec }: { slug: string; sectionId: string; 
     onError: (e) => setPageError(`Couldn't export the gradebook: ${errorMessage(e)}`),
   })
 
-
   const code = `${sec.course.code}-${sec.number}`
   const noAccess = (
     <ErrorBanner title="No access">
