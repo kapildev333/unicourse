@@ -6,6 +6,7 @@ Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026
 Spec 4: `docs/specs/2026-10-07-grading.md` · plan `docs/plans/2026-10-07-grading.md` (Phase 7, starting)
 Spec 5: `docs/specs/2026-10-07-ui-ux-benchmark.md` · plan `docs/plans/2026-10-07-ui-ux-benchmark.md` (Phase 8 and Phase 9 done)
 Spec 6: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-06-section-content.md` (Phase 10, done 2026-10-07)
+Spec 7: `docs/specs/2026-10-07-demo-seed-and-readme.md` · plan `docs/plans/2026-10-07-demo-seed-and-readme.md` (Phase 11, started 2026-10-07)
 
 ## Decisions
 | # | Decision | Status |
@@ -109,6 +110,11 @@ Spec 6: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-0
 | D101 | The sign-in field label stays "University email or university ID" (S5-07 as specified); the audit's rename to "short name" would need another §5.7-style e2e ruling and is not taken | Orchestrator 2026-10-07, owner to confirm |
 | D102 | Audit log on phones stacks into cards like the other admin tables (below 640 px); the sticky When column stays from 640 px (amends S5-51 for phones; audit b F6) | Orchestrator 2026-10-07, owner to confirm |
 | D103 | The capture seed (`e2e/screens.ts`, the capture script, not the e2e suite) gives staff display names and enrols the student in three of five sections so the named state and the Enrolled badge can be judged (audit a R4/R10, b Q3); the sign-in brand marks are single-colour `currentColor` marks (the literal-colour rule stands) with the primary button under the field (P9-L6) | Orchestrator 2026-10-07, owner to confirm |
+| D104 | Demo seed is `unicourse-admin seed-demo [--slug] [--reset]`: Go, owner role, an embedded JSON fixture (`internal/seed/demo.json`, editable without Go), writes made through the real handlers in process (`app.NewRouter` over `httptest`, session cookies minted in `sessions`, the pattern of the package test fixtures) so no invariant is re-derived; plain SQL only for the university, users, memberships, sessions and the reset delete (Spec 7 §3, §4) | Orchestrator 2026-10-07, owner to confirm |
+| D105 | The dataset is the capture seed's Northfield University (same departments, courses, meetings, people, scores) extended with a department admin, a Spring section, a finalised CS101 with one override, and Phase 10 content (announcements, weeks, the three `e2e/fixtures` files as materials), so screenshots and demo agree (Spec 7 §5) | Orchestrator 2026-10-07, owner to confirm |
+| D106 | `--reset` deletes only the university with that slug (cascade) and its files directory; a duplicate slug without it exits 2. Sign-in stays the real magic-link flow (links in the API log); the seed queues no mail (Spec 7 §4, §8) | Orchestrator 2026-10-07, owner to confirm |
+| D107 | The root README carries six 1440-wide light and dark captures committed under `docs/screens/` (under 2 MB total), taken by `npm run screens` on the seeded state (Spec 7 §7) | Orchestrator 2026-10-07, owner to confirm |
+| D108 | The capture script and the e2e suite keep their own seeding; routing them through `seed-demo` is backlog with a trigger (Spec 7 §2, §11) | Orchestrator 2026-10-07, owner to confirm |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -287,6 +293,14 @@ Order: P10-L1 designer → L1a → PR → (L1b ∥ P10-L2 designer → L2a → L
 
 Phase 10 outcome: every section has Home (description), Announcements (emailed to the roster), Materials (weeks and files up to 100 MB with safe downloads) and Grades tabs; instructors and TAs have the same content powers; students read and download; other members see the description only. For the owner to confirm: D88-D91 (storage on a local directory, TA parity, mail on by default, plain text and the file allowlist), D95 (no Participants tab yet), D96 (API rulings incl. `author.email`), D99 (own e2e file). Follow-ups are in the backlog (Participants split after P9-L6, gradebook band, `.tmp/` cleanup, allowlist mirror).
 
+## Phase 11 - Demo seed and root README (Spec 7, started 2026-10-07)
+Spec 7 (`docs/specs/2026-10-07-demo-seed-and-readme.md`) written under D8 delegation on the brainstorming skill's architectural path (intent, three approaches, design by section, self-review); the owner asked for the recommended choices, recorded as D104-D108. Every lane is test-driven (failing test first), as the plan's Global Constraints say.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| P11-L1 - Seed command (Task 1, D; design then build) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P11-L1.md`, `apps/api/internal/seed/**`, `apps/api/cmd/unicourse-admin/**`, one section in `apps/api/README.md` | designer launched 2026-10-07 |
+| P11-L2 - Root README and screenshots (Task 2, W; after the L1 design, lands after L1) | Sonnet 5.5 | `README.md`, `docs/screens/**`, `apps/web/README.md` | not started |
+
 ## Backlog
 - Phase 9 leftovers (audit P9-L9): B2 user menu with a name field (the approved follow-up to display names); C5 Target column and C6 total for the Audit log; C7 unpublished count on My grades; Catalog results in code order (API ordering, audit a R11); a shared text-link style; a `PageHeader` heading-level option replacing `TabHeader`; the gradebook hover band skipping the sticky Student cell; middle dots in count lists (audit c question).
 - The gradebook's "(n missing)" counts published assessments only while Finalize counts every unscored assessment (unpublished ones score 0 on finalize); align or label the difference (P9-L5 review). An empty term shows two primary "New section" buttons, header and empty state (P9-L3 review, on main before Phase 9).
@@ -304,6 +318,7 @@ Phase 10 outcome: every section has Home (description), Announcements (emailed t
 - Grading nits kept from reviews: a no-op `graded` override re-reads points from the current scale; `Accept` negotiation on the gradebook export ignores q-values; the Finalize-disabled reasons' wording differs from design §3.1; two authz tests use weak fixtures (real cross-university sections return 404).
 - People show as emails everywhere (rosters, staff, gradebook, header, cards): the roster CSV accepts `displayName` but no API stores a user's display name and sign-in asks for none (found by P8-L1; a C-category item for Spec 5).
 - Enable branch protection with required checks `api`, `web` once the repo plan allows (CLAUDE.md).
+- Spec 7 deferred (§11): `--fixture <path>` for a second dataset; the capture script and e2e seeding through `seed-demo` (D108); a JSON Schema for the fixture; a `make dev` or dev container.
 - Phase 10 follow-ups (from the P10-L1 and P10-L2 designs): split Participants (staff editor, roster) out of the section Home into its own tab once P9-L6 has landed, merging `SectionBand` back into the Home band; the gradebook page has no title band or section tabs; a crash mid-upload leaves a file under `<files>/<university>/.tmp/` that `prune-files` never touches (operators delete old ones by hand); the web's upload allowlist copies the server's extension map and goes stale if it changes; upload progress is a status line, not a bar.
 
 ## Journal
@@ -348,3 +363,4 @@ Phase 10 outcome: every section has Home (description), Announcements (emailed t
 - 2026-10-07: P10-L3 (#100) landed; Phase 10 complete: Spec 6 built end to end in one afternoon alongside Phase 9 (disjoint scopes, D92; five additive one-line hunks in Phase 9 files, each announced to the other session; one shared-file conflict resolved by the orchestrator). The 10-minute loop for this session stops here; the owner reviews D88-D91, D95, D96 and D99.
 - 2026-10-07: P9-L1c (#99) landed; P9-L6 built, reviewed, fixed, verified (sign-in by magic link in the real browser) and in PR #102; the final after capture set has every 390 capture at 390 px (Spec 5 §1 width criterion met). Three audit sub-lanes (P9-L9a/b/c) re-scored every screen: dark mode at 5 on every criterion, phone scores up from 1 to 4 on the table pages, five criteria still below 4, all with concrete fixes; D100-D103 ruled under delegation; P9-L10a and L10b launched for the remaining fixes. Phase 10 (the other session) completed meanwhile (#87, #91, #97, #100).
 - 2026-10-07: P9-L6 (#102), P9-L10a (#107) and P9-L10b (#106) landed; Phase 9 complete. Final run on main: Go suite 16 ok, 395 web unit tests, e2e 3 passed, 71 of 71 phone captures at 390 px. The owner's results page is published; D93-D103 await confirmation. The 10-minute loop stopped here.
+- 2026-10-07: Owner asked for demo seeding with fixtures, a root README and a list of pending work, then started a 10-minute loop ("execute phase 11", brainstorming and TDD, spec-driven, recommended decisions). Pending work listed to the owner (P4-L4 credentials, #105, Dependabot #25/#26/#32, 59 decisions to confirm, branch protection, the backlog). Spec 7 and its plan written; D104-D108 ruled under delegation; Phase 11 cut into two lanes; P11-L1 designer launched.
