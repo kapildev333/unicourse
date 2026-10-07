@@ -16,7 +16,6 @@ import (
 	"net/textproto"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/app"
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
@@ -226,19 +225,8 @@ func resetSlug(ctx context.Context, db *sql.DB, slug string, o Options) (warning
 	if err != nil || old == "" {
 		return nil, err
 	}
-	var ids []string
-	if err := o.Files.Walk(func(u, id string, _ time.Time) error {
-		if u == old {
-			ids = append(ids, id)
-		}
-		return nil
-	}); err != nil {
-		warnings = append(warnings, fmt.Sprintf("listing files of the replaced university %s: %v (prune-files --delete removes orphans)", old, err))
-	}
-	for _, id := range ids {
-		if err := o.Files.Remove(old, id); err != nil {
-			warnings = append(warnings, fmt.Sprintf("removing file %s/%s: %v (prune-files --delete removes orphans)", old, id, err))
-		}
+	if err := o.Files.RemoveUniversity(old); err != nil {
+		warnings = append(warnings, fmt.Sprintf("removing the files of the replaced university %s: %v (prune-files --delete removes orphans)", old, err))
 	}
 	return warnings, nil
 }
@@ -465,6 +453,9 @@ func (w *writer) section(c Course, s Section, courseID, a string) error {
 			cw.Write([]string{e, w.names[e]})
 		}
 		cw.Flush()
+		if err := cw.Error(); err != nil {
+			return fmt.Errorf("roster csv of %s: %w", label, err)
+		}
 		var prev struct {
 			Checksum string `json:"checksum"`
 		}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -361,6 +362,12 @@ func TestResetLeavesOtherUniversityAlone(t *testing.T) {
 	}
 	if blobs(gone.UniversityID) != 0 {
 		t.Errorf("old acme blobs left: %d", blobs(gone.UniversityID))
+	}
+	if _, err := os.Stat(filepath.Join(o.Files.Root, gone.UniversityID)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("old acme files directory left: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(o.Files.Root, keep.UniversityID)); err != nil {
+		t.Errorf("northfield files directory: %v", err)
 	}
 }
 
