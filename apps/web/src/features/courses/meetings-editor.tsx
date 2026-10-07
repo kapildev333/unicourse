@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
 import { FormField, inputClass } from '../../components/form-field'
@@ -39,13 +40,18 @@ export function MeetingsEditor(props: {
   sentKeys: string[]
 }) {
   const { rows, onChange, fields, sentKeys } = props
+  const metaRef = useRef<HTMLParagraphElement>(null)
+  // no aria-invalid control for a list-level error, so focus the message itself
+  useEffect(() => {
+    if (fields.meetings) metaRef.current?.focus()
+  }, [fields])
   const set = (i: number, patch: Partial<MeetingRow>) =>
     onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)))
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className="mb-2 text-sm font-medium">Meeting times</legend>
       {fields.meetings && (
-        <p role="alert" className="text-sm text-danger">
+        <p ref={metaRef} tabIndex={-1} role="alert" className="text-sm text-danger">
           {fields.meetings}
         </p>
       )}

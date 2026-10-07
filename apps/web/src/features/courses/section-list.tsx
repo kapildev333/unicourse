@@ -70,26 +70,17 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const [importing, setImporting] = useState(false)
   const [notice, setNotice] = useState('')
 
-  const list = useCursorList<Section>(
-    [slug, 'sections', 'list', { termId: effectiveId }],
-    (cursor) =>
-      unwrap(
-        api.GET('/universities/{slug}/sections', {
-          params: {
-            path: { slug },
-            query: { cursor, limit: 50, termId: effectiveId },
-          },
-        }),
-      ),
+  const list = useCursorList<Section>([slug, 'sections', 'list', { termId: effectiveId }], (cursor) =>
+    unwrap(
+      api.GET('/universities/{slug}/sections', {
+        params: { path: { slug }, query: { cursor, limit: 50, termId: effectiveId } },
+      }),
+    ),
     !!term,
   )
   const del = useMutation({
     mutationFn: (s: Section) =>
-      unwrap(
-        api.DELETE('/universities/{slug}/sections/{id}', {
-          params: { path: { slug, id: s.id } },
-        }),
-      ),
+      unwrap(api.DELETE('/universities/{slug}/sections/{id}', { params: { path: { slug, id: s.id } } })),
     onSuccess: async (_, s) => {
       await refresh([slug, 'my-sections'])
       setDeleting(null)
@@ -111,9 +102,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   let body: React.ReactNode
   if (termsQuery.isPending) body = <Loading />
   else if (termsQuery.error)
-    body = (
-      <ErrorBanner onRetry={() => void termsQuery.refetch()}>{errorMessage(termsQuery.error, listCopy)}</ErrorBanner>
-    )
+    body = <ErrorBanner onRetry={() => void termsQuery.refetch()}>{errorMessage(termsQuery.error, listCopy)}</ErrorBanner>
   else if (!term)
     body = (
       <EmptyState
@@ -210,11 +199,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
       <PageHeader title="Sections" description="Sections of each course in a term." action={actions} />
       <div role="search" className="mb-4">
         <FormField label="Term" name="termId">
-          <select
-            className={`${inputClass} w-64`}
-            value={effectiveId ?? ''}
-            onChange={(e) => onTermChange(e.target.value)}
-          >
+          <select className={`${inputClass} w-64`} value={effectiveId ?? ''} onChange={(e) => onTermChange(e.target.value)}>
             {terms.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name} ({formatDate(t.startsOn)} – {formatDate(t.endsOn)})

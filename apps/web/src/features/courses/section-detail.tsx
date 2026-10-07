@@ -23,11 +23,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
   const q = useQuery<Section, ApiError>({
     queryKey: [slug, 'sections', 'detail', sectionId],
     queryFn: () =>
-      unwrap(
-        api.GET('/universities/{slug}/sections/{id}', {
-          params: { path: { slug, id: sectionId } },
-        }),
-      ),
+      unwrap(api.GET('/universities/{slug}/sections/{id}', { params: { path: { slug, id: sectionId } } })),
   })
   const mine = useMySections(slug).data
   const canList = membership.role === 'admin' || membership.role === 'dept_admin'

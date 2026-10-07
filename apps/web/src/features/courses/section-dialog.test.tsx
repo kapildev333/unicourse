@@ -122,6 +122,7 @@ it('shows the 20-row error and disables Add at 20 rows', async () => {
   expect(screen.getByRole('button', { name: 'Add meeting time' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Create section' }))
   expect(await screen.findByText('Add at most 20 meeting times.')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByText('Add at most 20 meeting times.')).toHaveFocus())
 })
 
 it('edit: removing every row sends meetings []', async () => {

@@ -34,8 +34,7 @@ export function SectionDialog(props: {
 }) {
   const { slug, term, section, onClose, onSaved } = props
   const { membership } = useUniversity()
-  const onlyDept =
-    membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
+  const onlyDept = membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
   const courseData = useAllCourses(slug, onlyDept).data
   const courses = (courseData?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
   const refresh = useRefresh(slug, 'sections')
@@ -106,9 +105,7 @@ export function SectionDialog(props: {
           <FormField
             label="Course"
             name="courseId"
-            hint={
-              courseData?.nextCursor ? 'Showing the first 200 courses. Use Import sections for the others.' : undefined
-            }
+            hint={courseData?.nextCursor ? 'Showing the first 200 courses. Use Import sections for the others.' : undefined}
             error={fields.courseId}
           >
             <select className={inputClass} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
@@ -122,12 +119,7 @@ export function SectionDialog(props: {
           </FormField>
         )}
         <FormField label="Section number" name="number" hint="For example 001." error={fields.number}>
-          <input
-            type="text"
-            className={`${inputClass} font-mono`}
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-          />
+          <input type="text" className={`${inputClass} font-mono`} value={number} onChange={(e) => setNumber(e.target.value)} />
         </FormField>
         <MeetingsEditor rows={rows} onChange={setRows} fields={fields} sentKeys={sentKeys} />
         <div className="flex justify-end gap-2">

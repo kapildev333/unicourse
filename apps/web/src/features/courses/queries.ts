@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '../../api/client'
+import { currentTerm } from '../../lib/schedule'
 
 /** First 200 courses for pickers (ceiling: a search endpoint past 200). */
 export function useAllCourses(slug: string, departmentId?: string) {
@@ -29,12 +30,7 @@ export function todayIso(d = new Date()): string {
 
 type T = { id: string; startsOn: string; endsOn: string }
 
-/** Current term (earliest start if several), else soonest future, else latest-starting, else undefined. */
+/** Current term, else soonest upcoming, else latest-starting, else undefined. */
 export function defaultTermId(terms: T[], today: string): string | undefined {
-  const byStart = [...terms].sort((a, b) => a.startsOn.localeCompare(b.startsOn))
-  return (
-    byStart.find((t) => t.startsOn <= today && today <= t.endsOn) ??
-    byStart.find((t) => t.startsOn > today) ??
-    byStart[byStart.length - 1]
-  )?.id
+  return (currentTerm(terms, today) ?? [...terms].sort((a, b) => a.startsOn.localeCompare(b.startsOn)).at(-1))?.id
 }
