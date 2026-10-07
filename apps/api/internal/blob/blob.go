@@ -113,9 +113,19 @@ func (d Dir) Commit(t Temp, universityID, id string) error {
 		return err
 	}
 	dir := filepath.Join(d.Root, universityID)
-	if err := os.Rename(t.path, filepath.Join(dir, id)); err != nil {
+	final := filepath.Join(dir, id)
+	if err := os.Rename(t.path, final); err != nil {
 		return err
 	}
+	if err := syncDir(dir); err != nil {
+		os.Remove(final) // the temp is gone after the rename; leave neither file behind
+		return err
+	}
+	return nil
+}
+
+// syncDir is a variable so a test can fail it.
+var syncDir = func(dir string) error {
 	df, err := os.Open(dir)
 	if err != nil {
 		return err

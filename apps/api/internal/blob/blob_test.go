@@ -239,3 +239,23 @@ func TestZeroDir(t *testing.T) {
 		t.Error("created in working directory")
 	}
 }
+
+func TestCommitSyncFailureLeavesNothing(t *testing.T) {
+	d := newDir(t)
+	tmp, err := d.Put(uni1, strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := syncDir
+	syncDir = func(string) error { return errBoom }
+	t.Cleanup(func() { syncDir = old })
+	if err := d.Commit(tmp, uni1, idA); !errors.Is(err, errBoom) {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(d.Root, uni1, idA)); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("target left behind")
+	}
+	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 0 {
+		t.Fatalf(".tmp = %v", n)
+	}
+}

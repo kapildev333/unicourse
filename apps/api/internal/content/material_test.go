@@ -2,6 +2,7 @@ package content
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 type zeros struct{}
@@ -381,5 +383,28 @@ func TestMaterialAuthz(t *testing.T) {
 	}
 	if st, _ := e.call(e.Admin, "POST", "/sections/"+e.SectionA+"/weeks/"+"x"+"/materials", nil); st != 404 {
 		t.Errorf("bad week: %d", st)
+	}
+}
+
+func TestMaterialDeleteRollbackKeepsBlob(t *testing.T) {
+	e := newEnv(t)
+	m := e.mustUpload(e.Inst, e.week("W"), "a.pdf", "data", "")
+	// run the handler in a transaction that rolls back afterwards: it must not touch the blob itself
+	rollback := errors.New("rollback")
+	err := pg.WithTx(context.Background(), e.DB, e.Fx.UniversityA, func(tx *sql.Tx) error {
+		r := httptest.NewRequest("DELETE", "/", nil)
+		r.SetPathValue("id", e.SectionA)
+		r.SetPathValue("materialId", m.ID)
+		s := authz.Scope{UniversityID: e.Fx.UniversityA, UserID: e.UserID["inst@a.edu"], Role: authz.Role("member")}
+		if st, body, err := deleteMaterial(e.D.Files)(r, tx, s); err != nil || st != 204 || body == nil {
+			t.Fatalf("handler: %d %v %v", st, body, err)
+		}
+		return rollback
+	})
+	if !errors.Is(err, rollback) {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(e.blobPath(m.ID)); err != nil || e.count(`select count(*) from materials`) != 1 {
+		t.Fatalf("blob or row lost: %v", err)
 	}
 }
