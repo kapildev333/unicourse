@@ -216,9 +216,9 @@ func createInvitation(d Deps) Handler {
 			return 0, nil, httpx.Forbidden()
 		}
 		var in struct {
-			Email         string
-			Role          string
-			DepartmentIDs []string
+			Email         string   `json:"email"`
+			Role          string   `json:"role"`
+			DepartmentIDs []string `json:"departmentIds"`
 		}
 		if err := httpx.DecodeJSON(r, &in); err != nil {
 			return 0, nil, err

@@ -139,7 +139,11 @@ func createCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if plainMember(s) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ DepartmentID, Code, Title string }
+	var in struct {
+		DepartmentID string `json:"departmentId"`
+		Code         string `json:"code"`
+		Title        string `json:"title"`
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
@@ -169,7 +173,9 @@ func updateCourse(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		DepartmentID, Code, Title tenant.OptStr
+		DepartmentID tenant.OptStr `json:"departmentId"`
+		Code         tenant.OptStr `json:"code"`
+		Title        tenant.OptStr `json:"title"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err

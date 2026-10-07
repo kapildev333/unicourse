@@ -200,7 +200,11 @@ func (d Deps) oidcStart(w http.ResponseWriter, r *http.Request) error {
 	if !ok {
 		return httpx.NotFound("provider")
 	}
-	var body struct{ Slug, Email, Next string }
+	var body struct {
+		Slug  string `json:"slug"`
+		Email string `json:"email"`
+		Next  string `json:"next"`
+	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		return err
 	}
@@ -232,7 +236,10 @@ func (d Deps) oidcCallbackHandler(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (d Deps) requestMagicLink(w http.ResponseWriter, r *http.Request) error {
-	var body struct{ Email, Next string }
+	var body struct {
+		Email string `json:"email"`
+		Next  string `json:"next"`
+	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		return err
 	}

@@ -98,7 +98,11 @@ func createTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if !authz.IsAdmin(s) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ Name, StartsOn, EndsOn string }
+	var in struct {
+		Name     string `json:"name"`
+		StartsOn string `json:"startsOn"`
+		EndsOn   string `json:"endsOn"`
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
@@ -124,7 +128,11 @@ func updateTerm(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("term")
 	}
-	var in struct{ Name, StartsOn, EndsOn OptStr }
+	var in struct {
+		Name     OptStr `json:"name"`
+		StartsOn OptStr `json:"startsOn"`
+		EndsOn   OptStr `json:"endsOn"`
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}

@@ -137,7 +137,10 @@ func createStaff(d tenant.Deps) tenant.Handler {
 		if err := allow(authz.CanManageTAs(ctx, tx, s, secID)); err != nil {
 			return 0, nil, err
 		}
-		var in struct{ Email, Role string }
+		var in struct {
+			Email string `json:"email"`
+			Role  string `json:"role"`
+		}
 		if err := httpx.DecodeJSON(r, &in); err != nil {
 			return 0, nil, err
 		}

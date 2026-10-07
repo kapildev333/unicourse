@@ -164,8 +164,8 @@ func updateMembership(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		return 0, nil, httpx.NotFound("membership")
 	}
 	var in struct {
-		Role          string
-		DepartmentIDs []string
+		Role          string   `json:"role"`
+		DepartmentIDs []string `json:"departmentIds"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err

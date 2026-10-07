@@ -202,8 +202,10 @@ func createSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		CourseID, TermID, Number string
-		Meetings                 []MeetingInput
+		CourseID string         `json:"courseId"`
+		TermID   string         `json:"termId"`
+		Number   string         `json:"number"`
+		Meetings []MeetingInput `json:"meetings"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
@@ -247,8 +249,8 @@ func updateSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		Number   tenant.OptStr
-		Meetings *[]MeetingInput
+		Number   tenant.OptStr   `json:"number"`
+		Meetings *[]MeetingInput `json:"meetings"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
