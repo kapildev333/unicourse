@@ -4,6 +4,7 @@ package app
 import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/course"
+	"github.com/kapildev333/unicourse/apps/api/internal/grade"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -23,5 +24,6 @@ func NewRouter(deps Deps) *httpx.Router {
 	td := tenant.Deps{DB: deps.Auth.DB, Sessions: deps.Auth.Sessions, BaseURL: deps.BaseURL}
 	tenant.Register(r, td)
 	course.Register(r, td)
+	grade.Register(r, td)
 	return r
 }
