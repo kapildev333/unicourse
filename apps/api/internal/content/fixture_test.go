@@ -6,8 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
@@ -255,4 +258,100 @@ func (e *env) SectionB() (id string) {
 		return tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,'001') returning id`, e.Fx.UniversityB, e.CourseB, e.TermB).Scan(&id)
 	})
 	return id
+}
+
+// week inserts a week of SectionA by SQL at the next position and returns its id.
+func (e *env) week(title string) (id string) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into weeks (university_id, section_id, title, position)
+			values ($1, $2, $3, (select count(*) + 1 from weeks where section_id = $2)) returning id`, e.Fx.UniversityA, e.SectionA, title).Scan(&id)
+	})
+	return id
+}
+
+// material inserts a material row of a week by SQL (no blob unless the test puts one) at the next position.
+func (e *env) material(weekID, title string) (id string) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into materials (university_id, section_id, week_id, title, file_name, content_type, size_bytes, sha256, position, uploaded_by_user_id)
+			values ($1, $2, $3, $4, 't.pdf', 'application/pdf', 1, repeat('a', 64), (select count(*) + 1 from materials where week_id = $3), $5) returning id`,
+			e.Fx.UniversityA, e.SectionA, weekID, title, e.UserID["inst@a.edu"]).Scan(&id)
+	})
+	return id
+}
+
+// uploadParts posts a multipart body that fn writes through io.Pipe, so nothing is held in memory.
+func (e *env) uploadParts(c *http.Cookie, path string, fn func(mw *multipart.Writer)) (int, []byte) {
+	e.T.Helper()
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	go func() {
+		fn(mw)
+		pw.CloseWithError(mw.Close())
+	}()
+	req, _ := http.NewRequest("POST", e.Srv.URL+root+path, pr)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if c != nil {
+		req.AddCookie(c)
+	}
+	res, err := http.DefaultClient.Do(req)
+	pr.CloseWithError(io.ErrClosedPipe) // unblock the writer if the server answered early
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	return res.StatusCode, raw
+}
+
+// upload posts one file (and a title part unless title is "") to a week of SectionA.
+func (e *env) upload(c *http.Cookie, weekID, fileName string, content io.Reader, title string) (int, []byte) {
+	e.T.Helper()
+	return e.uploadParts(c, "/sections/"+e.SectionA+"/weeks/"+weekID+"/materials", func(mw *multipart.Writer) {
+		if title != "" {
+			mw.WriteField("title", title)
+		}
+		w, err := mw.CreateFormFile("file", fileName)
+		if err == nil {
+			_, _ = io.Copy(w, content)
+		}
+	})
+}
+
+// get requests a path with extra headers and returns the response and its body.
+func (e *env) get(c *http.Cookie, path string, hdr map[string]string) (*http.Response, []byte) {
+	e.T.Helper()
+	req, _ := http.NewRequest("GET", e.Srv.URL+root+path, nil)
+	if c != nil {
+		req.AddCookie(c)
+	}
+	for k, v := range hdr {
+		req.Header.Set(k, v)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	return res, raw
+}
+
+func (e *env) blobPath(id string) string { return filepath.Join(e.D.Files.Root, e.Fx.UniversityA, id) }
+
+// tmpFiles lists the files in <root>/<university>/.tmp.
+func (e *env) tmpFiles() []string {
+	ents, _ := os.ReadDir(filepath.Join(e.D.Files.Root, e.Fx.UniversityA, ".tmp"))
+	var out []string
+	for _, f := range ents {
+		out = append(out, f.Name())
+	}
+	return out
+}
+
+func (e *env) count(q string, args ...any) (n int) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error { return tx.QueryRow(q, args...).Scan(&n) })
+	return
 }

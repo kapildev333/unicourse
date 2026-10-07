@@ -95,6 +95,8 @@ func TestPutCommitOpen(t *testing.T) {
 	}
 }
 
+var errBoom = errors.New("boom")
+
 type errReader struct{ n int }
 
 func (e *errReader) Read(p []byte) (int, error) {
@@ -102,13 +104,13 @@ func (e *errReader) Read(p []byte) (int, error) {
 		e.n = 1
 		return copy(p, "ab"), nil
 	}
-	return 0, errors.New("boom")
+	return 0, errBoom
 }
 
 func TestPutReadErrorCleansUp(t *testing.T) {
 	d := newDir(t)
 	_, err := d.Put(uni1, &errReader{})
-	if err == nil || !strings.Contains(err.Error(), "boom") {
+	if err == nil || !errors.Is(err, errBoom) {
 		t.Fatalf("err = %v", err)
 	}
 	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 0 {
@@ -235,5 +237,25 @@ func TestZeroDir(t *testing.T) {
 	}
 	if _, err := os.Stat(uni1); err == nil {
 		t.Error("created in working directory")
+	}
+}
+
+func TestCommitSyncFailureLeavesNothing(t *testing.T) {
+	d := newDir(t)
+	tmp, err := d.Put(uni1, strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := syncDir
+	syncDir = func(string) error { return errBoom }
+	t.Cleanup(func() { syncDir = old })
+	if err := d.Commit(tmp, uni1, idA); !errors.Is(err, errBoom) {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(d.Root, uni1, idA)); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("target left behind")
+	}
+	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 0 {
+		t.Fatalf(".tmp = %v", n)
 	}
 }

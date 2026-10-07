@@ -5,10 +5,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
@@ -230,5 +235,132 @@ func TestCreateUniversitySeedsScale(t *testing.T) {
 	want := "A 93.00 4.00,A- 90.00 3.70,B+ 87.00 3.30,B 83.00 3.00,B- 80.00 2.70,C+ 77.00 2.30,C 73.00 2.00,C- 70.00 1.70,D+ 67.00 1.30,D 63.00 1.00,D- 60.00 0.70,F 0.00 0.00"
 	if strings.Join(got, ",") != want {
 		t.Fatalf("scale = %v", got)
+	}
+}
+
+func TestPruneFiles(t *testing.T) {
+	_, db := testdb.OpenWithOwner(t)
+	if code, _, errOut := admin(t, db, create()...); code != 0 {
+		t.Fatalf("create: %d %s", code, errOut)
+	}
+	var uni, user string
+	if err := db.QueryRow(`select id from universities where slug = 'example'`).Scan(&uni); err != nil {
+		t.Fatal(err)
+	}
+	if err := pg.WithPlatformTx(context.Background(), db, func(tx *sql.Tx) error {
+		return tx.QueryRow(`insert into users (email) values ('u@example.edu') returning id`).Scan(&user)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	files, err := blob.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put := func(id string) {
+		tmp, err := files.Put(uni, strings.NewReader("x"))
+		if err == nil {
+			err = files.Commit(tmp, uni, id)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	var good, gone string
+	err = pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
+		var dept, course, term, sec, wk string
+		if err := tx.QueryRow(`insert into departments (university_id, name, code) values ($1, 'D', 'D') returning id`, uni).Scan(&dept); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into terms (university_id, name, starts_on, ends_on) values ($1, 'T', '2026-09-01', '2026-12-01') returning id`, uni).Scan(&term); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into courses (university_id, department_id, code, title) values ($1, $2, 'C1', 'C') returning id`, uni, dept).Scan(&course); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1, $2, $3, '1') returning id`, uni, course, term).Scan(&sec); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into weeks (university_id, section_id, title, position) values ($1, $2, 'W', 1) returning id`, uni, sec).Scan(&wk); err != nil {
+			return err
+		}
+		for i, dst := range []*string{&good, &gone} {
+			if err := tx.QueryRow(`insert into materials (university_id, section_id, week_id, title, file_name, content_type, size_bytes, sha256, position, uploaded_by_user_id)
+				values ($1, $2, $3, 'T', 't.pdf', 'application/pdf', 1, repeat('a', 64), $4, $5) returning id`, uni, sec, wk, i+1, user).Scan(dst); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oldID, newID = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"
+	put(good)
+	put(oldID)
+	put(newID)
+	twoHours := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(filepath.Join(root, uni, oldID), twoHours, twoHours); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := files.Put(uni, strings.NewReader("x")); err != nil { // a .tmp file
+		t.Fatal(err)
+	}
+	run := func(args ...string) (int, string, string) {
+		var o, e bytes.Buffer
+		envf := func(k string) string {
+			if k == "UNICOURSE_FILES_DIR" {
+				return root
+			}
+			return ""
+		}
+		code := runCmd(args, envf, db, &o, &e)
+		return code, o.String(), e.String()
+	}
+	exists := func(id string) bool { _, err := os.Stat(filepath.Join(root, uni, id)); return err == nil }
+
+	code, out, errOut := run("prune-files")
+	want := "orphan " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n1 orphan file, 1 missing file\n"
+	if code != 0 || out != want || errOut != "" || !exists(oldID) {
+		t.Fatalf("list: %d %q %q", code, out, errOut)
+	}
+	code, out, errOut = run("prune-files", "--delete")
+	want = "removed " + uni + "/" + oldID + "\nmissing " + uni + "/" + gone + "\n1 orphan file removed, 1 missing file\n"
+	if code != 0 || out != want || errOut != "" {
+		t.Fatalf("delete: %d %q %q", code, out, errOut)
+	}
+	if exists(oldID) || !exists(newID) || !exists(good) {
+		t.Fatalf("old %v new %v good %v", exists(oldID), exists(newID), exists(good))
+	}
+	if ents, _ := os.ReadDir(filepath.Join(root, uni, ".tmp")); len(ents) != 1 {
+		t.Fatalf(".tmp = %v", ents)
+	}
+	if n := count(t, db, `select count(*) from materials`); n != 2 {
+		t.Fatalf("rows touched: %d", n)
+	}
+}
+
+func runCmd(args []string, env func(string) string, db *sql.DB, o, e io.Writer) int {
+	return run(context.Background(), args, env, func() (*sql.DB, error) { return db, nil }, o, e)
+}
+
+func TestPruneFilesUsage(t *testing.T) {
+	open := func() (*sql.DB, error) { return nil, errors.New("database opened") }
+	dir := t.TempDir()
+	for _, c := range []struct {
+		args []string
+		root string
+		code int
+		msg  string
+	}{
+		{[]string{"prune-files", "extra"}, dir, 2, "unexpected argument"},
+		{[]string{"prune-files"}, "", 2, "UNICOURSE_FILES_DIR is not set"},
+		{[]string{"prune-files"}, filepath.Join(dir, "missing"), 1, "UNICOURSE_FILES_DIR"},
+	} {
+		var o, e bytes.Buffer
+		envf := func(string) string { return c.root }
+		if code := run(context.Background(), c.args, envf, open, &o, &e); code != c.code || !strings.Contains(e.String(), c.msg) || strings.Contains(e.String(), "database opened") {
+			t.Errorf("%v: code %d, stderr %q", c.args, code, e.String())
+		}
 	}
 }

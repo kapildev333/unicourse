@@ -17,7 +17,7 @@ type annJSON struct {
 	Emailed   bool   `json:"emailed"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
-	Author    struct{ UserID, DisplayName string }
+	Author    struct{ UserID, DisplayName, Email string }
 }
 
 func (e *env) post(c any, title string, extra map[string]any) (int, []byte) {
@@ -32,7 +32,7 @@ func TestAnnouncementCRUD(t *testing.T) {
 	e := newEnv(t)
 	st, raw := e.post("inst", "Hello", nil)
 	var a annJSON
-	if st != 201 || json.Unmarshal(raw, &a) != nil || !a.Emailed || a.Author.UserID != e.UserID["inst@a.edu"] || a.Author.DisplayName != "N inst@a.edu" || a.CreatedAt != a.UpdatedAt {
+	if st != 201 || json.Unmarshal(raw, &a) != nil || !a.Emailed || a.Author.UserID != e.UserID["inst@a.edu"] || a.Author.DisplayName != "N inst@a.edu" || a.Author.Email != "inst@a.edu" || a.CreatedAt != a.UpdatedAt {
 		t.Fatalf("create: %d %s", st, raw)
 	}
 	p := "/sections/" + e.SectionA + "/announcements/" + a.ID
@@ -165,7 +165,11 @@ func TestAnnouncementMail(t *testing.T) {
 		if err := tx.QueryRow(`insert into invitations (university_id, email, role, token_hash, expires_at) values ($1, 'invitee@a.edu', 'member', sha256('i'::bytea), now() + interval '1 day') returning id`, e.Fx.UniversityA).Scan(&inv); err != nil {
 			return err
 		}
-		_, err := tx.Exec(`insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, e.Fx.UniversityA, inv, e.SectionA)
+		if _, err := tx.Exec(`insert into pending_enrollments (university_id, invitation_id, section_id) values ($1, $2, $3)`, e.Fx.UniversityA, inv, e.SectionA); err != nil {
+			return err
+		}
+		// stud is both enrolled and staff: mailed once
+		_, err := tx.Exec(`insert into section_staff (university_id, section_id, user_id, role) values ($1, $2, $3, 'ta')`, e.Fx.UniversityA, e.SectionA, e.UserID["stud@a.edu"])
 		return err
 	})
 	st, raw := e.post("inst", "Midterm moved", map[string]any{"body": "Room 101"})
@@ -185,6 +189,23 @@ func TestAnnouncementMail(t *testing.T) {
 	want := "Room 101\n\nPosted by N inst@a.edu in CS101 Intro to Programming, " + e.TermName + "\nhttp://localhost/a/sections/" + e.SectionA + "/announcements\n"
 	if m.Subject != "[CS101-001] Midterm moved" || m.Body != want || m.Urgent {
 		t.Fatalf("mail %+v\nwant body %q", m, want)
+	}
+}
+
+func TestAnnouncementMailSkipsRemovedMember(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`delete from memberships where user_id = $1`, e.UserID["stud@a.edu"])
+		return err
+	})
+	if st, raw := e.post("inst", "Hi", nil); st != 201 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if n := len(e.mails("stud@a.edu")); n != 0 {
+		t.Fatalf("removed member got %d mails", n)
+	}
+	if n := len(e.mails("stud2@a.edu")); n != 1 {
+		t.Fatalf("active student got %d mails", n)
 	}
 }
 

@@ -32,6 +32,12 @@ type Raw struct {
 	Body                  []byte
 }
 
+// After is a handler body that Wrap runs once the transaction has committed, instead of writing JSON.
+// It writes the whole response (status included). An error it returns goes to the error envelope, so it
+// must return before writing anything when it fails. Its request carries the scope (authz.ScopeFromContext).
+// Used for file downloads, uploads (streamed outside the request transaction) and blob removal after deletes.
+type After func(w http.ResponseWriter, r *http.Request) error
+
 // UniversityID is the request's university, "" outside Wrap.
 func UniversityID(ctx context.Context) string {
 	s, _ := authz.ScopeFromContext(ctx)
@@ -61,6 +67,7 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 		var (
 			status int
 			body   any
+			sr     *http.Request
 		)
 		err = pg.WithTx(ctx, d.DB, uniID, func(tx *sql.Tx) error {
 			// RLS limits memberships to uniID, so the same user's membership elsewhere is invisible.
@@ -80,11 +87,15 @@ func Wrap(d Deps, h Handler) httpx.Handler {
 				return err
 			}
 			s := authz.Scope{UniversityID: uniID, UserID: a.UserID, Role: authz.Role(role), DeptIDs: deptIDs}
-			status, body, err = h(r.WithContext(authz.WithScope(ctx, s)), tx, s)
+			sr = r.WithContext(authz.WithScope(ctx, s))
+			status, body, err = h(sr, tx, s)
 			return err
 		})
 		if err != nil {
 			return err
+		}
+		if f, ok := body.(After); ok {
+			return f(w, sr)
 		}
 		if body == nil {
 			w.WriteHeader(status)

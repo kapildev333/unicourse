@@ -36,11 +36,11 @@ func (a announcement) audit() announcementAudit {
 	return announcementAudit{a.ID, a.SectionID, a.Title, a.Body, a.Emailed}
 }
 
-const announcementCols = `a.id, a.section_id, a.title, a.body, a.author_user_id, u.display_name, a.emailed, a.created_at, a.updated_at`
+const announcementCols = `a.id, a.section_id, a.title, a.body, a.author_user_id, u.display_name, u.email, a.emailed, a.created_at, a.updated_at`
 const announcementFrom = ` from announcements a join users u on u.id = a.author_user_id`
 
 func scanAnnouncement(sc interface{ Scan(...any) error }) (a announcement, err error) {
-	err = sc.Scan(&a.ID, &a.SectionID, &a.Title, &a.Body, &a.Author.UserID, &a.Author.DisplayName, &a.Emailed, &a.CreatedAt, &a.UpdatedAt)
+	err = sc.Scan(&a.ID, &a.SectionID, &a.Title, &a.Body, &a.Author.UserID, &a.Author.DisplayName, &a.Author.Email, &a.Emailed, &a.CreatedAt, &a.UpdatedAt)
 	a.CreatedAt, a.UpdatedAt = a.CreatedAt.UTC(), a.UpdatedAt.UTC()
 	return
 }

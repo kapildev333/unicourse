@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
@@ -213,5 +214,63 @@ func TestWrapRaw(t *testing.T) {
 	if res.StatusCode != 200 || string(b) != "a,b\n1,2\n" || res.Header.Get("Content-Type") != "text/csv; charset=utf-8" ||
 		res.Header.Get("Content-Disposition") != `attachment; filename="gradebook.csv"` {
 		t.Fatalf("%d %q %v", res.StatusCode, b, res.Header)
+	}
+}
+
+func TestWrapAfter(t *testing.T) {
+	var ran atomic.Bool
+	var scopeUser, visible string
+	insert := func(tx *sql.Tx, s authz.Scope, code string) error {
+		_, err := tx.Exec(`insert into departments (university_id, name, code) values ($1, $2, $2)`, s.UniversityID, code)
+		return err
+	}
+	e := newServer(t, func(r *httpx.Router, d Deps) {
+		h := func(path string, f func(tx *sql.Tx, s authz.Scope) (int, any, error)) {
+			r.Handle("POST", "/api/v1/universities/{slug}/"+path, Wrap(d, func(_ *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) { return f(tx, s) }))
+		}
+		h("ok", func(tx *sql.Tx, s authz.Scope) (int, any, error) {
+			if err := insert(tx, s, "AFT1"); err != nil {
+				return 0, nil, err
+			}
+			return 200, After(func(w http.ResponseWriter, r *http.Request) error {
+				sc, _ := authz.ScopeFromContext(r.Context())
+				scopeUser = sc.UserID
+				// the handler's row is committed: a new transaction sees it
+				err := pg.WithTx(r.Context(), d.DB, s.UniversityID, func(tx *sql.Tx) error {
+					return tx.QueryRow(`select code from departments where code = 'AFT1'`).Scan(&visible)
+				})
+				if err != nil {
+					return err
+				}
+				w.WriteHeader(http.StatusAccepted)
+				_, _ = w.Write([]byte("x"))
+				return nil
+			}), nil
+		})
+		h("both", func(tx *sql.Tx, s authz.Scope) (int, any, error) {
+			if err := insert(tx, s, "AFT2"); err != nil {
+				return 0, nil, err
+			}
+			return 200, After(func(http.ResponseWriter, *http.Request) error { ran.Store(true); return nil }), errors.New("boom")
+		})
+		h("conflict", func(tx *sql.Tx, s authz.Scope) (int, any, error) {
+			if err := insert(tx, s, "AFT3"); err != nil {
+				return 0, nil, err
+			}
+			return 200, After(func(http.ResponseWriter, *http.Request) error { return httpx.Conflict("c") }), nil
+		})
+	})
+	uid, c := e.user(e.Fx.UniversityA, "aft@a.edu", "admin", "active")
+	st, raw := e.do(c, "POST", "/api/v1/universities/a/ok", nil)
+	if st != 202 || string(raw) != "x" || visible != "AFT1" || scopeUser != uid || e.deptCount("AFT1") != 1 {
+		t.Fatalf("ok: %d %q visible=%q scope=%q", st, raw, visible, scopeUser)
+	}
+	st, raw = e.do(c, "POST", "/api/v1/universities/a/both", nil)
+	if code, _ := errBody(raw); st != 500 || code == "" || ran.Load() || e.deptCount("AFT2") != 0 {
+		t.Fatalf("both: %d %s ran=%v", st, raw, ran.Load())
+	}
+	st, raw = e.do(c, "POST", "/api/v1/universities/a/conflict", nil)
+	if code, _ := errBody(raw); st != 409 || code != "conflict" || e.deptCount("AFT3") != 1 {
+		t.Fatalf("conflict: %d %s", st, raw)
 	}
 }

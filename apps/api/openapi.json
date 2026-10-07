@@ -5600,11 +5600,18 @@
             "type": "string",
             "example": "Dana Reyes",
             "description": "Empty when the user has not set a name."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dana.reyes@example.edu",
+            "description": "Shown when displayName is empty."
           }
         },
         "required": [
           "userId",
-          "displayName"
+          "displayName",
+          "email"
         ]
       },
       "SectionDescriptionUpdate": {

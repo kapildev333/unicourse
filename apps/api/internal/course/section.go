@@ -9,6 +9,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
@@ -296,22 +297,45 @@ func updateSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	return http.StatusOK, sec, err
 }
 
-func deleteSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	before, dept, err := loadForWrite(r, tx, r.PathValue("id"))
-	if err != nil {
-		return 0, nil, err
-	}
-	if !authz.CanManageDepartment(s, dept) {
-		return 0, nil, httpx.Forbidden()
-	}
-	if _, err := tx.ExecContext(r.Context(), `delete from sections where id = $1`, before.ID); err != nil {
-		if err = pg.MapDeleteError(err); errors.Is(err, pg.ErrConflict) {
-			return 0, nil, httpx.Conflict("section has final grades")
+func deleteSection(files blob.Dir) tenant.Handler {
+	return func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+		before, dept, err := loadForWrite(r, tx, r.PathValue("id"))
+		if err != nil {
+			return 0, nil, err
 		}
-		return 0, nil, err
+		if !authz.CanManageDepartment(s, dept) {
+			return 0, nil, httpx.Forbidden()
+		}
+		// the cascade removes the material rows; their files go after the commit
+		ids := []string{}
+		rows, err := tx.QueryContext(r.Context(), `select id::text from materials where section_id = $1`, before.ID)
+		if err != nil {
+			return 0, nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return 0, nil, err
+			}
+			ids = append(ids, id)
+		}
+		if err := rows.Err(); err != nil {
+			return 0, nil, err
+		}
+		if _, err := tx.ExecContext(r.Context(), `delete from sections where id = $1`, before.ID); err != nil {
+			if err = pg.MapDeleteError(err); errors.Is(err, pg.ErrConflict) {
+				return 0, nil, httpx.Conflict("section has final grades")
+			}
+			return 0, nil, err
+		}
+		if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.delete", EntityType: "section", EntityID: before.ID, Before: before}); err != nil {
+			return 0, nil, err
+		}
+		return http.StatusNoContent, tenant.After(func(w http.ResponseWriter, _ *http.Request) error {
+			files.Discard(s.UniversityID, ids...)
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		}), nil
 	}
-	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.delete", EntityType: "section", EntityID: before.ID, Before: before}); err != nil {
-		return 0, nil, err
-	}
-	return http.StatusNoContent, nil, nil
 }
