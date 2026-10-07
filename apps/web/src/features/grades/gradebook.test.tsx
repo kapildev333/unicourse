@@ -344,7 +344,25 @@ it('Finalize grades is disabled with its reason until weights total 100', async 
   renderPage('instructor')
   const btn = await screen.findByRole('button', { name: 'Finalize grades' })
   expect(btn).toBeDisabled()
-  expect(screen.getByText('Assessment weights must total 100%.')).toBeInTheDocument()
+  expect(screen.getByText('Weights must total 100% to finalize. They total 90%.')).toBeInTheDocument()
+  expect(btn).toHaveAccessibleDescription('Weights must total 100% to finalize. They total 90%.')
+})
+
+it('Finalize grades says there are no students to grade', async () => {
+  renderPage('instructor', {}, { ...book([]), stats: { letters: {} } })
+  await screen.findByRole('button', { name: 'Finalize grades' })
+  expect(screen.getByText('No students to grade.')).toBeInTheDocument()
+})
+
+it('the sticky Student cells keep their surface on row hover', async () => {
+  renderPage('instructor')
+  expect(await screen.findByRole('rowheader', { name: /Erin Moe/ })).toHaveClass('bg-surface!')
+})
+
+it('Finalize grades says to add assessments when there are none', async () => {
+  renderPage('instructor', {}, { ...book(), assessments: [] })
+  await screen.findByRole('button', { name: 'Finalize grades' })
+  expect(screen.getByText('Add assessments before you finalize.')).toBeInTheDocument()
 })
 
 it('Finalize grades opens the dialog when weights total 100', async () => {

@@ -222,10 +222,12 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   const finalizeBlock = !scale
     ? 'Loading the grade scale…'
     : students.length === 0
-      ? 'No students are enrolled.'
-      : !totalsHundred(assessments)
-        ? 'Assessment weights must total 100%.'
-        : ''
+      ? 'No students to grade.'
+      : assessments.length === 0
+        ? 'Add assessments before you finalize.'
+        : !totalsHundred(assessments)
+          ? `Weights must total 100% to finalize. They total ${fmtNum(weightTotal(assessments))}%.`
+          : ''
 
   // ---- cell state (design 3.3) ----
   const setDraft = (k: string, draft: string) =>
@@ -501,7 +503,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 <th
                   scope="row"
                   title={personName(s)}
-                  className={`sticky left-0 z-10 bg-surface font-bold ${capName}`}
+                  className={`sticky left-0 z-10 bg-surface! font-bold ${capName}`}
                 >
                   {personName(s)}
                   {s.displayName && <span className="block truncate text-xs font-normal text-ink-muted">{s.email}</span>}
