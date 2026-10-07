@@ -19,7 +19,7 @@ func TestCourseTruthTable(t *testing.T) {
 		list, read, writeIn int
 	}{
 		{"admin", 200, 0, 201}, {"dain", 200, 0, 201}, {"daout", 200, 0, 403},
-		{"inst", 403, 0, 403}, {"ta", 403, 0, 403}, {"stud", 403, 0, 403}, {"other", 403, 0, 403},
+		{"inst", 200, 0, 403}, {"ta", 200, 0, 403}, {"stud", 200, 0, 403}, {"other", 200, 0, 403},
 	} {
 		ck := map[string]*http.Cookie{"admin": e.Admin, "dain": e.DaIn, "daout": e.DaOut, "inst": e.Inst, "ta": e.TA, "stud": e.Stud, "other": e.Other}[c.who]
 		if st, raw := e.call(ck, "GET", "/courses", nil); st != c.list {

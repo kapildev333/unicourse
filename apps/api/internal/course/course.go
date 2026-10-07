@@ -87,9 +87,6 @@ func loadCourse(r *http.Request, tx *sql.Tx, id string) (Course, error) {
 }
 
 func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	if plainMember(s) {
-		return 0, nil, httpx.Forbidden()
-	}
 	p, after, afterID, err := tenant.Page(r)
 	if err != nil {
 		return 0, nil, err
