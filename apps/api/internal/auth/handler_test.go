@@ -6,10 +6,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -35,9 +37,9 @@ type hx struct {
 	iss  *fakeIssuer
 }
 
-func newHX(t *testing.T) *hx { return newHXLimit(t, 100) }
+func newHX(t *testing.T) *hx { return newHXLimit(t, 100, 300) }
 
-func newHXLimit(t *testing.T, perEmail int) *hx {
+func newHXLimit(t *testing.T, perEmail, perIP int) *hx {
 	t.Helper()
 	db := testdb.Open(t)
 	x := &hx{t: t, db: db, fx: testdb.Seed(t, db), logs: &bytes.Buffer{}, iss: newFakeIssuer(t)}
@@ -48,16 +50,30 @@ func newHXLimit(t *testing.T, perEmail int) *hx {
 	x.d = Deps{
 		DB: db, Sessions: &SessionStore{DB: db}, Providers: map[string]Provider{"google": p}, Secret: testSecret, WebBase: webBase,
 		Magic:      &MagicLinks{DB: db, BaseURL: "http://api.test"},
-		EmailLimit: NewLimiter(perEmail, time.Hour), IPLimit: NewLimiter(300, time.Hour),
+		EmailLimit: NewLimiter(perEmail, time.Hour), IPLimit: NewLimiter(perIP, time.Hour),
 	}
 	rt := httpx.NewRouter()
 	Register(rt, x.d)
-	x.h = httpx.RequestIDMiddleware(httpx.LogMiddleware(slog.New(slog.NewJSONHandler(x.logs, nil)), httpx.Recover(rt)))
+	// httptest requests come from 192.0.2.1: the harness models "behind a trusted proxy".
+	x.h = httpx.ClientIPMiddleware([]netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
+		httpx.RequestIDMiddleware(httpx.LogMiddleware(slog.New(slog.NewJSONHandler(x.logs, nil)), httpx.Recover(rt))))
 	return x
 }
 
 func (x *hx) do(method, path, body string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	return x.doH(method, path, body, nil, cookies...)
+}
+
+// from sends a request with the given socket peer and, when non-empty, X-Forwarded-For.
+func (x *hx) from(remote, xff, method, path, body string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.RemoteAddr = remote
+	if xff != "" {
+		r.Header.Set("X-Forwarded-For", xff)
+	}
+	w := httptest.NewRecorder()
+	x.h.ServeHTTP(w, r)
+	return w
 }
 
 func (x *hx) doH(method, path, body string, hdr map[string]string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -198,7 +214,7 @@ func TestMagicLinkNext(t *testing.T) {
 }
 
 func TestMagicLinkRateLimit(t *testing.T) {
-	x := newHXLimit(t, 5)
+	x := newHXLimit(t, 5, 300)
 	for i := 0; i < 5; i++ {
 		if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"admin@a.edu"}`); w.Code != 202 {
 			t.Fatalf("request %d: %d", i, w.Code)
@@ -210,6 +226,48 @@ func TestMagicLinkRateLimit(t *testing.T) {
 	}
 	if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"other@a.edu"}`); w.Code != 202 {
 		t.Fatalf("other email: %d", w.Code)
+	}
+}
+
+func TestIPLimitPerClientBehindProxy(t *testing.T) {
+	x := newHXLimit(t, 100, 1)
+	n := 0
+	ml := func(remote, xff string) *httptest.ResponseRecorder {
+		n++
+		return x.from(remote, xff, "POST", "/api/v1/auth/magic-link", fmt.Sprintf(`{"email":"nobody%d@nowhere.test"}`, n))
+	}
+	if w := ml("192.0.2.1:1", "203.0.113.1"); w.Code != 202 {
+		t.Fatalf("first: %d", w.Code)
+	}
+	if w := ml("192.0.2.1:1", "203.0.113.1"); w.Code != 429 || !strings.Contains(w.Body.String(), `"code":"rate_limited"`) {
+		t.Fatalf("again: %d %s", w.Code, w.Body)
+	}
+	if w := ml("192.0.2.1:1", "203.0.113.2"); w.Code != 202 {
+		t.Fatalf("second client: %d", w.Code)
+	}
+	if w := ml("198.51.100.1:1", "203.0.113.3"); w.Code != 202 {
+		t.Fatalf("untrusted first: %d", w.Code)
+	}
+	if w := ml("198.51.100.1:1", "203.0.113.4"); w.Code != 429 {
+		t.Fatalf("untrusted second: %d", w.Code)
+	}
+}
+
+func TestOIDCStartRateLimit(t *testing.T) {
+	x := newHXLimit(t, 100, 1)
+	const path = "/api/v1/auth/oidc/google/start"
+	if w := x.do("POST", path, `{"slug":"a"}`); w.Code != 200 {
+		t.Fatalf("first: %d %s", w.Code, w.Body)
+	}
+	w := x.do("POST", path, `{"slug":"a"}`)
+	if w.Code != 429 || !strings.Contains(w.Body.String(), `"code":"rate_limited"`) || cookieNamed(w, oidcCookie) != nil {
+		t.Fatalf("second: %d %s", w.Code, w.Body)
+	}
+	if w := x.do("POST", path, `{}`); w.Code != 400 {
+		t.Fatalf("validation first: %d", w.Code)
+	}
+	if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"nobody@nowhere.test"}`); w.Code != 202 {
+		t.Fatalf("magic link bucket: %d", w.Code)
 	}
 }
 

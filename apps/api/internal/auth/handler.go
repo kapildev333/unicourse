@@ -7,7 +7,6 @@ import (
 	"errors"
 	"html/template"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -26,7 +25,9 @@ type Deps struct {
 	Providers map[string]Provider
 	Secret    []byte
 	WebBase   string // cfg.WebOrigin if set, else cfg.BaseURL; browser redirects land here
-	// EmailLimit and IPLimit guard POST /auth/magic-link (5 per email, 300 per IP, per hour).
+	// ponytail: limiter is in memory per process (N processes allow N x 300/h); Postgres-backed buckets if more than one runs.
+	// IPLimit guards POST /auth/magic-link and POST /auth/oidc/{provider}/start (300 per client address per
+	// hour, a separate bucket per endpoint); EmailLimit guards the magic link (5 per email per hour).
 	EmailLimit, IPLimit *Limiter
 }
 
@@ -218,6 +219,9 @@ func (d Deps) oidcStart(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 	}
+	if !d.IPLimit.Allow("oidc-ip:" + httpx.ClientIP(r)) {
+		return httpx.RateLimited()
+	}
 	authURL, cookie, err := p.begin(d.Secret, body.Slug, email, safeNext(body.Next), time.Now())
 	if err != nil {
 		return err
@@ -247,11 +251,7 @@ func (d Deps) requestMagicLink(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if !d.IPLimit.Allow("ip:"+host) || !d.EmailLimit.Allow("email:"+email) {
+	if !d.IPLimit.Allow("ip:"+httpx.ClientIP(r)) || !d.EmailLimit.Allow("email:"+email) {
 		return httpx.RateLimited()
 	}
 	if err := d.Magic.Send(r.Context(), email, safeNext(body.Next)); err != nil {

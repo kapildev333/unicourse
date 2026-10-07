@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,7 +21,7 @@ import (
 
 // newHandler builds the routed, middleware-wrapped handler; ready backs /readyz and api (may be nil)
 // serves everything under /api/v1/. web (may be nil) serves the built web app at /; nil answers the 404 envelope.
-func newHandler(logger *slog.Logger, ready func(context.Context) error, api, web http.Handler) http.Handler {
+func newHandler(logger *slog.Logger, trusted []netip.Prefix, ready func(context.Context) error, api, web http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	health := httpx.Health(ready)
 	mux.Handle("GET /healthz", health)
@@ -32,7 +33,7 @@ func newHandler(logger *slog.Logger, ready func(context.Context) error, api, web
 		web = httpx.H(func(w http.ResponseWriter, r *http.Request) error { return httpx.NotFound("route") })
 	}
 	mux.Handle("/", web)
-	return httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, httpx.Recover(mux)))
+	return httpx.ClientIPMiddleware(trusted, httpx.RequestIDMiddleware(httpx.LogMiddleware(logger, httpx.Recover(mux))))
 }
 
 // authDeps builds the auth wiring: providers whose client id is unset are absent. wake nudges the
@@ -104,7 +105,7 @@ func main() {
 		}
 	}
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, db.PingContext, api, web), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, cfg.TrustedProxies, db.PingContext, api, web), ReadHeaderTimeout: 5 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)

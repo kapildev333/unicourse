@@ -34,6 +34,8 @@ func trustedAddr(a netip.Addr, trusted []netip.Prefix) bool {
 	return false
 }
 
+// ponytail: only X-Forwarded-For (not Forwarded, CF-Connecting-IP); IPv6 keyed per address, not per /64;
+// clients inside a trusted range can pick their own key. Add headers or /64 masking when a deployment needs it.
 // clientIP: the connection address unless it is a trusted proxy; then the rightmost
 // X-Forwarded-For hop that is not itself trusted (a client can only prepend entries,
 // so it cannot choose that hop). All hops trusted: the leftmost hop. Malformed hop
