@@ -1,0 +1,249 @@
+{
+  "university": {"name": "Northfield University", "slug": "northfield", "timezone": "America/New_York", "locale": "en-US"},
+  "departments": [
+    {"name": "Computer Science", "code": "CS"},
+    {"name": "Mathematics", "code": "MATH"},
+    {"name": "Economics", "code": "ECON"},
+    {"name": "Biology", "code": "BIO"}
+  ],
+  "terms": [
+    {"name": "Academic Year <year>", "startsOn": "<year>-01-01", "endsOn": "<year>-12-31"},
+    {"name": "Spring <year+1>", "startsOn": "<year+1>-01-12", "endsOn": "<year+1>-05-15"}
+  ],
+  "people": [
+    {"email": "registrar@<domain>", "displayName": "Renata Quinn", "role": "admin"},
+    {"email": "owen.park@<domain>", "displayName": "Owen Park", "role": "dept_admin", "departments": ["CS"]},
+    {"email": "elena.marsh@<domain>", "displayName": "Elena Marsh", "role": "member"},
+    {"email": "david.mensah@<domain>", "displayName": "David Mensah", "role": "member"},
+    {"email": "sofia.alvarez@<domain>", "displayName": "Sofia Alvarez", "role": "member"},
+    {"email": "amara.okafor@<domain>", "displayName": "Amara Okafor", "role": "member"},
+    {"email": "priya.raman@<domain>", "displayName": "Priya Raman", "role": "member"},
+    {"email": "tomasz.zielinski@<domain>", "displayName": "Tomasz Zielinski", "role": "member"},
+    {"email": "daniel.reyes@<domain>", "displayName": "Daniel Reyes", "role": "member"},
+    {"email": "mei-ling.chou@<domain>", "displayName": "Mei-Ling Chou", "role": "member"},
+    {"email": "jonas.berg@<domain>", "displayName": "Jonas Berg", "role": "member"},
+    {"email": "fatima.alsayed@<domain>", "displayName": "Fatima Al-Sayed", "role": "member"},
+    {"email": "lucas.moreau@<domain>", "displayName": "Lucas Moreau", "role": "member"},
+    {"email": "ingrid.larsen@<domain>", "displayName": "Ingrid Larsen", "role": "member", "invited": true}
+  ],
+  "courses": [
+    {
+      "as": "owen.park@<domain>",
+      "departmentCode": "CS", "code": "CS101", "title": "Introduction to Computer Science", "credits": 4,
+      "sections": [
+        {
+          "term": "Academic Year <year>", "number": "001",
+          "meetings": [
+            {"weekday": 1, "startsAt": "10:00", "endsAt": "11:20", "location": "Hall B 204"},
+            {"weekday": 3, "startsAt": "10:00", "endsAt": "11:20", "location": "Hall B 204"}
+          ],
+          "staff": [
+            {"email": "elena.marsh@<domain>", "role": "instructor"},
+            {"email": "sofia.alvarez@<domain>", "role": "ta"}
+          ],
+          "roster": ["amara.okafor@<domain>", "priya.raman@<domain>", "tomasz.zielinski@<domain>", "daniel.reyes@<domain>", "mei-ling.chou@<domain>", "jonas.berg@<domain>", "fatima.alsayed@<domain>", "lucas.moreau@<domain>"],
+          "description": "A first course in programming and computational thinking. We write small Python programs every week, then build up to data, functions and testing.\n\nLectures Monday and Wednesday in Hall B 204. Office hours are posted in Week 1.",
+          "assessments": [
+            {"name": "Midterm Exam", "maxPoints": 100, "weight": 40, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 87.5},
+              {"student": "priya.raman@<domain>", "points": 62},
+              {"student": "tomasz.zielinski@<domain>", "points": 94},
+              {"student": "daniel.reyes@<domain>", "points": 71.25},
+              {"student": "mei-ling.chou@<domain>", "points": 78},
+              {"student": "jonas.berg@<domain>", "points": 55.5},
+              {"student": "fatima.alsayed@<domain>", "points": 89},
+              {"student": "lucas.moreau@<domain>", "points": 81.75}
+            ]},
+            {"name": "Final Exam", "maxPoints": 100, "weight": 60, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 80},
+              {"student": "priya.raman@<domain>", "points": 66.25},
+              {"student": "tomasz.zielinski@<domain>", "points": 52.5},
+              {"student": "daniel.reyes@<domain>", "points": 89.75},
+              {"student": "mei-ling.chou@<domain>", "points": 75},
+              {"student": "jonas.berg@<domain>", "points": 61.25},
+              {"student": "fatima.alsayed@<domain>", "points": 98.5}
+            ]}
+          ],
+          "finalize": {"overrides": [
+            {"student": "lucas.moreau@<domain>", "status": "incomplete", "reason": "Missed the final exam with a documented illness; make-up exam scheduled for next term."}
+          ]},
+          "announcements": [
+            {"title": "Welcome to CS101", "body": "Welcome! The syllabus and the first lecture slides are under Week 1. Please install Python 3 before Wednesday's lecture."},
+            {"as": "sofia.alvarez@<domain>", "title": "TA office hours", "body": "My office hours are Thursdays 14:00 to 15:30 in Hall B 110. Bring your laptop and any question about the problem sets."},
+            {"title": "Midterm grades are posted", "body": "Midterm grades are on the Grades tab. The final exam covers everything through Week 3."}
+          ],
+          "weeks": [
+            {"title": "Week 1: Welcome and setup", "notes": "Read the syllabus, install Python 3 and run your first program.", "materials": [
+              {"file": "syllabus.pdf", "title": "Course syllabus"},
+              {"file": "slides.pptx", "title": "Lecture 1 slides"}
+            ]},
+            {"title": "Week 2: Variables and control flow", "notes": "Work through the code samples before Monday's lecture.", "materials": [
+              {"file": "code-samples.zip", "title": "Code samples"}
+            ]},
+            {"title": "Week 3: Functions", "notes": "Problem set 3 is due Friday."}
+          ]
+        },
+        {
+          "term": "Spring <year+1>", "number": "002",
+          "description": "Spring offering of CS101. Meeting times and the instructor are announced before the term starts.",
+          "announcements": [
+            {"title": "Registration is open", "body": "Registration for the spring section of CS101 is open. Meeting times follow soon."}
+          ],
+          "weeks": [
+            {"title": "Week 1: Welcome and setup", "notes": "Materials are posted when the term starts."}
+          ]
+        }
+      ]
+    },
+    {
+      "as": "owen.park@<domain>",
+      "departmentCode": "CS", "code": "CS210", "title": "Data Structures and Algorithms", "credits": 4,
+      "sections": [
+        {
+          "term": "Academic Year <year>", "number": "001",
+          "meetings": [
+            {"weekday": 2, "startsAt": "10:00", "endsAt": "11:20", "location": "Engineering Building 310"},
+            {"weekday": 4, "startsAt": "10:00", "endsAt": "11:20", "location": "Engineering Building 310"}
+          ],
+          "staff": [
+            {"email": "elena.marsh@<domain>", "role": "instructor"},
+            {"email": "ingrid.larsen@<domain>", "role": "ta"}
+          ],
+          "roster": ["amara.okafor@<domain>", "priya.raman@<domain>", "tomasz.zielinski@<domain>", "daniel.reyes@<domain>", "mei-ling.chou@<domain>"],
+          "description": "Lists, trees, hash tables and graphs, and how to reason about the cost of the algorithms that use them. Prerequisite: CS101.",
+          "assessments": [
+            {"name": "Problem Set Average", "maxPoints": 100, "weight": 40, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 86},
+              {"student": "priya.raman@<domain>", "points": 72.25},
+              {"student": "tomasz.zielinski@<domain>", "points": 58.5},
+              {"student": "daniel.reyes@<domain>", "points": 95.75},
+              {"student": "mei-ling.chou@<domain>", "points": 81}
+            ]},
+            {"name": "Final Project", "maxPoints": 100, "weight": 60, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 48},
+              {"student": "priya.raman@<domain>", "points": 85.25},
+              {"student": "tomasz.zielinski@<domain>", "points": 71.5},
+              {"student": "daniel.reyes@<domain>", "points": 57.75}
+            ]}
+          ],
+          "announcements": [
+            {"title": "Final project teams", "body": "Form teams of two by Friday and add your team name to the shared sheet linked in Week 1."}
+          ],
+          "weeks": [
+            {"title": "Week 1: Arrays and linked lists", "notes": "Review big-O notation from CS101."}
+          ]
+        }
+      ]
+    },
+    {
+      "departmentCode": "MATH", "code": "MATH201", "title": "Linear Algebra", "credits": 4,
+      "sections": [
+        {
+          "term": "Academic Year <year>", "number": "001",
+          "meetings": [
+            {"weekday": 1, "startsAt": "13:00", "endsAt": "14:20", "location": "Science Center 112"},
+            {"weekday": 3, "startsAt": "13:00", "endsAt": "14:20", "location": "Science Center 112"}
+          ],
+          "staff": [
+            {"email": "elena.marsh@<domain>", "role": "instructor"}
+          ],
+          "roster": ["amara.okafor@<domain>", "priya.raman@<domain>", "tomasz.zielinski@<domain>", "daniel.reyes@<domain>", "jonas.berg@<domain>", "fatima.alsayed@<domain>"],
+          "description": "Vectors, matrices, linear maps, determinants and eigenvalues, with applications to data and geometry.",
+          "assessments": [
+            {"name": "Midterm Exam", "maxPoints": 100, "weight": 40, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 54},
+              {"student": "priya.raman@<domain>", "points": 91.25},
+              {"student": "tomasz.zielinski@<domain>", "points": 77.5},
+              {"student": "daniel.reyes@<domain>", "points": 63.75},
+              {"student": "jonas.berg@<domain>", "points": 86.25},
+              {"student": "fatima.alsayed@<domain>", "points": 72.5}
+            ]},
+            {"name": "Final Exam", "maxPoints": 100, "weight": 60, "published": true, "scores": [
+              {"student": "amara.okafor@<domain>", "points": 67},
+              {"student": "priya.raman@<domain>", "points": 53.25},
+              {"student": "tomasz.zielinski@<domain>", "points": 90.5},
+              {"student": "daniel.reyes@<domain>", "points": 76.75},
+              {"student": "jonas.berg@<domain>", "points": 48.25}
+            ]}
+          ],
+          "announcements": [
+            {"title": "Homework 1 posted", "body": "Homework 1 on Gaussian elimination is due next Monday at the start of the lecture."}
+          ],
+          "weeks": [
+            {"title": "Week 1: Systems of linear equations", "notes": "Read sections 1.1 to 1.3."}
+          ]
+        }
+      ]
+    },
+    {
+      "departmentCode": "ECON", "code": "ECON110", "title": "Principles of Microeconomics", "credits": 3,
+      "sections": [
+        {
+          "term": "Academic Year <year>", "number": "001",
+          "meetings": [
+            {"weekday": 2, "startsAt": "13:30", "endsAt": "14:50", "location": "Mercer Hall 101"},
+            {"weekday": 4, "startsAt": "13:30", "endsAt": "14:50", "location": "Mercer Hall 101"}
+          ],
+          "staff": [
+            {"email": "david.mensah@<domain>", "role": "instructor"}
+          ],
+          "roster": ["mei-ling.chou@<domain>", "jonas.berg@<domain>", "fatima.alsayed@<domain>", "lucas.moreau@<domain>"],
+          "description": "How households and firms make choices: supply and demand, elasticity, market structure and the role of government.",
+          "assessments": [
+            {"name": "Midterm Exam", "maxPoints": 100, "weight": 40, "published": true, "scores": [
+              {"student": "mei-ling.chou@<domain>", "points": 68},
+              {"student": "jonas.berg@<domain>", "points": 54.25},
+              {"student": "fatima.alsayed@<domain>", "points": 91.5},
+              {"student": "lucas.moreau@<domain>", "points": 77.75}
+            ]},
+            {"name": "Final Exam", "maxPoints": 100, "weight": 60, "published": true, "scores": [
+              {"student": "mei-ling.chou@<domain>", "points": 81},
+              {"student": "jonas.berg@<domain>", "points": 67.25},
+              {"student": "fatima.alsayed@<domain>", "points": 53.5}
+            ]}
+          ],
+          "announcements": [
+            {"title": "Reading for Thursday", "body": "Please read chapter 3 on elasticity before Thursday's lecture."}
+          ],
+          "weeks": [
+            {"title": "Week 1: Supply and demand", "notes": "Chapters 1 and 2."}
+          ]
+        }
+      ]
+    },
+    {
+      "departmentCode": "BIO", "code": "BIO150", "title": "Cell Biology", "credits": 4,
+      "sections": [
+        {
+          "term": "Academic Year <year>", "number": "001",
+          "meetings": [
+            {"weekday": 3, "startsAt": "15:00", "endsAt": "16:20", "location": "Life Sciences 120"},
+            {"weekday": 5, "startsAt": "09:00", "endsAt": "10:20", "location": "Life Sciences 120"}
+          ],
+          "staff": [
+            {"email": "david.mensah@<domain>", "role": "instructor"}
+          ],
+          "roster": ["priya.raman@<domain>", "daniel.reyes@<domain>", "lucas.moreau@<domain>"],
+          "description": "The structure and function of cells: membranes, organelles, metabolism and division. Friday sessions are in the teaching lab.",
+          "assessments": [
+            {"name": "Lab Practical", "maxPoints": 100, "weight": 40, "published": true, "scores": [
+              {"student": "priya.raman@<domain>", "points": 78.25},
+              {"student": "daniel.reyes@<domain>", "points": 50.75},
+              {"student": "lucas.moreau@<domain>", "points": 96.75}
+            ]},
+            {"name": "Final Exam", "maxPoints": 100, "weight": 60, "published": true, "scores": [
+              {"student": "priya.raman@<domain>", "points": 91.25},
+              {"student": "daniel.reyes@<domain>", "points": 63.75}
+            ]}
+          ],
+          "announcements": [
+            {"title": "Lab safety briefing", "body": "Friday's first lab starts with the safety briefing. Closed-toe shoes are required."}
+          ],
+          "weeks": [
+            {"title": "Week 1: The cell and its membrane", "notes": "Read chapter 1 and bring a lab coat on Friday."}
+          ]
+        }
+      ]
+    }
+  ]
+}
