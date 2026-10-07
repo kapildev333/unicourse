@@ -326,13 +326,14 @@ type sectionRef struct {
 	CourseID, TermID, Number, SectionID string
 	Staff                               []staffAdd
 	Pending                             []pendAdd
+	Meetings                            []MeetingInput
 }
 
 func sectionsImport(d tenant.Deps, _ *http.Request, _ *sql.Tx, s authz.Scope) (csvimport.Spec, csvimport.Classifier, csvimport.Applier, error) {
 	if plainMember(s) {
 		return csvimport.Spec{}, nil, nil, httpx.Forbidden()
 	}
-	spec := csvimport.Spec{Required: []string{"coursecode", "termname", "number"}, Optional: []string{"instructoremails", "taemails"},
+	spec := csvimport.Spec{Required: []string{"coursecode", "termname", "number"}, Optional: []string{"instructoremails", "taemails", "meetings"},
 		Key: func(m map[string]string) string {
 			return strings.TrimSpace(m["coursecode"]) + "\x00" + strings.TrimSpace(m["termname"]) + "\x00" + strings.TrimSpace(m["number"])
 		}}
@@ -409,20 +410,24 @@ func sectionClassifier(s authz.Scope) csvimport.Classifier {
 		if err != nil {
 			return nil, err
 		}
+		hasMeet, err := idSet(ctx, tx, `select distinct section_id::text from section_meetings where section_id = any($1::uuid[])`, secIDs)
+		if err != nil {
+			return nil, err
+		}
 		states, err := resolveEmails(ctx, tx, all)
 		if err != nil {
 			return nil, err
 		}
 		out := make([]csvimport.Verdict, len(recs))
 		for i, rc := range recs {
-			out[i] = classifySection(s, rc, courses, termIDs, existing, staffSet, pendSet, states)
+			out[i] = classifySection(s, rc, courses, termIDs, existing, staffSet, pendSet, states, hasMeet)
 		}
 		return out, nil
 	}
 }
 
 func classifySection(s authz.Scope, rc csvimport.Record, courses, terms map[string][]string, existing map[string]string,
-	staffSet, pendSet map[string]bool, states map[string]emailState) csvimport.Verdict {
+	staffSet, pendSet map[string]bool, states map[string]emailState, hasMeet map[string]bool) csvimport.Verdict {
 	d := rc.Data
 	c, t := courses[d["coursecode"]], terms[d["termname"]]
 	switch {
@@ -450,6 +455,10 @@ func classifySection(s authz.Scope, rc csvimport.Record, courses, terms map[stri
 			return verr(e + " listed as both instructor and ta")
 		}
 	}
+	ms, bad := parseSlots(d["meetings"])
+	if bad != "" {
+		return verr(bad)
+	}
 	ref := sectionRef{CourseID: c[0], TermID: t[0], Number: d["number"]}
 	ref.SectionID = existing[ref.CourseID+"|"+ref.TermID+"|"+ref.Number]
 	invite, addStaff := false, false
@@ -472,25 +481,48 @@ func classifySection(s authz.Scope, rc csvimport.Record, courses, terms map[stri
 			}
 		}
 	}
+	addMeet, keepMeet := false, false
+	if len(ms) > 0 {
+		switch {
+		case ref.SectionID == "":
+			ref.Meetings = ms
+		case hasMeet[ref.SectionID]:
+			keepMeet = true // D31/D39: never overwrite meetings (an admin may have edited them)
+		default:
+			ref.Meetings, addMeet = ms, true
+		}
+	}
+	var notes []string
+	if invite || addStaff {
+		notes = append(notes, "adds staff") // D31: an existing section is never changed, only gains staff
+	}
+	if addMeet {
+		notes = append(notes, "adds meetings")
+	}
+	if keepMeet {
+		notes = append(notes, "keeps meetings")
+	}
 	msg := ""
-	if ref.SectionID != "" && (invite || addStaff) {
-		msg = "section exists; adds staff" // D31: an existing section is never changed, only gains staff
+	if ref.SectionID != "" && len(notes) > 0 {
+		msg = "section exists; " + strings.Join(notes, "; ")
 	}
 	switch {
 	case invite:
 		return csvimport.Verdict{Action: csvimport.Invite, Message: msg, Ref: ref}
-	case ref.SectionID == "" || addStaff:
+	case ref.SectionID == "" || addStaff || addMeet:
 		return csvimport.Verdict{Action: csvimport.Add, Message: msg, Ref: ref}
 	}
-	return csvimport.Verdict{Action: csvimport.Exists}
+	return csvimport.Verdict{Action: csvimport.Exists, Message: msg}
 }
 
 func sectionApplier(d tenant.Deps, s authz.Scope) csvimport.Applier {
 	return func(ctx context.Context, tx *sql.Tx, rows []csvimport.Row) error {
 		var cids, tids, nums []string
 		secOf := map[string]string{} // course|term|number -> id
+		meetOf := map[string][]MeetingInput{}
 		for _, row := range rows {
 			ref := row.Ref.(sectionRef)
+			meetOf[ref.CourseID+"|"+ref.TermID+"|"+ref.Number] = ref.Meetings
 			if ref.SectionID == "" {
 				cids, tids, nums = append(cids, ref.CourseID), append(tids, ref.TermID), append(nums, ref.Number)
 			} else {
@@ -510,7 +542,11 @@ func sectionApplier(d tenant.Deps, s authz.Scope) csvimport.Applier {
 					res.Close()
 					return err
 				}
-				secOf[a.CourseID+"|"+a.TermID+"|"+a.Number] = a.ID
+				key := a.CourseID + "|" + a.TermID + "|" + a.Number
+				secOf[key] = a.ID
+				if a.Meetings = meetOf[key]; a.Meetings == nil {
+					a.Meetings = []MeetingInput{}
+				}
 				es = append(es, audit.Entry{ActorUserID: s.UserID, Action: "section.create", EntityType: "section", EntityID: a.ID, After: a})
 			}
 			res.Close()
@@ -520,6 +556,28 @@ func sectionApplier(d tenant.Deps, s authz.Scope) csvimport.Applier {
 			if err := audit.WriteMany(ctx, tx, s.UniversityID, es); err != nil {
 				return err
 			}
+		}
+		var msec []string
+		var mrows []MeetingInput
+		var upd []audit.Entry
+		for _, row := range rows {
+			ref := row.Ref.(sectionRef)
+			sec := secOf[ref.CourseID+"|"+ref.TermID+"|"+ref.Number]
+			for _, m := range ref.Meetings {
+				msec, mrows = append(msec, sec), append(mrows, m)
+			}
+			if ref.SectionID != "" && len(ref.Meetings) > 0 {
+				a := sectionAudit{ID: sec, CourseID: ref.CourseID, TermID: ref.TermID, Number: ref.Number, Meetings: []MeetingInput{}}
+				b := a
+				b.Meetings = ref.Meetings
+				upd = append(upd, audit.Entry{ActorUserID: s.UserID, Action: "section.update", EntityType: "section", EntityID: sec, Before: a, After: b})
+			}
+		}
+		if err := insertMeetings(ctx, tx, s.UniversityID, msec, mrows); err != nil {
+			return err
+		}
+		if err := audit.WriteMany(ctx, tx, s.UniversityID, upd); err != nil {
+			return err
 		}
 		var ssec, susr, srole, psec, pinv, prole []string
 		emailOf := map[string]string{}

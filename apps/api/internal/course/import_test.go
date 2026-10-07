@@ -292,6 +292,81 @@ func TestSectionsImportExistingSection(t *testing.T) {
 	}
 }
 
+func TestSectionsImportMeetings(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update terms set name = 'Fall 2026' where id = $1`, e.Fx.TermA)
+		return err
+	})
+	csv := "courseCode,termName,number,meetings\n" +
+		"CS101,Fall 2026,002,\"Wed 10:00-11:15; Mon 09:00-10:00 @ Room 101\"\n" +
+		"CS101,Fall 2026,003,Mon 11:00-10:00\n"
+	p := e.preview(e.Admin, "/sections/import", csv)
+	if got, want := actions(p), `2:add:|3:error:meeting "Mon 11:00-10:00": endsAt must be after startsAt`; got != want {
+		t.Fatalf("got %s", got)
+	}
+	ok := strings.Join(strings.Split(csv, "\n")[:2], "\n") + "\n"
+	p = e.preview(e.Admin, "/sections/import", ok)
+	if st, raw := e.upload(e.Admin, "/sections/import", ok, p.Checksum); st != 200 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	var id string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from sections where number = '002'`).Scan(&id)
+	})
+	st, raw := e.call(e.Admin, "GET", "/sections/"+id, nil)
+	var s Section
+	if json.Unmarshal(raw, &s); st != 200 || len(s.Meetings) != 2 || s.Meetings[0].Weekday != 1 || s.Meetings[0].Location != "Room 101" || s.Meetings[1].StartsAt != "10:00" {
+		t.Fatalf("meetings %d %s", st, raw)
+	}
+	if n, _, after := e.audit("section.create", id); n != 1 || !strings.Contains(after.String, `"Room 101"`) {
+		t.Fatalf("audit %d %s", n, after.String)
+	}
+	// a file without the column behaves as before
+	if got := actions(e.preview(e.Admin, "/sections/import", "courseCode,termName,number\nCS101,Fall 2026,009\n")); got != "2:add:" {
+		t.Fatalf("no column: %s", got)
+	}
+}
+
+func TestSectionsImportMeetingsAdditive(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update terms set name = 'Fall 2026' where id = $1`, e.Fx.TermA)
+		return err
+	})
+	hdr := "courseCode,termName,number,instructorEmails,meetings\n"
+	slots := hdr + "CS101,Fall 2026,001,,Tue 10:00-11:00\n"
+	if got, want := actions(e.preview(e.Admin, "/sections/import", slots)), "2:add:section exists; adds meetings"; got != want {
+		t.Fatalf("got %s", got)
+	}
+	if st, raw := e.upload(e.Admin, "/sections/import", slots, e.preview(e.Admin, "/sections/import", slots).Checksum); st != 200 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if e.count(`select count(*) from section_meetings where section_id = $1`, e.SectionA) != 1 ||
+		e.count(`select count(*) from audit_log where action = 'section.update' and entity_id = $1`, e.SectionA) != 1 {
+		t.Fatal("meetings or audit not written")
+	}
+	// hand edit, then a different slot: kept
+	if st, raw := e.call(e.Admin, "PATCH", "/sections/"+e.SectionA, map[string]any{"meetings": []map[string]any{{"weekday": 5, "startsAt": "08:00", "endsAt": "09:00"}}}); st != 200 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	other := hdr + "CS101,Fall 2026,001,,Mon 10:00-11:00\n"
+	if got, want := actions(e.preview(e.Admin, "/sections/import", other)), "2:exists:section exists; keeps meetings"; got != want {
+		t.Fatalf("got %s", got)
+	}
+	if st, raw := e.upload(e.Admin, "/sections/import", other, e.preview(e.Admin, "/sections/import", other).Checksum); st != 200 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if e.count(`select count(*) from section_meetings where section_id = $1 and weekday = 5 and starts_at = '08:00'`, e.SectionA) != 1 ||
+		e.count(`select count(*) from section_meetings where section_id = $1`, e.SectionA) != 1 {
+		t.Fatal("hand-set meetings changed")
+	}
+	both := hdr + "CS101,Fall 2026,001,other@a.edu,Mon 10:00-11:00\n"
+	if got, want := actions(e.preview(e.Admin, "/sections/import", both)), "2:add:section exists; adds staff; keeps meetings"; got != want {
+		t.Fatalf("got %s", got)
+	}
+}
+
 func TestRosterImportLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
