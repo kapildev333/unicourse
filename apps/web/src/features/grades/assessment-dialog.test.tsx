@@ -127,7 +127,7 @@ it('delete names the score count and deletes', async () => {
 it('shows the other assessments total in the weight hint and sizes the inputs after inputClass', () => {
   setup({})
   expect(screen.getByText(/Other assessments total 60%\./)).toBeInTheDocument()
-  expect(screen.getByLabelText('Max points').className).toMatch(/w-full.* w-32/)
-  expect(screen.getByLabelText('Weight (%)').className).toMatch(/w-full.* w-32/)
-  expect(screen.getByLabelText('Due date').className).toMatch(/w-full.* w-48/)
+  expect(screen.getByLabelText('Max points').className).toMatch(/w-full.* w-32!/)
+  expect(screen.getByLabelText('Weight (%)').className).toMatch(/w-full.* w-32!/)
+  expect(screen.getByLabelText('Due date').className).toMatch(/w-full.* w-48!/)
 })

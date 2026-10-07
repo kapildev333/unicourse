@@ -256,9 +256,9 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key}>
-                {cell(r, i, 'letter', 'Letter', false, 'w-20')}
-                {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28 text-right')}
-                {cell(r, i, 'points', 'Grade points', true, 'w-28 text-right')}
+                {cell(r, i, 'letter', 'Letter', false, 'w-20!')}
+                {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28! text-right')}
+                {cell(r, i, 'points', 'Grade points', true, 'w-28! text-right')}
                 <td className="text-ink-muted">{range(rows, r)}</td>
                 <td className="text-right">
                   <Button
