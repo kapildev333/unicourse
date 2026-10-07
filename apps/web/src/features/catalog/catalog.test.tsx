@@ -163,6 +163,11 @@ it('no match with only a department names it and offers Clear filters', async ()
   expect(screen.getAllByRole('button', { name: 'Clear filters' })).toHaveLength(2)
 })
 
+it('no match with an unknown department says plain No sections match', async () => {
+  setup([], [fall], { departmentId: 'zz' })
+  expect(await screen.findByText('No sections match')).toBeInTheDocument()
+})
+
 it('a card in my sections shows its role badge; others none', async () => {
   const w = [{ ...sec('s1', 'CS201'), id: 'm1' }, sec('s9', 'CS900')]
   setup(w)

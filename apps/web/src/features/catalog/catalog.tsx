@@ -60,6 +60,8 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
     onSearchChange({ departmentId: undefined, q: undefined })
   }
   const filtered = !!(q || departmentId)
+  const matchLabel = q ?? departments.find((d) => d.id === departmentId)?.name
+  const matchTitle = matchLabel ? `No sections match "${matchLabel}"` : 'No sections match'
 
   let body: React.ReactNode
   if (termsQuery.isPending) body = <Loading variant="cards" />
@@ -95,7 +97,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
     body = filtered ? (
       <EmptyState
         icon={SearchX}
-        title={`No sections match "${q ?? departments.find((d) => d.id === departmentId)?.name ?? ''}"`}
+        title={matchTitle}
         body="Try another search or department."
         action={
           <Button variant="secondary" onClick={clearFilters}>
@@ -185,7 +187,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
               />
             </FormField>
             {filtered && (
-              <Button variant="ghost" size="sm" className="md:self-end" onClick={clearFilters}>
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
               </Button>
             )}

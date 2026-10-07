@@ -18,16 +18,15 @@ export const instructors = (s: MySection, meId?: string) =>
   s.staff.filter((x) => x.role === 'instructor').map((x) => (x.userId === meId ? 'You' : personName(x)))
 
 const wideQuery = '(min-width: 768px)'
+function subscribeWide(cb: () => void) {
+  const mq = window.matchMedia?.(wideQuery)
+  mq?.addEventListener('change', cb)
+  return () => mq?.removeEventListener('change', cb)
+}
+const wideNow = () => window.matchMedia?.(wideQuery).matches ?? true
 /** True from 768 px (the week grid); false below (the agenda). Without matchMedia (jsdom) the grid. */
 function useWide() {
-  return useSyncExternalStore(
-    (cb) => {
-      const mq = window.matchMedia?.(wideQuery)
-      mq?.addEventListener('change', cb)
-      return () => mq?.removeEventListener('change', cb)
-    },
-    () => window.matchMedia?.(wideQuery).matches ?? true,
-  )
+  return useSyncExternalStore(subscribeWide, wideNow)
 }
 
 /** The current time, refreshed each minute. */
@@ -176,7 +175,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                       <li
                         aria-hidden="true"
                         data-now-line
-                        className="pointer-events-none absolute inset-x-0 z-10 border-t border-line-strong"
+                        className="pointer-events-none absolute inset-x-0 border-t border-line-strong"
                         style={{ top: `${(nowMin - start) * 0.1}rem` }}
                       ></li>
                     )}
@@ -186,7 +185,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                       return (
                         <li
                           key={`${s.id}-${m.id}`}
-                          className="min-h-0 p-0.5"
+                          className="relative min-h-0 p-0.5"
                           style={{
                             gridRow: `${toMinutes(m.startsAt) - start + 1} / ${toMinutes(m.endsAt) - start + 1}`,
                             gridColumn: lane[i] + 1,
@@ -239,7 +238,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                 <li key={s.id}>
                   <Link to="/$slug/sections/$id" params={{ slug, id: s.id }} className="font-medium text-accent hover:underline">
                     {classCode(s)}
-                  </Link>{' '}
+                  </Link>
                   {' · '}
                   {s.course.title}
                   {names.length > 0 && ` · ${names.join(', ')}`}
