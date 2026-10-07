@@ -82,6 +82,20 @@ function formatValue(v: unknown): string {
   return String(v)
 }
 
+// The entity's own name where the diff carries one (latest side wins), else just its type; the short id tells rows apart.
+function Target({ e }: { e: Entry }) {
+  const named = (e.after?.name ?? e.before?.name ?? e.after?.title ?? e.before?.title) as unknown
+  const name = typeof named === 'string' && named ? named : ''
+  return (
+    <>
+      <span>{`${entityLabels[e.entityType]}${name ? ` ${name}` : ''}`}</span>
+      <span className="block text-xs text-ink-muted" title={e.entityId}>
+        {e.entityId.slice(0, 8)}
+      </span>
+    </>
+  )
+}
+
 function Side(props: { title: string; data?: Record<string, unknown>; other?: Record<string, unknown> }) {
   const { title, data, other } = props
   const keys = data ? Object.keys(data) : []
@@ -140,7 +154,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading variant="table" columns={['When', 'Who', 'Action', 'Changes']} />
+  if (list.isPending) body = <Loading variant="table" columns={['When', 'Who', 'Action', 'Target', 'Changes']} />
   else if (list.error) body = <ErrorBanner title="Couldn't load the audit log" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = filtered ? (
@@ -156,7 +170,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <ListCount shown={list.items.length} className="mb-2 text-right" />
+        <ListCount shown={list.items.length} noun="change" more={list.hasNextPage} className="mb-2 text-right" />
         <Table caption="Audit log" stack>
           <thead>
             <tr>
@@ -165,6 +179,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
               </th>
               <th scope="col">Who</th>
               <th scope="col">Action</th>
+              <th scope="col">Target</th>
               <th scope="col">Changes</th>
             </tr>
           </thead>
@@ -179,6 +194,9 @@ export function AuditLogPage({ slug }: { slug: string }) {
                   <td data-label="Who">{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>
                   <td data-label="Action">
                     {actionLabels[e.action] ?? `${entityLabels[e.entityType]} ${verbs[verb] ?? verb}`}
+                  </td>
+                  <td data-label="Target">
+                    <Target e={e} />
                   </td>
                   <td data-label="Changes">
                     <Disclosure summary="Show changes">
