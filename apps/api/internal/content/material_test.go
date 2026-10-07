@@ -317,9 +317,9 @@ func TestMaterialRenameMove(t *testing.T) {
 func TestMaterialDeleteAndAudit(t *testing.T) {
 	e := newEnv(t)
 	w := e.week("W")
-	m1 := e.mustUpload(e.Inst, w, "a.pdf", "aaa", "")
-	m2 := e.mustUpload(e.Inst, w, "b.pdf", "bbb", "")
-	if n, b, after := e.audit("material.create", m1.ID); n != 1 || b.Valid || !strings.Contains(after.String, `"sha256"`) || strings.Contains(after.String, "aaa") {
+	m1 := e.mustUpload(e.Inst, w, "a.pdf", "zzz", "")
+	m2 := e.mustUpload(e.Inst, w, "b.pdf", "yyy", "")
+	if n, b, after := e.audit("material.create", m1.ID); n != 1 || b.Valid || !strings.Contains(after.String, `"sha256"`) || strings.Contains(after.String, "zzz") {
 		t.Fatalf("create audit %d %v %s", n, b, after.String)
 	}
 	if st, raw := e.call(e.TA, "DELETE", e.matPath(m1.ID), nil); st != 204 || len(raw) != 0 {
