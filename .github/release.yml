@@ -1,0 +1,11 @@
+changelog:
+  exclude:
+    labels:
+      - chore
+    authors:
+      - dependabot
+      - dependabot[bot]
+  categories:
+    - title: Changes
+      labels:
+        - "*"
