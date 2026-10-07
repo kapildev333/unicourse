@@ -26,6 +26,7 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("GET", base+"/sections/{id}/final-grades", tenant.Wrap(d, listFinal))
 	r.Handle("POST", base+"/sections/{id}/final-grades", tenant.Wrap(d, finalize))
 	r.Handle("DELETE", base+"/sections/{id}/final-grades", tenant.Wrap(d, reopen))
+	r.Handle("GET", base+"/me/grades", tenant.Wrap(d, getMyGrades))
 	r.Handle("PATCH", base+"/sections/{id}/final-grades/{userId}", tenant.Wrap(d, overrideFinal))
 }
 
