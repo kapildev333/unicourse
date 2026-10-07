@@ -117,6 +117,7 @@ it('shows a Target column with entity, name when present, and a short id', async
           entry('e2', { entityType: 'assessment', entityId: 'abcdef12-0000-0000-0000-000000000000', action: 'score.set' }),
         ],
         nextCursor: 'c2',
+        total: 7,
       },
     }),
   })
@@ -126,6 +127,5 @@ it('shows a Target column with entity, name when present, and a short id', async
   expect(screen.getByText('0b6f1c2e')).toBeInTheDocument()
   expect(within(screen.getByRole('table')).getByText('Assessment')).toBeInTheDocument()
   expect(screen.getByText('abcdef12')).toBeInTheDocument()
-  // no API total: the heading count says "or more" while another page exists
-  expect(screen.getByRole('status')).toHaveTextContent('Showing 2 or more changes')
+  expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 7 changes')
 })

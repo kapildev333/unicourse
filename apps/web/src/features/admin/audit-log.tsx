@@ -127,6 +127,7 @@ function Side(props: { title: string; data?: Record<string, unknown>; other?: Re
 export function AuditLogPage({ slug }: { slug: string }) {
   const [f, setF] = useState<Filters>(none)
   const members = useAllMembers(slug)
+  const [total, setTotal] = useState<number>() // from the latest page fetched (any filter)
   const list = useCursorList<Entry>([slug, 'audit-log', f], (cursor) =>
     unwrap(
       api.GET('/universities/{slug}/audit-log', {
@@ -142,7 +143,10 @@ export function AuditLogPage({ slug }: { slug: string }) {
           },
         },
       }),
-    ),
+    ).then((page) => {
+      setTotal(page.total)
+      return page
+    }),
   )
   const filtered = Object.values(f).some(Boolean)
   const set = (k: keyof Filters) => (e: React.ChangeEvent<HTMLElement & { value: string }>) =>
@@ -170,7 +174,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <ListCount shown={list.items.length} noun="change" more={list.hasNextPage} className="mb-2 text-right" />
+        <ListCount shown={list.items.length} noun="change" total={total} className="mb-2 text-right" />
         <Table caption="Audit log" stack>
           <thead>
             <tr>
