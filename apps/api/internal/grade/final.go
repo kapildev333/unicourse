@@ -153,25 +153,19 @@ func applyOverride(g gradeAudit, o override, m matrix, st GradebookStudent) (gra
 	}
 	wasGraded := g.Status == "graded"
 	g.Status = "graded"
-	var p *big.Rat
-	if !wasGraded || !o.Letter.Set {
-		var ok bool
-		if p, ok = percentOf(m.finalParts(st)); !ok {
+	if !wasGraded { // back to graded: recompute from the scores, the letter from the unrounded percent
+		p, ok := percentOf(m.finalParts(st))
+		if !ok {
 			return g, httpx.Conflict("the assessments' weights sum to 0")
 		}
-	}
-	if !wasGraded {
-		g.Percent = round2(p)
-	}
-	switch {
-	case o.Letter.Set:
-		g.Letter = o.Letter.V
-	case !wasGraded:
 		row, ok := letterFor(m.scale, p)
 		if !ok {
 			return g, httpx.Conflict("the grade scale has no row for " + string(round2(p)) + " percent")
 		}
-		g.Letter = row.Letter
+		g.Percent, g.Letter = round2(p), row.Letter
+	}
+	if o.Letter.Set {
+		g.Letter = o.Letter.V
 	}
 	for _, r := range m.scale {
 		if r.Letter == g.Letter {
@@ -298,4 +292,130 @@ func finalize(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	}
 	items, err := readFinal(ctx, tx, secID)
 	return http.StatusCreated, finalList{items}, err
+}
+
+func overrideFinal(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+	ctx := r.Context()
+	secID, userID := r.PathValue("id"), r.PathValue("userId")
+	if err := sectionExists(r, tx, secID); err != nil {
+		return 0, nil, err
+	}
+	if err := teach(r, tx, s, secID); err != nil {
+		return 0, nil, err
+	}
+	if !tenant.IsUUID(userID) {
+		return 0, nil, httpx.NotFound("final grade")
+	}
+	var rowID string
+	before := gradeAudit{UserID: userID}
+	var pct, letter, pts, reason sql.NullString
+	err := tx.QueryRowContext(ctx, `select id, status, percent::text, letter, points::text, override_reason from final_grades
+		where section_id = $1 and user_id = $2 for update`, secID, userID).Scan(&rowID, &before.Status, &pct, &letter, &pts, &reason)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil, httpx.NotFound("final grade")
+	}
+	if err != nil {
+		return 0, nil, err
+	}
+	before.Percent, before.Letter, before.Points, before.OverrideReason = json.Number(pct.String), letter.String, json.Number(pts.String), reason.String
+	var in struct {
+		Status tenant.Opt[string] `json:"status"`
+		Letter tenant.Opt[string] `json:"letter"`
+		Reason string             `json:"reason"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		return 0, nil, err
+	}
+	if !in.Status.Set && !in.Letter.Set {
+		return 0, nil, tenant.NoFields()
+	}
+	o := override{UserID: userID, Status: in.Status, Letter: in.Letter, Reason: in.Reason}
+	var m matrix
+	if o.Status.Set && o.Status.V == "graded" && before.Status != "graded" {
+		m, err = loadMatrix(ctx, tx, secID)
+	} else {
+		m.scale, err = loadScale(ctx, tx)
+	}
+	if err != nil {
+		return 0, nil, err
+	}
+	// a student who is no longer enrolled is not in the matrix: recomputing then sees no scores
+	// ponytail: such a student recomputes to 0 percent; read their scores directly if that bites.
+	st := GradebookStudent{UserID: userID, Scores: map[string]json.Number{}}
+	for _, x := range m.students {
+		if x.UserID == userID {
+			st = x
+		}
+	}
+	if d := validateOverride("", o, map[string]bool{userID: true}, m.scale, before.Status); len(d) > 0 {
+		return 0, nil, httpx.Validation(d...)
+	}
+	after, err := applyOverride(before, o, m, st)
+	if err != nil {
+		return 0, nil, err
+	}
+	opt := func(v string) *string {
+		if v == "" {
+			return nil
+		}
+		return &v
+	}
+	if _, err := tx.ExecContext(ctx, `update final_grades set status = $2, percent = $3::numeric, letter = $4, points = $5::numeric, override_reason = $6 where id = $1`,
+		rowID, after.Status, opt(string(after.Percent)), opt(after.Letter), opt(string(after.Points)), opt(after.OverrideReason)); err != nil {
+		return 0, nil, err
+	}
+	type withSection struct {
+		gradeAudit
+		SectionID string `json:"sectionId"`
+	}
+	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "final_grade.override", EntityType: "final_grade", EntityID: rowID,
+		Before: withSection{before, secID}, After: withSection{after, secID}}); err != nil {
+		return 0, nil, err
+	}
+	all, err := readFinal(ctx, tx, secID)
+	for _, f := range all {
+		if f.id == rowID {
+			return http.StatusOK, f, nil
+		}
+	}
+	return 0, nil, err
+}
+
+func reopen(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+	ctx := r.Context()
+	secID := r.PathValue("id")
+	if err := sectionExists(r, tx, secID); err != nil {
+		return 0, nil, err
+	}
+	if err := teach(r, tx, s, secID); err != nil {
+		return 0, nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `delete from final_grades where section_id = $1
+		returning user_id, status, percent::text, letter, points::text, override_reason`, secID)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer rows.Close()
+	grades := []gradeAudit{}
+	for rows.Next() {
+		var g gradeAudit
+		var pct, letter, pts, reason sql.NullString
+		if err := rows.Scan(&g.UserID, &g.Status, &pct, &letter, &pts, &reason); err != nil {
+			return 0, nil, err
+		}
+		g.Percent, g.Letter, g.Points, g.OverrideReason = json.Number(pct.String), letter.String, json.Number(pts.String), reason.String
+		grades = append(grades, g)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, nil, err
+	}
+	rows.Close()
+	if len(grades) == 0 {
+		return 0, nil, httpx.NotFound("final grades")
+	}
+	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "final_grade.reopen", EntityType: "section", EntityID: secID,
+		Before: map[string]any{"grades": grades}}); err != nil {
+		return 0, nil, err
+	}
+	return http.StatusNoContent, nil, nil
 }

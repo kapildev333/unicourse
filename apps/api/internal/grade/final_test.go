@@ -3,6 +3,7 @@ package grade
 import (
 	"database/sql"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -161,5 +162,136 @@ func TestFinalizeOverrides(t *testing.T) {
 	}
 	if got[0].Letter != "A" || got[0].Points != "4.00" || got[0].Percent != "86.00" || got[0].OverrideReason != "regrade" {
 		t.Errorf("letter override: %+v", got[0])
+	}
+}
+
+func (e *env) finalized() {
+	e.T.Helper()
+	e.twoAssessments()
+	if st, body := e.finalize(map[string]any{}); st != 201 {
+		e.T.Fatal(st, body)
+	}
+}
+
+func (e *env) patchFinal(c *http.Cookie, email string, body any) (int, string) {
+	return e.raw(c, "PATCH", "/sections/"+e.SectionA+"/final-grades/"+e.UserID[email], body)
+}
+
+func TestFinalizeSnapshot(t *testing.T) {
+	e := newEnv(t)
+	e.finalized()
+	_, before := e.raw(e.Admin, "GET", "/sections/"+e.SectionA+"/final-grades", nil)
+	var mid string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from assessments where name = 'Midterm'`).Scan(&mid)
+	})
+	if st, body := e.raw(e.Admin, "PUT", "/sections/"+e.SectionA+"/assessments/"+mid+"/scores", map[string]any{"scores": []map[string]any{{"userId": e.UserID["stud@a.edu"], "points": 100}}}); st != 200 {
+		t.Fatal(st, body)
+	}
+	rows := []map[string]any{{"letter": "A", "minPercent": 95, "points": 4}, {"letter": "F", "minPercent": 0, "points": 0}}
+	if st, body := e.raw(e.Admin, "PUT", "/grade-scale", map[string]any{"rows": rows}); st != 200 {
+		t.Fatal(st, body)
+	}
+	if _, after := e.raw(e.Admin, "GET", "/sections/"+e.SectionA+"/final-grades", nil); after != before {
+		t.Errorf("snapshot changed:\n%s\n%s", before, after)
+	}
+	if st, _ := e.raw(e.Admin, "DELETE", "/sections/"+e.SectionA+"/final-grades", nil); st != 204 {
+		t.Fatal(st)
+	}
+	if e.countFinals() != 0 {
+		t.Error("rows after reopen")
+	}
+	n, bef, _ := e.audit("final_grade.reopen", e.SectionA)
+	if n != 1 || !strings.Contains(bef.String, e.UserID["stud2@a.edu"]) || !strings.Contains(bef.String, `"letter":"B"`) {
+		t.Errorf("reopen audit %d %s", n, bef.String)
+	}
+	if st, _ := e.raw(e.Admin, "DELETE", "/sections/"+e.SectionA+"/final-grades", nil); st != 404 {
+		t.Errorf("second reopen %d", st)
+	}
+	if st, body := e.finalize(map[string]any{}); st != 201 {
+		t.Fatal(st, body)
+	}
+	for _, f := range e.finals("") {
+		if f.Email == "stud@a.edu" && (f.Percent != "40.00" || f.Letter != "F") { // 100 x 0.4, scale now A 95 / F 0
+			t.Errorf("recomputed: %+v", f)
+		}
+	}
+}
+
+func TestOverridePatch(t *testing.T) {
+	e := newEnv(t)
+	e.finalized() // stud: 32.00 F, stud2: 86.00 B
+	st, body := e.patchFinal(e.Inst, "stud2@a.edu", map[string]any{"letter": "A", "reason": "regrade"})
+	if st != 200 || !strings.Contains(body, `"points":4.00`) || !strings.Contains(body, `"percent":86.00`) || !strings.Contains(body, `"overrideReason":"regrade"`) {
+		t.Fatal(st, body)
+	}
+	var rowID string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select id from final_grades where user_id = $1`, e.UserID["stud2@a.edu"]).Scan(&rowID)
+	})
+	n, bef, aft := e.audit("final_grade.override", rowID)
+	if n != 1 || !strings.Contains(bef.String, `"letter":"B"`) || !strings.Contains(aft.String, `"letter":"A"`) || !strings.Contains(aft.String, e.SectionA) {
+		t.Errorf("audit %d %s %s", n, bef.String, aft.String)
+	}
+	if st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"status": "incomplete", "reason": "doc"}); st != 200 || strings.Contains(body, "percent") || strings.Contains(body, "letter") || strings.Contains(body, "points") {
+		t.Errorf("incomplete: %d %s", st, body)
+	}
+	if st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"letter": "B", "reason": "x"}); st != 400 || !strings.Contains(body, `"letter"`) {
+		t.Errorf("letter on incomplete: %d %s", st, body)
+	}
+	if st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"status": "graded", "reason": "back"}); st != 200 || !strings.Contains(body, `"percent":86.00`) || !strings.Contains(body, `"letter":"B"`) || !strings.Contains(body, `"points":3.00`) {
+		t.Errorf("back to graded: %d %s", st, body)
+	}
+	for name, c := range map[string]struct {
+		body   map[string]any
+		status int
+		field  string
+	}{
+		"reason only":    {map[string]any{"reason": "x"}, 400, ""},
+		"no reason":      {map[string]any{"letter": "A"}, 400, "reason"},
+		"null letter":    {map[string]any{"letter": nil, "reason": "x"}, 400, "letter"},
+		"unknown letter": {map[string]any{"letter": "Q", "reason": "x"}, 400, "letter"},
+	} {
+		st, body := e.patchFinal(e.Admin, "stud2@a.edu", c.body)
+		if _, f := errDetails([]byte(body)); st != c.status || len(f) != 1 || f[0] != c.field {
+			t.Errorf("%s: %d %s", name, st, body)
+		}
+	}
+	if st, _ := e.raw(e.Admin, "PATCH", "/sections/"+e.SectionA+"/final-grades/"+e.UserID["other@a.edu"], map[string]any{"letter": "A", "reason": "x"}); st != 404 {
+		t.Errorf("unknown final: %d", st)
+	}
+}
+
+func TestFinalAuthz(t *testing.T) {
+	e := newEnv(t)
+	e.twoAssessments()
+	sec := "/sections/" + e.SectionA + "/final-grades"
+	read := map[string]int{"admin": 200, "dain": 200, "daout": 403, "inst": 200, "ta": 200, "stud": 403, "other": 403}
+	write := map[string]bool{"admin": true, "dain": true, "inst": true}
+	for _, role := range roles {
+		if st, _ := e.raw(e.as(role), "GET", sec, nil); st != read[role] {
+			t.Errorf("GET %s: %d", role, st)
+		}
+	}
+	for _, role := range roles { // forbidden first; a permitted role then finalizes, patches and reopens in turn
+		if write[role] {
+			continue
+		}
+		for _, c := range []struct{ m, p string }{{"POST", sec}, {"DELETE", sec}, {"PATCH", sec + "/" + e.UserID["stud@a.edu"]}} {
+			if st, _ := e.raw(e.as(role), c.m, c.p, map[string]any{"letter": "A", "reason": "x"}); st != 403 {
+				t.Errorf("%s %s %s: %d", role, c.m, c.p, st)
+			}
+		}
+	}
+	for _, role := range []string{"admin", "dain", "inst"} {
+		if st, body := e.raw(e.as(role), "POST", sec, map[string]any{}); st != 201 {
+			t.Errorf("%s POST: %d %s", role, st, body)
+		}
+		if st, _ := e.patchFinal(e.as(role), "stud@a.edu", map[string]any{"status": "withdrawn", "reason": "x"}); st != 200 {
+			t.Errorf("%s PATCH: %d", role, st)
+		}
+		if st, _ := e.raw(e.as(role), "DELETE", sec, nil); st != 204 {
+			t.Errorf("%s DELETE: %d", role, st)
+		}
 	}
 }
