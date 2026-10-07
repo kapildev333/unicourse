@@ -3,7 +3,7 @@ import { Download } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
 import { commitImport, previewImport, type ImportCounts, type ImportPreview, type ImportTarget } from '../../api/upload'
-import { ActionBadge, Badge } from '../../components/badge'
+import { ActionBadge } from '../../components/badge'
 import { Button } from '../../components/button'
 import { Dialog, DialogFooter } from '../../components/dialog'
 import { ErrorBanner } from '../../components/error-banner'
@@ -222,7 +222,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
                         {r.line}
                       </td>
                       <td data-label="Result">
-                        {!bad && r.action === 'invite' ? <Badge tone="neutral">Invite</Badge> : <ActionBadge action={bad ? 'error' : r.action} />}
+                        <ActionBadge action={bad ? 'error' : r.action} />
                       </td>
                       {showMessage && (
                         <td data-label="Message" className={bad ? 'text-danger' : ''}>

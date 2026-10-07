@@ -160,7 +160,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
         <Table caption="Audit log" stack>
           <thead>
             <tr>
-              <th scope="col" className="sm:sticky sm:left-0 bg-canvas">
+              <th scope="col" className="sm:sticky sm:left-0">
                 When
               </th>
               <th scope="col">Who</th>
