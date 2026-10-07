@@ -62,7 +62,7 @@ const confirm = () => fireEvent.click(screen.getByRole('button', { name: /^Final
 it('previews percent, missing count, letter and summary', () => {
   setup()
   expect(screen.getByText(/2 students · 1 with missing scores · Preview: /)).toHaveTextContent('A- 1 · F 1')
-  expect(screen.getByText('28.40%')).toBeInTheDocument()
+  expect(screen.getByRole('cell', { name: '30.00% (1 missing)' })).toBeInTheDocument()
   expect(screen.getByText('(1 missing)')).toBeInTheDocument()
   expect(screen.getByRole('option', { name: 'Computed: F' })).toBeInTheDocument()
 })
