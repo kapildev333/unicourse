@@ -19,6 +19,8 @@ import { personName, sectionAccess } from './access'
 import { Roster } from './roster'
 import { SectionDialog } from './section-dialog'
 import { StaffEditor } from './staff-editor'
+import { SectionDescription } from '../section/home'
+import { SectionTabs } from '../section/section-tabs'
 
 type Section = components['schemas']['Section']
 
@@ -114,6 +116,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
           }
         />
       </div>
+      <SectionTabs slug={slug} section={section} />
       <StatusMessage message={notice} />
       {editing && (
         <SectionDialog
@@ -127,6 +130,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
           }}
         />
       )}
+      <SectionDescription slug={slug} section={section} />
       <section aria-labelledby="meetings-h">
         <h2 id="meetings-h" className={h2}>
           Meeting times

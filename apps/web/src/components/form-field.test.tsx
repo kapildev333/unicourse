@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import { FormField } from './form-field'
+import { FormField, textareaClass } from './form-field'
 
 it('associates the label with the input', () => {
   render(<FormField label="Name" name="name"><input /></FormField>)
@@ -33,4 +33,12 @@ it('puts the hint id before the error id', () => {
   expect(ids).toHaveLength(2)
   expect(document.getElementById(ids[0])).toHaveTextContent('Two letters')
   expect(document.getElementById(ids[1])).toHaveTextContent('bad')
+})
+
+it('wires a textarea like an input and has no fixed height', () => {
+  render(<FormField label="Notes" name="notes" hint="Plain" error="bad"><textarea className={textareaClass} /></FormField>)
+  const t = screen.getByLabelText('Notes')
+  expect(t).toHaveAttribute('aria-invalid', 'true')
+  expect(t).toHaveAccessibleDescription(/Plain.*bad/)
+  expect(textareaClass).not.toMatch(/\bh-10\b/)
 })

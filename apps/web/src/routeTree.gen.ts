@@ -29,6 +29,7 @@ import { Route as SlugAdminTermsRouteImport } from './routes/$slug/admin/terms'
 import { Route as SlugCoursesIndexRouteImport } from './routes/$slug/courses/index'
 import { Route as SlugCoursesSectionsRouteImport } from './routes/$slug/courses/sections'
 import { Route as SlugSectionsIdRouteImport } from './routes/$slug/sections.$id'
+import { Route as SlugSectionsIdAnnouncementsRouteImport } from './routes/$slug/sections_.$id.announcements'
 import { Route as SlugSectionsIdGradesRouteImport } from './routes/$slug/sections_.$id.grades'
 
 const IndexRoute = IndexRouteImport.update({
@@ -131,6 +132,12 @@ const SlugSectionsIdRoute = SlugSectionsIdRouteImport.update({
   path: '/sections/$id',
   getParentRoute: () => SlugRouteRoute,
 } as any)
+const SlugSectionsIdAnnouncementsRoute =
+  SlugSectionsIdAnnouncementsRouteImport.update({
+    id: '/sections_/$id/announcements',
+    path: '/sections/$id/announcements',
+    getParentRoute: () => SlugRouteRoute,
+  } as any)
 const SlugSectionsIdGradesRoute = SlugSectionsIdGradesRouteImport.update({
   id: '/sections_/$id/grades',
   path: '/sections/$id/grades',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
   '/$slug/courses/': typeof SlugCoursesIndexRoute
+  '/$slug/sections/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRoutesByTo {
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin': typeof SlugAdminIndexRoute
   '/$slug/courses': typeof SlugCoursesIndexRoute
+  '/$slug/sections/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRoutesById {
@@ -202,6 +211,7 @@ export interface FileRoutesById {
   '/$slug/sections/$id': typeof SlugSectionsIdRoute
   '/$slug/admin/': typeof SlugAdminIndexRoute
   '/$slug/courses/': typeof SlugCoursesIndexRoute
+  '/$slug/sections_/$id/announcements': typeof SlugSectionsIdAnnouncementsRoute
   '/$slug/sections_/$id/grades': typeof SlugSectionsIdGradesRoute
 }
 export interface FileRouteTypes {
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin/'
     | '/$slug/courses/'
+    | '/$slug/sections/$id/announcements'
     | '/$slug/sections/$id/grades'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin'
     | '/$slug/courses'
+    | '/$slug/sections/$id/announcements'
     | '/$slug/sections/$id/grades'
   id:
     | '__root__'
@@ -270,6 +282,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id'
     | '/$slug/admin/'
     | '/$slug/courses/'
+    | '/$slug/sections_/$id/announcements'
     | '/$slug/sections_/$id/grades'
   fileRoutesById: FileRoutesById
 }
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugSectionsIdRouteImport
       parentRoute: typeof SlugRouteRoute
     }
+    '/$slug/sections_/$id/announcements': {
+      id: '/$slug/sections_/$id/announcements'
+      path: '/sections/$id/announcements'
+      fullPath: '/$slug/sections/$id/announcements'
+      preLoaderRoute: typeof SlugSectionsIdAnnouncementsRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
     '/$slug/sections_/$id/grades': {
       id: '/$slug/sections_/$id/grades'
       path: '/sections/$id/grades'
@@ -477,6 +497,7 @@ interface SlugRouteRouteChildren {
   SlugMeRoute: typeof SlugMeRoute
   SlugIndexRoute: typeof SlugIndexRoute
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
+  SlugSectionsIdAnnouncementsRoute: typeof SlugSectionsIdAnnouncementsRoute
   SlugSectionsIdGradesRoute: typeof SlugSectionsIdGradesRoute
 }
 
@@ -489,6 +510,7 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugMeRoute: SlugMeRoute,
   SlugIndexRoute: SlugIndexRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,
+  SlugSectionsIdAnnouncementsRoute: SlugSectionsIdAnnouncementsRoute,
   SlugSectionsIdGradesRoute: SlugSectionsIdGradesRoute,
 }
 

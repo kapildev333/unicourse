@@ -130,7 +130,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
               Catalog
             </NavLink>
             {isAdmin && (
-              <NavLink to="/$slug/courses" slug={slug} match={/^\/[^/]+\/(courses|sections\/[^/]+\/?$)/}>
+              <NavLink to="/$slug/courses" slug={slug} match={/^\/[^/]+\/(courses|sections\/[^/]+(\/(announcements|materials))?\/?$)/}>
                 Courses
               </NavLink>
             )}
