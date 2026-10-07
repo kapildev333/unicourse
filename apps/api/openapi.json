@@ -2610,6 +2610,11 @@
       "PendingStaff": {
         "type": "object",
         "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Pass to deleteSectionPendingStaff to cancel this assignment."
+          },
           "email": {
             "type": "string",
             "format": "email",
@@ -2625,6 +2630,7 @@
           }
         },
         "required": [
+          "invitationId",
           "email",
           "role"
         ],

@@ -283,8 +283,9 @@ func deletePendingStaff(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, e
 		Role         string `json:"role"`
 	}
 	before.InvitationID = invID
-	err := tx.QueryRowContext(ctx, `select i.email, p.role from pending_section_staff p join invitations i on i.id = p.invitation_id
-		where p.section_id = $1 and p.invitation_id = $2 for update of p`, secID, invID).Scan(&before.Email, &before.Role)
+	err := tx.QueryRowContext(ctx, `delete from pending_section_staff p using invitations i
+		where i.id = p.invitation_id and p.section_id = $1 and p.invitation_id = $2
+		and i.accepted_at is null and i.expires_at > now() returning i.email, p.role`, secID, invID).Scan(&before.Email, &before.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil, httpx.NotFound("pending staff")
 	} else if err != nil {
@@ -294,9 +295,6 @@ func deletePendingStaff(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, e
 		if err := allow(authz.CanManageSection(ctx, tx, s, secID)); err != nil {
 			return 0, nil, err
 		}
-	}
-	if _, err := tx.ExecContext(ctx, `delete from pending_section_staff where section_id = $1 and invitation_id = $2`, secID, invID); err != nil {
-		return 0, nil, err
 	}
 	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "pending_staff.delete", EntityType: "section", EntityID: secID, Before: before}); err != nil {
 		return 0, nil, err

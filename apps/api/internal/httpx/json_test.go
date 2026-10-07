@@ -88,9 +88,7 @@ func TestDecodeJSONExactCaseKeys(t *testing.T) {
 		Name string `json:"name"`
 		Opt  string `json:"opt,omitempty"`
 		Skip string `json:"-"`
-		priv string
 	}
-	_ = dst{}.priv
 	for _, c := range []struct{ body, bad string }{
 		{`{"name":"x"}`, ""},
 		{`{"opt":"x"}`, ""},

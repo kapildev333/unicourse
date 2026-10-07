@@ -53,7 +53,7 @@ func DecodeJSON(r *http.Request, dst any) error {
 
 // exactKeys rejects top-level keys that are not byte-equal to a json tag of dst, because
 // encoding/json matches keys case-insensitively. Non-struct dst is skipped.
-// ponytail: top level only; nested objects still match case-insensitively. Recurse if a contract needs it.
+// ponytail: top level only; nested objects still match case-insensitively. Recurse if a contract needs it. Embedded structs: VisibleFields also admits the embedded type's own name and ignores json tag dominance; no request struct embeds today.
 func exactKeys(body []byte, dst any) error {
 	t := reflect.TypeOf(dst)
 	for t != nil && t.Kind() == reflect.Pointer {
@@ -68,7 +68,7 @@ func exactKeys(body []byte, dst any) error {
 			continue
 		}
 		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-		if name == "-" && f.Tag.Get("json") == "-" {
+		if f.Tag.Get("json") == "-" {
 			continue
 		}
 		if name == "" {

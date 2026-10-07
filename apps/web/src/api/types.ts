@@ -996,6 +996,11 @@ export interface components {
         /** @description Staff invited by email who have not signed in yet. */
         PendingStaff: {
             /**
+             * Format: uuid
+             * @description Pass to deleteSectionPendingStaff to cancel this assignment.
+             */
+            invitationId: string;
+            /**
              * Format: email
              * @example frank@a.edu
              */

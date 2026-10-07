@@ -289,6 +289,21 @@ func TestPendingStaffDelete(t *testing.T) {
 			t.Errorf("unknown %s: %d", p, st)
 		}
 	}
+	_, raw := e.call(e.Admin, "GET", "/sections/"+e.SectionA, nil)
+	var sec struct {
+		PendingStaff []struct{ InvitationID, Email string }
+	}
+	if json.Unmarshal(raw, &sec) != nil {
+		t.Fatal(string(raw))
+	}
+	for _, p := range sec.PendingStaff {
+		if p.Email == "pta@outside.org" && p.InvitationID != taInv {
+			t.Errorf("pendingStaff invitationId %q, want %q", p.InvitationID, taInv)
+		}
+	}
+	if len(sec.PendingStaff) != 2 {
+		t.Fatalf("pendingStaff: %s", raw)
+	}
 	if st, raw := e.call(e.Inst, "DELETE", path(e.SectionA, taInv), nil); st != 204 {
 		t.Fatalf("instructor cancels ta row: %d %s", st, raw)
 	}
@@ -306,5 +321,37 @@ func TestPendingStaffDelete(t *testing.T) {
 	}
 	if st, _ := e.call(e.DaIn, "DELETE", path(e.SectionA, instInv), nil); st != 204 {
 		t.Errorf("dept_admin cancels instructor row: %d", st)
+	}
+}
+
+func TestPendingStaffDeleteStale(t *testing.T) {
+	e := newEnv(t)
+	s2 := e.newSection(e.TermA2, "001")
+	mk := func(sec, email string) string {
+		st, raw := e.call(e.Admin, "POST", e.staffPath(sec), map[string]any{"email": email, "role": "ta"})
+		var got struct{ Invitation struct{ ID string } }
+		if st != 202 || json.Unmarshal(raw, &got) != nil {
+			t.Fatalf("invite: %d %s", st, raw)
+		}
+		return got.Invitation.ID
+	}
+	path := func(sec, inv string) string { return "/sections/" + sec + "/pending-staff/" + inv }
+	inv := mk(e.SectionA, "stale@outside.org")
+	mk(s2, "stale@outside.org")
+	if _, err := auth.SignIn(context.Background(), e.DB, "stale@outside.org", "Stale"); err != nil {
+		t.Fatal(err)
+	}
+	for _, sec := range []string{e.SectionA, s2} {
+		if st, _ := e.call(e.Admin, "DELETE", path(sec, inv), nil); st != 404 {
+			t.Errorf("accepted invitation, section %s: %d", sec, st)
+		}
+	}
+	exp := mk(e.SectionA, "exp@outside.org")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update invitations set expires_at = now() - interval '1 day' where id = $1`, exp)
+		return err
+	})
+	if st, _ := e.call(e.Admin, "DELETE", path(e.SectionA, exp), nil); st != 404 {
+		t.Errorf("expired invitation: %d", st)
 	}
 }
