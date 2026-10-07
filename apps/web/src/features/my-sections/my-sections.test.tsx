@@ -258,6 +258,18 @@ it("grid marks today's column and draws the time line only there", async () => {
   expect(document.querySelector('[data-now-label]')).toHaveTextContent('10:30')
 })
 
+it('time line draws over the blocks and its label hides the nearby hour label', async () => {
+  vi.setSystemTime(new Date(2026, 9, 6, 13, 55))
+  ok()
+  renderPage('member', { view: 'schedule' })
+  await screen.findByRole('region', { name: 'Tuesday' })
+  expect(document.querySelector('[data-now-line]')).toHaveClass('z-10', 'border-t-2')
+  const hour = (t: string) => screen.getByText(t)
+  expect(hour('14:00')).toHaveClass('invisible')
+  expect(hour('13:00')).not.toHaveClass('invisible')
+  expect(hour('15:00')).not.toHaveClass('invisible')
+})
+
 it('own instructor entry reads You', async () => {
   const mine = { userId: 'u0', email: 'x@a.edu', displayName: 'X', role: 'instructor' }
   mockApi({

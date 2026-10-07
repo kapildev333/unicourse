@@ -145,7 +145,12 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                 </span>
               )}
               {hours.map((h) => (
-                <div key={h} className="h-24 pr-2 text-right text-xs text-ink-muted">
+                <div
+                  key={h}
+                  className={`h-24 pr-2 text-right text-xs text-ink-muted ${
+                    inTerm && nowMin >= h * 60 - 10 && nowMin < h * 60 + 15 ? 'invisible' : ''
+                  }`}
+                >
                   {hh(h)}:00
                 </div>
               ))}
@@ -179,7 +184,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                       <li
                         aria-hidden="true"
                         data-now-line
-                        className="pointer-events-none absolute inset-x-0 border-t border-line-strong"
+                        className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-line-strong"
                         style={{ top: `${(nowMin - start) * 0.1}rem` }}
                       ></li>
                     )}
