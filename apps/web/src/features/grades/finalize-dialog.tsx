@@ -165,10 +165,10 @@ export function FinalizeDialog(props: {
                 const name = personName(s)
                 return (
                   <tr key={s.userId}>
-                    <th scope="row" data-label="Student" title={name} className={`font-bold ${capName}`}>
+                    <th scope="row" data-label="Student" title={name} className="font-bold max-sm:bg-surface">
                       {name}
                     </th>
-                    <td data-label="Percent" className="text-right">
+                    <td data-label="Percent" className="sm:text-right">
                       {fmt2(percent)}%
                       {missing > 0 && (
                         <>

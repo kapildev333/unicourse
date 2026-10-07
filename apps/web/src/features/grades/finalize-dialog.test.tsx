@@ -72,7 +72,7 @@ it('previews percent, missing count, letter and summary', () => {
   const rows = screen.getAllByRole('rowheader')
   expect(rows[0]).toHaveTextContent('Sam Lee')
   expect(rows[0]).toHaveAttribute('title', 'Sam Lee')
-  expect(rows[0]).toHaveClass('max-w-48', 'truncate')
+  expect(rows[0]).toHaveClass('max-sm:bg-surface')
   expect(screen.getByRole('columnheader', { name: 'Student' })).toHaveClass('max-w-48', 'truncate')
 })
 

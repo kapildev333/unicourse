@@ -112,6 +112,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
   const start = Math.min(480, Math.floor(Math.min(...all.map((m) => toMinutes(m.startsAt))) / 60) * 60)
   const end = Math.max(1080, Math.ceil(Math.max(...all.map((m) => toMinutes(m.endsAt))) / 60) * 60)
   const rows = end - start
+  const showNow = inTerm && nowMin >= start && nowMin < end
   const dayItems = Object.fromEntries(
     days.map((d) => [d, timed.flatMap((s) => s.meetings.filter((m) => m.weekday === d).map((m) => ({ s, m }))).sort(byTime)]),
   )
@@ -135,7 +136,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
           >
             <div aria-hidden="true" className="relative">
               <div className="h-8 border-b border-line bg-canvas" />
-              {inTerm && nowMin >= start && nowMin < end && (
+              {showNow && (
                 <span
                   data-now-label
                   className="absolute right-0 z-10 -translate-y-1/2 bg-surface pr-2 text-xs text-ink-muted"
@@ -148,7 +149,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                 <div
                   key={h}
                   className={`h-24 pr-2 text-right text-xs text-ink-muted ${
-                    inTerm && nowMin >= h * 60 - 10 && nowMin < h * 60 + 15 ? 'invisible' : ''
+                    showNow && nowMin >= h * 60 - 10 && nowMin < h * 60 + 15 ? 'invisible' : ''
                   }`}
                 >
                   {hh(h)}:00
@@ -180,7 +181,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                       backgroundImage: 'repeating-linear-gradient(to bottom, var(--color-line) 0 1px, transparent 1px 6rem)',
                     }}
                   >
-                    {today && nowMin >= start && nowMin < end && (
+                    {today && showNow && (
                       <li
                         aria-hidden="true"
                         data-now-line

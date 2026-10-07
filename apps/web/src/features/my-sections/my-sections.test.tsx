@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
@@ -268,6 +268,12 @@ it('time line draws over the blocks and its label hides the nearby hour label', 
   expect(hour('14:00')).toHaveClass('invisible')
   expect(hour('13:00')).not.toHaveClass('invisible')
   expect(hour('15:00')).not.toHaveClass('invisible')
+  cleanup()
+  vi.setSystemTime(new Date(2026, 9, 6, 7, 55))
+  renderPage('member', { view: 'schedule' })
+  await screen.findByRole('region', { name: 'Tuesday' })
+  expect(document.querySelector('[data-now-line]')).toBeNull()
+  expect(screen.getByText('08:00')).not.toHaveClass('invisible')
 })
 
 it('own instructor entry reads You', async () => {

@@ -160,7 +160,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
     const err = errors?.rows[i]?.[f]
     const id = `scale-${r.key}-${f}-error`
     return (
-      <td data-label={label} className={f === 'letter' ? '' : 'text-right'}>
+      <td data-label={label} className={f === 'letter' ? '' : 'sm:text-right'}>
         <input
           type="text"
           inputMode={decimals ? 'decimal' : undefined}
@@ -268,7 +268,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
                 {cell(r, i, 'minPercent', 'Minimum percent', true, 'w-28 text-right')}
                 {cell(r, i, 'points', 'Grade points', true, 'w-28 text-right')}
                 <td data-label="Range" className="text-ink-muted">{range(rows, r)}</td>
-                <td className="text-right">
+                <td className="sm:text-right">
                   <Button
                     variant="ghost-neutral"
                     size="sm"
