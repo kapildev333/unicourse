@@ -7,3 +7,4 @@ node_modules/
 apps/web/e2e/.tmp/
 apps/web/test-results/
 apps/web/playwright-report/
+apps/web/node_modules

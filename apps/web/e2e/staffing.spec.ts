@@ -180,6 +180,9 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await dlg.getByRole('button', { name: /^Import 1 row/ }).click()
     await expect(page.getByText(/Import finished/)).toBeVisible()
     await expect(page.getByRole('cell', { name: students[0], exact: true }).first()).toBeVisible()
+    await page.getByLabel('Add by email').fill(instr)
+    await page.getByRole('button', { name: 'Add instructor' }).click()
+    await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toBeVisible()
 
     await page.goto(`/${slugA}/courses/sections`)
     await page.getByRole('link', { name: 'MA201' }).click()
@@ -200,17 +203,18 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText('10:30–12:00')
     await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText('Clashes with CS101-001')
     await expect(monday.getByRole('link', { name: /^CS101-001/ })).toContainText(instr)
+    await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText(instr)
 
     await expect(p.getByRole('link', { name: 'Courses' })).toHaveCount(0)
     await expect(p.getByRole('link', { name: 'Admin' })).toHaveCount(0)
 
     await p.getByRole('link', { name: 'Catalog' }).click()
     await p.getByLabel('Search').fill('MA201')
+    await expect(p.getByRole('row')).toHaveCount(2)
     const row = p.getByRole('row', { name: /MA201-001/ })
     await expect(row).toContainText(instr)
     await expect(row).toContainText('Mon 11:00–12:00')
     await expect(row).toContainText('Clashes with CS101-001, CS102-001')
-    await expect(p.getByRole('row', { name: /CS101-001/ })).toHaveCount(0)
 
     await row.getByRole('link', { name: 'MA201-001' }).click()
     await expect(p.getByRole('heading', { name: 'Meeting times' })).toBeVisible()
