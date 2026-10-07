@@ -1,7 +1,8 @@
 # UniCourse - orchestration plan
 
 Spec 1: `docs/specs/2026-10-05-platform-core-and-staffing.md` · plan `docs/plans/2026-10-05-platform-core-and-staffing.md` (done)
-Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-06-student-schedule.md` (Phase 5, not started)
+Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-06-student-schedule.md` (Phase 5, done)
+Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026-10-06-visual-design-system.md` (Phase 6, running)
 
 ## Decisions
 | # | Decision | Status |
@@ -54,6 +55,12 @@ Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-
 | D46 | JSON request bodies reject top-level keys that are not byte-equal to a `json` tag (`validation_failed`, field = the key, "unknown field"); every request struct carries explicit camelCase tags matching the contract (CLAUDE.md rule, previously relied on `encoding/json`'s case-insensitive match). Nested objects stay case-insensitive (ceiling) | Orchestrator 2026-10-07 |
 | D47 | Trusted proxies: `UNICOURSE_TRUSTED_PROXIES` (comma-separated CIDRs or IPs, default none; `/0` refused); when the connection comes from one, the client address is the rightmost `X-Forwarded-For` entry that is not a trusted proxy (all trusted → leftmost); `httpx.ClientIP` feeds the rate limiters and a `clientIp` field on every request log line; `POST /auth/oidc/{provider}/start` gets its own per-IP bucket (300/h, separate from the magic link's so SSO sign-ins cannot exhaust the mail budget). Owner to confirm: client IPs in logs (set a retention period), 300/h behind a campus NAT, per-address IPv6 buckets | Orchestrator 2026-10-07, owner to confirm |
 | D48 | Database role split: `unicourse_owner` owns the schema and runs migrations (`unicourse-admin migrate`, owner URL); the API role `unicourse` has table-level DML grants plus default privileges and cannot alter tables or disable RLS; the API no longer migrates at startup and checks the migration version on `/readyz`. Changes D4 and how deployments migrate | Orchestrator 2026-10-07, owner to confirm |
+| D49 | Spec 3 palette is coolors "Deep Blue Sea" (`134074-13315c-0b2545-8da9c4-eef4ed`), chosen from the trending page on 2026-10-06 for a calm institutional look that maps to both modes without a purple/indigo accent; status colours (red/green/amber) stay outside the palette | Orchestrator 2026-10-06, owner to confirm |
+| D50 | D3 amended: web adds `lucide-react`, `@fontsource-variable/source-sans-3`, `@fontsource-variable/source-serif-4`; fonts are bundled, no runtime request to Google | Orchestrator 2026-10-06, owner to confirm |
+| D51 | Type: Source Serif 4 for the wordmark and page titles only, Source Sans 3 for everything else; no Inter (reads as generic) | Orchestrator 2026-10-06, owner to confirm |
+| D52 | Dark mode by overriding the same CSS variables under `html[data-theme=dark]` and `prefers-color-scheme`; feature code never uses `dark:` variants or literal colours; a unit test enforces it; choice stored per browser in `localStorage` (`unicourse:theme`), applied by an inline boot script | Orchestrator 2026-10-06, owner to confirm |
+| D53 | Spec 3 changes no copy, route, role or API; the e2e suite is the regression arbiter and gains one dark-mode test | Orchestrator 2026-10-06 |
+| D54 | Spec 3 written and approved under D8 delegation in the same tick the owner asked for it (the brief itself was the go); the owner confirms by leaving it in place | Orchestrator 2026-10-06, owner to confirm |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -152,6 +159,18 @@ Phase 4 landed the mail outbox (#43), the trusted-proxy client address and OIDC 
 
 Order: P5-L1 designer → L1a worker → PR → (L1b worker ∥ P5-L2 designer → worker) → P5-L3. Phase 4 hardening stays proposed and runs after, or interleaved on the owner's call.
 
+## Phase 6 - Visual design system, light and dark (Spec 3, running)
+| Lane | Model | Scope (disjoint) | Status |
+|------|-------|------------------|--------|
+| P6-L1 - Foundation: tokens for both modes, fonts, Lucide, theme switch, shared components, shell, literal-colour gate, dark-mode e2e (Task 1, D) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P6-L1.md`, `apps/web/index.html`, `apps/web/package.json`, `apps/web/src/index.css`, `apps/web/src/lib/theme.ts`, `apps/web/src/components`, `apps/web/src/no-literal-colors.test.ts`, `apps/web/e2e/theme.spec.ts` | designer launched 2026-10-06 |
+| P6-L2 - Entry pages (Task 2, W) | Sonnet 5.5 | `apps/web/src/features/auth`, `apps/web/src/routes/{sign-in,invite.$token,index}.tsx` | after L1 |
+| P6-L3 - My sections and catalog (Task 3, W) | Sonnet 5.5 | `apps/web/src/features/{my-sections,catalog}`, `apps/web/src/routes/$slug/{me,catalog,index}.tsx` | after L1 |
+| P6-L4 - Courses (Task 4, W; a lists/detail, b dialogs/editors) | Sonnet 5.5 | `apps/web/src/features/courses`, `apps/web/src/routes/$slug/courses*`, `apps/web/src/routes/$slug/sections.$id.tsx` | after L1 |
+| P6-L5 - Admin (Task 5, W) | Sonnet 5.5 | `apps/web/src/features/admin`, `apps/web/src/routes/$slug/admin*` | after L1 |
+| P6-L6 - Evidence in both modes, `CLAUDE.md` UI conventions (Task 6) | orchestrator | `CLAUDE.md`, `PLAN.md` | after L2-L5 |
+
+Order: P6-L1 designer → worker → review → PR; then L2 ∥ L3 ∥ L4a → L4b ∥ L5, each reviewed; then L6.
+
 ## Backlog
 - The CLI runs as `unicourse_owner` (D48); a third, non-owning platform role for everyday university creation is the upgrade when a non-engineer runs the CLI.
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
@@ -179,3 +198,4 @@ Order: P5-L1 designer → L1a worker → PR → (L1b worker ∥ P5-L2 designer �
 - 2026-10-07: P4-L1 mail outbox (#43) landed after review fix and the orchestrator's real-process pass; P5-L3 e2e in PR #44. D45-D48 ruled under delegation; P4-L2 and P4-L3 designers, P4-L5a/b workers launched. Phase 4 P4-L4 (real OIDC smoke test) needs credentials and stays with the owner.
 - 2026-10-07: P4-L5a (#46) and P4-L3 (#47) landed after review fixes and the orchestrator's real-process checks; P4-L5b in PR #48 after a browser pass. P4-L2 built and in review; it lands last because of the shared-database cut-over.
 - 2026-10-07: P4-L5b (#48) and P4-L2 (#50) landed; shared local databases cut over to `unicourse_owner`; main re-verified end to end. Spec 2 and Phase 4 (except P4-L4) are complete. The 10-minute loop was stopped here; the owner reviews D34-D48 and the P4-L4 credentials.
+- 2026-10-06: Owner started a 10-minute loop asking for a professional light-and-dark UI across every page (coolors trending palette, Google Fonts, Lucide, no "AI slop", instructions for later sessions, spec-driven). Spec 3 and its plan written; D49-D54 ruled under delegation; Phase 6 cut into five lanes plus an evidence step; P6-L1 designer launched.
