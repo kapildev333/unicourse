@@ -83,7 +83,7 @@ function PublishToggle(props: {
         disabled={m.isPending}
         onChange={() => m.mutate()}
       />
-      Published<span className="sr-only"> {a.name}</span>
+      Published <span className="sr-only">{a.name}</span>
     </label>
   )
 }

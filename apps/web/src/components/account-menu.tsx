@@ -84,7 +84,7 @@ export function AccountMenu({ user }: { user: Me['user'] }) {
         onClick={() => setOpen(true)}
       >
         <UserRound />
-        <span className="sr-only">Account </span>
+        <span className="sr-only">Account</span>{' '}
         <span className="hidden max-w-32 truncate md:inline">{label}</span>
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Your account">
