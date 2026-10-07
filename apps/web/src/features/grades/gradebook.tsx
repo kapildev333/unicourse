@@ -456,7 +456,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         <Table caption={`Gradebook for ${code}`} className="relative">
           <thead>
             <tr>
-              <th scope="col" className={`sticky left-0 z-10 bg-canvas sm:w-px sm:whitespace-nowrap ${capName}`}>
+              <th scope="col" className={`sticky left-0 z-10 bg-canvas ${capName}`}>
                 Student
               </th>
               {assessments.map((a) => (
