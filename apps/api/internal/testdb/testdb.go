@@ -1,4 +1,4 @@
-// Package testdb gives integration tests a migrated, empty database.
+// Package testdb gives integration tests a migrated, empty database, migrated by the owner role and used as the API role.
 package testdb
 
 import (
@@ -15,56 +15,87 @@ import (
 // Open holds a session advisory lock until the test's cleanup finishes.
 const lockKey = 7263551
 
-// Open connects to UNICOURSE_TEST_DATABASE_URL (skips when unset), fails loudly when the role is
-// a superuser or bypasses RLS, migrates, and truncates every table before and after the test.
+// Open is OpenWithOwner without the owner pool; nearly every test wants only the API pool.
 func Open(t *testing.T) *sql.DB {
 	t.Helper()
-	url := os.Getenv("UNICOURSE_TEST_DATABASE_URL")
-	if url == "" {
+	api, _ := OpenWithOwner(t)
+	return api
+}
+
+// OpenWithOwner connects twice to the same _test database: as the owner (UNICOURSE_TEST_OWNER_DATABASE_URL),
+// which migrates and truncates, and as the API role (UNICOURSE_TEST_DATABASE_URL), which the tests
+// use like the API does. Skips when UNICOURSE_TEST_DATABASE_URL is unset.
+func OpenWithOwner(t *testing.T) (api, owner *sql.DB) {
+	t.Helper()
+	apiURL := os.Getenv("UNICOURSE_TEST_DATABASE_URL")
+	if apiURL == "" {
 		t.Skip("UNICOURSE_TEST_DATABASE_URL not set")
 	}
+	ownerURL := os.Getenv("UNICOURSE_TEST_OWNER_DATABASE_URL")
+	if ownerURL == "" {
+		t.Fatal("UNICOURSE_TEST_OWNER_DATABASE_URL not set: testdb migrates and truncates as the owner role (unicourse_owner)")
+	}
 	ctx := context.Background()
-	db, err := pg.Open(ctx, url)
+	owner, err := pg.Open(ctx, ownerURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock, err := db.Conn(ctx)
+	lock, err := owner.Conn(ctx)
 	if err != nil {
+		owner.Close()
 		t.Fatal(err)
 	}
 	if _, err := lock.ExecContext(ctx, `select pg_advisory_lock($1)`, lockKey); err != nil {
+		lock.Close()
+		owner.Close()
 		t.Fatal(err)
 	}
-	// registered right after the lock so a later failure cannot leave it held; truncate is added below
+	// registered right after the lock so a later failure cannot leave it held
 	cleaned := false
 	t.Cleanup(func() {
 		if cleaned {
-			truncate(t, db)
+			truncate(t, owner)
 		}
 		lock.ExecContext(ctx, `select pg_advisory_unlock($1)`, lockKey)
 		lock.Close()
-		db.Close()
+		owner.Close()
+		if api != nil {
+			api.Close()
+		}
 	})
 	var name string
-	if err := db.QueryRowContext(ctx, `select current_database()`).Scan(&name); err != nil {
+	if err := owner.QueryRowContext(ctx, `select current_database()`).Scan(&name); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasSuffix(name, "_test") {
 		t.Fatalf("refusing to run: database %q does not end in _test and testdb truncates every table", name)
 	}
 	var unsafe bool
-	if err := db.QueryRowContext(ctx, `select rolsuper or rolbypassrls from pg_roles where rolname = current_user`).Scan(&unsafe); err != nil {
+	if err := owner.QueryRowContext(ctx, `select rolsuper or rolbypassrls from pg_roles where rolname = current_user`).Scan(&unsafe); err != nil {
 		t.Fatal(err)
 	}
 	if unsafe {
-		t.Fatal("test database role is a superuser or has BYPASSRLS: row level security would not apply; connect as role unicourse")
+		t.Fatal("test owner role is a superuser or has BYPASSRLS: row level security would not apply to the CLI tests; connect as role unicourse_owner")
 	}
-	if err := pg.Migrate(ctx, db); err != nil {
+	if err := pg.Migrate(ctx, owner); err != nil {
 		t.Fatal(err)
 	}
-	truncate(t, db)
+	truncate(t, owner)
 	cleaned = true
-	return db
+	if api, err = pg.Open(ctx, apiURL); err != nil {
+		t.Fatal(err)
+	}
+	var apiName string
+	if err := api.QueryRowContext(ctx, `select current_database()`).Scan(&apiName); err != nil {
+		t.Fatal(err)
+	}
+	if apiName != name {
+		t.Fatalf("UNICOURSE_TEST_DATABASE_URL and UNICOURSE_TEST_OWNER_DATABASE_URL point at different databases (%q, %q)", apiName, name)
+	}
+	if err := pg.CheckAPIRole(ctx, api); err != nil {
+		t.Fatal(err)
+	}
+	return api, owner
 }
 
 func truncate(t *testing.T, db *sql.DB) {
