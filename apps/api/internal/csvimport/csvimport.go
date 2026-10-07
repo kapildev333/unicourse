@@ -26,6 +26,7 @@ const (
 	Add    Action = "add"
 	Exists Action = "exists"
 	Invite Action = "invite"
+	Update Action = "update"
 	Error  Action = "error"
 )
 
@@ -46,7 +47,7 @@ type Row struct {
 type Preview struct {
 	Checksum string         `json:"checksum"`
 	Rows     []Row          `json:"rows"`
-	Counts   map[Action]int `json:"counts"` // always has all four actions
+	Counts   map[Action]int `json:"counts"` // has every action of Spec.Actions (default: add, exists, invite, error)
 }
 
 // Verdict is the classifier's decision for one record; Ref is handed back to the Applier.
@@ -60,13 +61,14 @@ type Spec struct {
 	Required, Optional []string                       // lowercased header names
 	MaxBytes           int64                          // 0 means 5 MiB
 	Key                func(map[string]string) string // duplicate key; nil joins the Required values with "\x00"
+	Actions            []Action                       // counted (all present in Counts, 0 when unused) and the only verdicts accepted; nil = Add, Exists, Invite, Error
 }
 
 // Classifier sees every non-duplicate record once, in line order, and returns one Verdict per
 // record. It must not write.
 type Classifier func(ctx context.Context, tx *sql.Tx, recs []Record) ([]Verdict, error)
 
-// Applier receives all Add and Invite rows in line order, once; it is not called when there are none.
+// Applier receives all Add, Invite and Update rows in line order, once; it is not called when there are none.
 type Applier func(ctx context.Context, tx *sql.Tx, rows []Row) error
 
 func (s Spec) max() int64 {
@@ -261,8 +263,14 @@ func PreviewRows(ctx context.Context, tx *sql.Tx, recs []Record, checksum string
 			return Preview{}, fmt.Errorf("csvimport: classifier returned %d verdicts for %d records", len(vs), len(fresh))
 		}
 	}
-	p := Preview{Checksum: checksum, Rows: make([]Row, 0, len(recs)),
-		Counts: map[Action]int{Add: 0, Exists: 0, Invite: 0, Error: 0}}
+	actions := s.Actions
+	if actions == nil {
+		actions = []Action{Add, Exists, Invite, Error}
+	}
+	p := Preview{Checksum: checksum, Rows: make([]Row, 0, len(recs)), Counts: make(map[Action]int, len(actions))}
+	for _, a := range actions {
+		p.Counts[a] = 0
+	}
 	n := 0
 	for i, rec := range recs {
 		row := Row{Line: rec.Line, Data: rec.Data}
@@ -282,7 +290,7 @@ func PreviewRows(ctx context.Context, tx *sql.Tx, recs []Record, checksum string
 	return p, nil
 }
 
-// Apply hands the Add and Invite rows to a once the form checksum matches the preview and no row is an Error.
+// Apply hands the Add, Invite and Update rows to a once the form checksum matches the preview and no row is an Error.
 func Apply(ctx context.Context, tx *sql.Tx, p Preview, formChecksum string, a Applier) error {
 	if formChecksum == "" || formChecksum != p.Checksum {
 		return httpx.Validation(httpx.FieldError{Field: "checksum", Message: "file changed since preview"})
@@ -293,7 +301,7 @@ func Apply(ctx context.Context, tx *sql.Tx, p Preview, formChecksum string, a Ap
 		switch r.Action {
 		case Error:
 			bad = append(bad, httpx.FieldError{Field: fmt.Sprintf("line:%d", r.Line), Message: r.Message})
-		case Add, Invite:
+		case Add, Invite, Update:
 			todo = append(todo, r)
 		}
 	}

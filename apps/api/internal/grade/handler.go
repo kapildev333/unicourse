@@ -28,6 +28,8 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("DELETE", base+"/sections/{id}/final-grades", tenant.Wrap(d, reopen))
 	r.Handle("GET", base+"/me/grades", tenant.Wrap(d, getMyGrades))
 	r.Handle("PATCH", base+"/sections/{id}/final-grades/{userId}", tenant.Wrap(d, overrideFinal))
+	r.Handle("POST", base+"/sections/{id}/assessments/{assessmentId}/scores/import/preview", tenant.Wrap(d, importScores(false)))
+	r.Handle("POST", base+"/sections/{id}/assessments/{assessmentId}/scores/import", tenant.Wrap(d, importScores(true)))
 }
 
 // sectionExists is the 404 of the check order (RLS hides other universities' sections).
