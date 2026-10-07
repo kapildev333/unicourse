@@ -1690,6 +1690,11 @@ export interface components {
              * @example 3.7
              */
             points?: number;
+            /**
+             * @description The course's credits, copied at finalization; the GPA weight.
+             * @example 3
+             */
+            credits: number;
             /** @example Medical documentation */
             overrideReason?: string;
             /**

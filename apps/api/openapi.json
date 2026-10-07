@@ -4390,6 +4390,13 @@
             "example": 3.7,
             "description": "graded only."
           },
+          "credits": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20,
+            "example": 3,
+            "description": "The course's credits, copied at finalization; the GPA weight."
+          },
           "overrideReason": {
             "type": "string",
             "maxLength": 500,
@@ -4411,6 +4418,7 @@
           "email",
           "displayName",
           "status",
+          "credits",
           "finalizedBy",
           "finalizedAt"
         ]
