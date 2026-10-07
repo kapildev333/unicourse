@@ -73,12 +73,12 @@ export function AccountMenu({ user }: { user: Me['user'] }) {
     <>
       <Button
         variant="ghost-neutral"
-        aria-label="Account"
         title={`Account (${user.email})`}
         className="max-md:w-10 max-md:px-0"
         onClick={() => setOpen(true)}
       >
         <UserRound />
+        <span className="sr-only">Account </span>
         <span className="hidden max-w-32 truncate md:inline">{label}</span>
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Your account">

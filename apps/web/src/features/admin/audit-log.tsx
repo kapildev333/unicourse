@@ -84,7 +84,7 @@ function formatValue(v: unknown): string {
 
 // The entity's own name where the diff carries one (latest side wins), else just its type; the short id tells rows apart.
 function Target({ e }: { e: Entry }) {
-  const named = (e.after?.name ?? e.before?.name ?? e.after?.title ?? e.before?.title) as unknown
+  const named = (e.after?.name ?? e.before?.name ?? e.after?.title ?? e.before?.title)
   const name = typeof named === 'string' && named ? named : ''
   return (
     <>

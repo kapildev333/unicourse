@@ -90,7 +90,7 @@ it('requests a magic link and shows the check-your-email screen', async () => {
   expect(await fetchMock.mock.calls[0][0].json()).toEqual({ email: 'alice@a.edu' })
 })
 
-it('shows the envelope message on 429', async () => {
+it('says an hour on a 429', async () => {
   mockApi({
     'POST /auth/magic-link': () => ({
       status: 429,
@@ -99,7 +99,7 @@ it('shows the envelope message on 429', async () => {
   })
   renderWithQuery(<SignInPage />)
   submitMagic('alice@a.edu')
-  expect(await screen.findByRole('alert')).toHaveTextContent('Too many requests, try again later')
+  expect(await screen.findByRole('alert')).toHaveTextContent('Try again in an hour.')
 })
 
 it('shows callback error copy', () => {

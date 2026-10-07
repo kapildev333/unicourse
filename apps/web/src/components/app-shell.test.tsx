@@ -158,6 +158,6 @@ it('pressing / focuses the header search unless focus is in a field', async () =
 
 it('puts the Account menu beside Sign out, showing the name', async () => {
   await shell(mk(['member']))
-  expect(screen.getByRole('button', { name: 'Account' })).toHaveTextContent('A')
+  expect(screen.getByRole('button', { name: /^Account/ })).toHaveAccessibleName('Account A')
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
 })
