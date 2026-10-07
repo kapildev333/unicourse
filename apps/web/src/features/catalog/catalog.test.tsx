@@ -82,21 +82,21 @@ const sectionUrls = (fn: ReturnType<typeof mockApi>) =>
 
 it('shows rows with link, instructor, meetings and no-meeting text', async () => {
   setup()
-  const link = await screen.findByRole('link', { name: 'CS201-001' })
+  const link = await screen.findByRole('link', { name: /^CS201-001/ })
   expect(link).toHaveAttribute('href', '/a/sections/s1')
-  const row = link.closest('tr')!
+  const row = link.closest('li')!
   expect(within(row).getByText('Dana Poe')).toBeInTheDocument()
   expect(within(row).getByText('Mon 10:30–11:45 · Room 101')).toBeInTheDocument()
-  expect(within(screen.getByText('CS300 title').closest('tr')!).getByText('No meeting times')).toBeInTheDocument()
+  expect(within(screen.getByText('CS300 title').closest('li')!).getByText('No meeting times')).toBeInTheDocument()
 })
 
 it('notes clashes with my sections, not touching ones', async () => {
   setup()
   await screen.findByText('CS201 title')
   await waitFor(() => expect(screen.getAllByText('Clashes with CS101-001').length).toBe(2))
-  expect(within(screen.getByText('CS201 title').closest('tr')!).getByText('Clashes with CS101-001')).toBeInTheDocument()
-  expect(within(screen.getByText('CS202 title').closest('tr')!).getByText('Clashes with CS101-001')).toBeInTheDocument()
-  expect(within(screen.getByText('CS203 title').closest('tr')!).queryByText(/Clashes/)).toBeNull()
+  expect(within(screen.getByText('CS201 title').closest('li')!).getByText('Clashes with CS101-001')).toBeInTheDocument()
+  expect(within(screen.getByText('CS202 title').closest('li')!).getByText('Clashes with CS101-001')).toBeInTheDocument()
+  expect(within(screen.getByText('CS203 title').closest('li')!).queryByText(/Clashes/)).toBeNull()
 })
 
 it('debounces search into one request with q and the term', async () => {

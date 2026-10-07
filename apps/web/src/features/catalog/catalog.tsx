@@ -1,7 +1,8 @@
-import { Link } from '@tanstack/react-router'
+import { CalendarRange, Info, Library, SearchX } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
+import { Card } from '../../components/card'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
@@ -9,7 +10,6 @@ import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
-import { Table } from '../../components/table'
 import { classCode, clashesFor, formatMeeting } from '../../lib/schedule'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useAllDepartments } from '../admin/queries'
@@ -56,15 +56,16 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   else if (termsQuery.error)
     body = <ErrorBanner onRetry={() => void termsQuery.refetch()}>{errorMessage(termsQuery.error)}</ErrorBanner>
   else if (!term)
-    body = <EmptyState title="No terms yet" body="The catalog appears here once your university sets up its terms." />
+    body = <EmptyState icon={CalendarRange} title="No terms yet" body="The catalog appears here once your university sets up its terms." />
   else if (list.isPending) body = <Loading />
   else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error)}</ErrorBanner>
   else if (list.items.length === 0)
     body =
       q || departmentId ? (
-        <EmptyState title="No sections match" body="Try another search or department." />
+        <EmptyState icon={SearchX} title="No sections match" body="Try another search or department." />
       ) : (
         <EmptyState
+          icon={Library}
           title={`No sections in ${term.name}`}
           body="Sections appear here once your university schedules them."
         />
@@ -72,59 +73,25 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   else
     body = (
       <>
-        <Table caption={`Sections in ${term.name}`}>
-          <thead>
-            <tr>
-              <th scope="col">Class</th>
-              <th scope="col">Instructors</th>
-              <th scope="col">Meets</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.items.map((s) => {
-              const names = s.staff.filter((x) => x.role === 'instructor').map(personName)
-              const clash = clashesFor(s, mine)
-              return (
-                <tr key={s.id}>
-                  <td>
-                    <Link
-                      to="/$slug/sections/$id"
-                      params={{ slug, id: s.id }}
-                      className="font-medium text-accent hover:underline"
-                    >
-                      {classCode(s)}
-                    </Link>
-                    <span className="block text-xs text-ink-muted">{s.course.title}</span>
-                  </td>
-                  <td>
-                    {names.length ? (
-                      names.join(', ')
-                    ) : (
-                      <>
-                        <span className="text-ink-muted">—</span>
-                        <span className="sr-only">none</span>
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    {s.meetings.length ? (
-                      <ul>
-                        {s.meetings.map((m) => (
-                          <li key={m.id}>{formatMeeting(m)}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="text-ink-muted">No meeting times</span>
-                    )}
-                    {clash.length > 0 && (
-                      <p className="mt-1 font-semibold text-danger">Clashes with {clash.map(classCode).join(', ')}</p>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </Table>
+        <ul aria-label={`Sections in ${term.name}`} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {list.items.map((s) => {
+            const names = s.staff.filter((x) => x.role === 'instructor').map(personName)
+            const clash = clashesFor(s, mine)
+            return (
+              <Card
+                key={s.id}
+                code={classCode(s)}
+                title={s.course.title}
+                meta={[
+                  ...(names.length ? [names.join(', ')] : []),
+                  ...(s.meetings.length ? s.meetings.map((m) => formatMeeting(m)) : ['No meeting times']),
+                ]}
+                note={clash.length ? `Clashes with ${clash.map(classCode).join(', ')}` : undefined}
+                params={{ slug, id: s.id }}
+              />
+            )
+          })}
+        </ul>
         <LoadMore
           hasNextPage={list.hasNextPage}
           isFetchingNextPage={list.isFetchingNextPage}
@@ -139,7 +106,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
       <PageHeader title="Catalog" description="Sections offered in a term." />
       {terms.length > 0 && (
         <>
-          <div role="search" className="mb-4 flex flex-wrap items-end gap-4">
+          <div role="search" aria-label="Filters" className="mb-6 flex flex-wrap items-end gap-4">
             <TermPicker terms={terms} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
             <FormField label="Department" name="departmentId">
               <select
@@ -167,7 +134,10 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
             </FormField>
           </div>
           {notInSession && term && (
-            <p className="mb-4 text-sm text-ink-muted">No term is in session today. Showing {term.name}.</p>
+            <p className="mb-6 flex items-center gap-2 text-sm text-ink-muted">
+              <Info size={16} />
+              No term is in session today. Showing {term.name}.
+            </p>
           )}
         </>
       )}

@@ -28,10 +28,10 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
       {timed.length === 0 ? (
         <p className="mb-4 text-sm text-ink-muted">None of your sections in {term.name} has meeting times yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="overflow-x-auto rounded border border-line bg-surface">
           <div className="grid min-w-[48rem] grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
             <div aria-hidden="true">
-              <div className="h-8 border-b border-line" />
+              <div className="h-8 border-b border-line bg-canvas" />
               {hours.map((h) => (
                 <div key={h} className="h-24 pr-2 text-right text-xs text-ink-muted">
                   {hh(h)}:00
@@ -50,7 +50,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
               const { lane, lanes } = assignLanes(items.map((i) => i.m))
               return (
                 <section key={d} aria-labelledby={`${id}-d${d}`} className="border-l border-line">
-                  <h3 id={`${id}-d${d}`} className="h-8 border-b border-line text-center text-xs leading-8 font-semibold">
+                  <h3 id={`${id}-d${d}`} className="h-8 border-b border-line bg-canvas text-center text-xs leading-8 font-bold">
                     <span aria-hidden="true">{dayShort[d - 1]}</span>
                     <span className="sr-only">{dayLong[d - 1]}</span>
                   </h3>
@@ -79,18 +79,18 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                             to="/$slug/sections/$id"
                             params={{ slug, id: s.id }}
                             data-clash={clash.length > 0 || undefined}
-                            className={`block h-full overflow-hidden rounded-md p-1.5 text-xs leading-4 focus-visible:outline-2 focus-visible:outline-focus ${
-                              clash.length ? 'border-2 border-dashed border-danger bg-danger-soft' : 'border-l-4 border-accent bg-accent-soft'
+                            className={`block h-full overflow-hidden rounded p-1.5 text-xs leading-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                              clash.length ? 'border-2 border-dashed border-danger bg-danger-soft' : 'border border-line border-l-4 border-l-accent bg-surface hover:bg-canvas'
                             }`}
                           >
                             <span className="block">
-                              <span className="font-semibold">{classCode(s)}</span>{' '}
+                              <span className="font-bold">{classCode(s)}</span>{' '}
                               <span className="text-ink-muted">
                                 {m.startsAt}–{m.endsAt}
                               </span>
                             </span>
                             {clash.length > 0 && (
-                              <span className="block truncate font-semibold text-danger">
+                              <span className="block truncate font-bold text-danger">
                                 Clashes with {clash.map(classCode).join(', ')}
                               </span>
                             )}
@@ -110,10 +110,10 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
       )}
       {untimed.length > 0 && (
         <section aria-labelledby={`${id}-n`} className="mt-6">
-          <h3 id={`${id}-n`} className="mb-2 text-sm font-semibold">
+          <h3 id={`${id}-n`} className="mb-2 text-sm font-bold">
             No meeting times
           </h3>
-          <ul className="text-sm">
+          <ul className="flex flex-col gap-1 text-sm">
             {untimed.map((s) => {
               const names = instructors(s)
               return (

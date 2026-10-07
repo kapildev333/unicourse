@@ -97,7 +97,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     const ctx = await browser.newContext()
     const p = await ctx.newPage()
     await signIn(p, instr, slugA)
-    await expect(p.getByRole('row', { name: /CS101/ })).toContainText('Instructor')
+    await expect(p.getByRole('listitem').filter({ hasText: 'CS101' })).toContainText('Instructor')
     await ctx.close()
   })
 
@@ -120,7 +120,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
       const ctx = await browser.newContext()
       const p = await ctx.newPage()
       await signIn(p, s, slugA)
-      await expect(p.getByRole('row', { name: /CS101/ })).toContainText('Student')
+      await expect(p.getByRole('listitem').filter({ hasText: 'CS101' })).toContainText('Student')
       await ctx.close()
     }
     await page.goto(sectionUrl.v)
@@ -210,8 +210,8 @@ test('staffing flow across two universities', async ({ browser, page }) => {
 
     await p.getByRole('link', { name: 'Catalog' }).click()
     await p.getByLabel('Search').fill('MA201')
-    await expect(p.getByRole('row')).toHaveCount(2)
-    const row = p.getByRole('row', { name: /MA201-001/ })
+    await expect(p.getByRole('listitem')).toHaveCount(1)
+    const row = p.getByRole('listitem').filter({ hasText: 'MA201-001' })
     await expect(row).toContainText(instr)
     await expect(row).toContainText('Mon 11:00–12:00')
     await expect(row).toContainText('Clashes with CS101-001, CS102-001')
@@ -226,7 +226,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
   await test.step('TA accepts the invitation and sees the roster without instructor controls', async () => {
     await signOut(page)
     await signIn(page, ta, slugA)
-    await expect(page.getByRole('row', { name: /CS101/ })).toContainText('TA')
+    await expect(page.getByRole('listitem').filter({ hasText: 'CS101' })).toContainText('TA')
     await page.getByRole('link', { name: 'CS101' }).click()
     for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add instructor' })).toHaveCount(0)

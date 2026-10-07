@@ -85,21 +85,21 @@ const ok = () => mockApi({ [U]: () => ({ body: data }), [T]: () => termsBody([sp
 it('defaults to the term containing today and lists only its sections', async () => {
   ok()
   renderPage()
-  await screen.findByText('CS101')
-  expect(screen.queryByText('MATH1')).toBeNull()
+  await screen.findByText('CS101-001')
+  expect(screen.queryByText('MATH1-001')).toBeNull()
   expect(screen.queryByText(/No term is in session/)).toBeNull()
-  const ta = screen.getByText('CS101').closest('tr')!
+  const ta = screen.getByText('CS101-001').closest('li')!
   expect(within(ta).getByText('TA')).toBeInTheDocument()
   expect(within(ta).getByText('Dana Poe')).toBeInTheDocument()
-  expect(within(screen.getByText('CS102').closest('tr')!).getByText('Instructor')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'CS101' })).toHaveAttribute('href', '/a/sections/s1')
+  expect(within(screen.getByText('CS102-001').closest('li')!).getByText('Instructor')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /^CS101-001/ })).toHaveAttribute('href', '/a/sections/s1')
 })
 
 it('picks the next term when none is in session and says so', async () => {
   vi.setSystemTime(new Date(2026, 11, 20))
   mockApi({ [U]: () => ({ body: { terms: [{ term: winter, sections: [sec('s5', 'ART1', winter, 'student')] }] } }), [T]: () => termsBody([spring, winter, fall]) })
   renderPage()
-  expect(await screen.findByText('ART1')).toBeInTheDocument()
+  expect(await screen.findByText('ART1-001')).toBeInTheDocument()
   expect(screen.getByText('No term is in session today. Showing Winter 2027.')).toBeInTheDocument()
 })
 
@@ -112,10 +112,10 @@ it('shows "No terms yet" without crashing when there are no terms', async () => 
 it('shows the chosen term', async () => {
   ok()
   renderPage()
-  await screen.findByText('CS101')
+  await screen.findByText('CS101-001')
   fireEvent.change(screen.getByLabelText('Term'), { target: { value: 't1' } })
-  expect(await screen.findByText('MATH1')).toBeInTheDocument()
-  expect(screen.queryByText('CS101')).toBeNull()
+  expect(await screen.findByText('MATH1-001')).toBeInTheDocument()
+  expect(screen.queryByText('CS101-001')).toBeNull()
 })
 
 it.each([
@@ -163,7 +163,7 @@ it('schedule view with no timed sections says so', async () => {
 it('List and Schedule buttons are pressed toggles', async () => {
   ok()
   renderPage()
-  await screen.findByText('CS101')
+  await screen.findByText('CS101-001')
   const list = screen.getByRole('button', { name: 'List' })
   const sched = screen.getByRole('button', { name: 'Schedule' })
   expect(list).toHaveAttribute('aria-pressed', 'true')
@@ -172,7 +172,7 @@ it('List and Schedule buttons are pressed toggles', async () => {
   expect(await screen.findByRole('region', { name: 'Monday' })).toBeInTheDocument()
   expect(sched).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(list)
-  expect(await screen.findByRole('table')).toBeInTheDocument()
+  expect(await screen.findByRole('list', { name: /^My sections in/ })).toBeInTheDocument()
 })
 
 it('shows an error with retry', async () => {
@@ -186,5 +186,5 @@ it('shows an error with retry', async () => {
   const retry = await screen.findByRole('button', { name: 'Try again' })
   fail = false
   fireEvent.click(retry)
-  expect(await screen.findByText('CS101')).toBeInTheDocument()
+  expect(await screen.findByText('CS101-001')).toBeInTheDocument()
 })
