@@ -3,6 +3,7 @@ Status: done
 ## Doing
 Landed on lane/P7-L2-grading-web; awaiting orchestrator verification. Gates in apps/web green: lint, typecheck, test (242), build.
 ## Found
+- review fixes applied: 5e6730c
 - Export file name is `<course>-<section>-gradebook.csv` (the brief), not design's `-grades.csv`; test asserts the brief's name.
 - `OverrideDialog` lives in `finalize-dialog.tsx` (design §7); no `override-dialog.*` files were created.
 - Final column renders only once the section is finalized; Finalize button is disabled with a visible reason (loading scale, no students, weights != 100).
