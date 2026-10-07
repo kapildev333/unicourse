@@ -8,5 +8,6 @@ Landed on lane/P5-L1-section-meetings; awaiting orchestrator verification. L1b (
 - listSections/listCourses still 403 plain members until L1b; `q` and `departmentId` work for admin/dept_admin now.
 - `sectionAudit` gained `meetings` (L1b's import must fill it); `sectionFields` now returns `[]httpx.FieldError`.
 - Worktree needed `npm ci` in apps/web (node_modules is not shared).
+- review fixes applied: e42a766
 ## Requests
 ## Blockers
