@@ -361,7 +361,7 @@ export interface paths {
         };
         /**
          * List Courses
-         * @description Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections).
+         * @description Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections). Filters: departmentId, q (code or title); combined with AND.
          */
         get: operations["listCourses"];
         put?: never;
@@ -449,13 +449,13 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections).
+         * @description Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections). Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.
          */
         get: operations["listSections"];
         put?: never;
         /**
          * Create Section
-         * @description Who: admin, dept_admin (own departments).
+         * @description Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings); per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. "must be after startsAt".
          */
         post: operations["createSection"];
         delete?: never;
@@ -487,7 +487,7 @@ export interface paths {
         head?: never;
         /**
          * Update Section
-         * @description Who: admin, dept_admin (own departments).
+         * @description Who: admin, dept_admin (own departments). meetings, when present, replaces the whole list; [] clears it; omitted (or null) keeps it. Validation as on create.
          */
         patch: operations["updateSection"];
         trace?: never;
@@ -986,6 +986,42 @@ export interface components {
              */
             role: "instructor" | "ta";
         };
+        /** @description One weekly slot; wall-clock time in the university's timezone. */
+        Meeting: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * @description ISO weekday: 1 = Monday ... 7 = Sunday.
+             * @example 1
+             */
+            weekday: number;
+            /** @example 10:00 */
+            startsAt: string;
+            /** @example 11:15 */
+            endsAt: string;
+            /**
+             * @description Free text; "" when none.
+             * @example Room 101
+             */
+            location: string;
+        };
+        /** @description endsAt must be after startsAt. Location is trimmed; omitted means "". */
+        MeetingInput: {
+            /**
+             * @description ISO weekday: 1 = Monday ... 7 = Sunday.
+             * @example 1
+             */
+            weekday: number;
+            /** @example 10:00 */
+            startsAt: string;
+            /** @example 11:15 */
+            endsAt: string;
+            /** @example Room 101 */
+            location?: string;
+        };
         Section: {
             /**
              * Format: uuid
@@ -1008,6 +1044,8 @@ export interface components {
             term: components["schemas"]["Term"];
             staff: components["schemas"]["SectionStaff"][];
             pendingStaff: components["schemas"]["PendingStaff"][];
+            /** @description Ordered by weekday, then startsAt. */
+            meetings: components["schemas"]["Meeting"][];
         };
         SectionCreate: {
             /**
@@ -1022,10 +1060,14 @@ export interface components {
             termId: string;
             /** @example 001 */
             number: string;
+            /** @description The section's weekly meetings; omitted means none. */
+            meetings?: components["schemas"]["MeetingInput"][];
         };
         SectionUpdate: {
             /** @example 001 */
             number?: string;
+            /** @description When present, replaces the whole list ([] clears). Omitted keeps the current meetings. */
+            meetings?: components["schemas"]["MeetingInput"][];
         };
         StaffCreate: {
             /**
@@ -1299,6 +1341,8 @@ export interface components {
         from: string;
         /** @description Exclusive. */
         to: string;
+        /** @description Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q. */
+        q: string;
     };
     requestBodies: never;
     headers: never;
@@ -2007,6 +2051,8 @@ export interface operations {
                 /** @description Opaque; corrupt is 400 field cursor. */
                 cursor?: components["parameters"]["cursor"];
                 departmentId?: components["parameters"]["departmentId"];
+                /** @description Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q. */
+                q?: components["parameters"]["q"];
             };
             header?: never;
             path: {
@@ -2200,6 +2246,9 @@ export interface operations {
                 cursor?: components["parameters"]["cursor"];
                 termId?: components["parameters"]["termId"];
                 courseId?: components["parameters"]["courseId"];
+                departmentId?: components["parameters"]["departmentId"];
+                /** @description Case-insensitive substring of the course code or title. Blank means no filter; over 100 characters is 400 field q. */
+                q?: components["parameters"]["q"];
             };
             header?: never;
             path: {

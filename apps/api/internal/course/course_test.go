@@ -211,3 +211,52 @@ func TestCourseNULAndPatchNull(t *testing.T) {
 		t.Error("rejected patch updated the title")
 	}
 }
+
+func TestCourseListQ(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into courses (university_id, department_id, code, title) values
+			($1,$2,'PCT1','100% online'), ($1,$2,'A_B','Under\score'), ($1,$3,'MATH9','Intro to Math')`, e.Fx.UniversityA, e.Fx.DeptA, e.DeptA2)
+		return err
+	})
+	codes := func(query string) (int, []string) {
+		st, raw := e.call(e.Admin, "GET", "/courses?"+query, nil)
+		var l struct{ Items []Course }
+		json.Unmarshal(raw, &l)
+		var out []string
+		for _, c := range l.Items {
+			out = append(out, c.Code)
+		}
+		return st, out
+	}
+	for _, c := range []struct {
+		q    string
+		want []string
+	}{
+		{"q=cs1", []string{"CS101"}},
+		{"q=INTRO", []string{"CS101", "MATH9"}},
+		{"q=%25", []string{"PCT1"}},
+		{"q=_", []string{"A_B"}},
+		{"q=%5C", []string{"A_B"}},
+		{"q=AxB", nil},
+		{"q=INTRO&departmentId=" + e.DeptA2, []string{"MATH9"}},
+	} {
+		if st, got := codes(c.q); st != 200 || !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: %d %v, want %v", c.q, st, got, c.want)
+		}
+	}
+	if st, got := codes("q=%20%20"); st != 200 || len(got) != 4 {
+		t.Errorf("blank q: %d %v", st, got)
+	}
+	for q, want := range map[string][]string{
+		"q=" + strings.Repeat("a", 101): {"q"},
+		"q=a%00":                        {"q"},
+		"q=%FF":                         {"q"},
+		"departmentId=zz&q=" + strings.Repeat("a", 101): {"departmentId", "q"},
+	} {
+		st, raw := e.call(e.Admin, "GET", "/courses?"+q, nil)
+		if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, want) {
+			t.Errorf("%.30s: %d %s", q, st, raw)
+		}
+	}
+}

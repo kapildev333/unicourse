@@ -80,7 +80,7 @@ func TestSectionCreateAndShape(t *testing.T) {
 		t.Fatalf("create: %d %s", st, raw)
 	}
 	m := jmap(t, raw)
-	if len(m) != 8 || got.Number != "002" || got.Course.Code != "CS101" || got.Course.DepartmentID != e.Fx.DeptA ||
+	if len(m) != 9 || got.Number != "002" || got.Course.Code != "CS101" || got.Course.DepartmentID != e.Fx.DeptA ||
 		got.Term.Name != "Spring 2027" || got.Term.StartsOn != "2027-01-15" || got.Term.EndsOn != "2027-05-20" {
 		t.Fatalf("shape: %s", raw)
 	}
@@ -282,5 +282,53 @@ func TestSectionNULAndPatchNull(t *testing.T) {
 	st, raw := e.call(e.Admin, "POST", "/sections", map[string]any{"courseId": e.CourseA, "termId": e.TermA2, "number": "1\u0000"})
 	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"number"}) {
 		t.Errorf("create NUL: %d %s", st, raw)
+	}
+}
+
+func TestSectionListFilters(t *testing.T) {
+	e := newEnv(t)
+	var c2, s2 string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		if err := tx.QueryRow(`insert into courses (university_id, department_id, code, title) values ($1,$2,'MATH9','Calculus') returning id`, e.Fx.UniversityA, e.DeptA2).Scan(&c2); err != nil {
+			return err
+		}
+		return tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,'001') returning id`, e.Fx.UniversityA, c2, e.TermA2).Scan(&s2)
+	})
+	ids := func(query string) []string {
+		st, raw := e.call(e.Admin, "GET", "/sections?"+query, nil)
+		var l struct{ Items []Section }
+		if st != 200 || json.Unmarshal(raw, &l) != nil {
+			t.Fatalf("%s: %d %s", query, st, raw)
+		}
+		var out []string
+		for _, s := range l.Items {
+			out = append(out, s.ID)
+		}
+		return out
+	}
+	for _, c := range []struct {
+		q    string
+		want []string
+	}{
+		{"departmentId=" + e.DeptA2, []string{s2}},
+		{"departmentId=" + e.Fx.DeptA, []string{e.SectionA}},
+		{"q=math", []string{s2}},
+		{"q=intro", []string{e.SectionA}},
+		{"q=cs101&termId=" + e.Fx.TermA, []string{e.SectionA}},
+		{"q=cs101&termId=" + e.TermA2, nil},
+	} {
+		if got := ids(c.q); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: %v, want %v", c.q, got, c.want)
+		}
+	}
+	if st, raw := e.call(e.Admin, "GET", "/sections?q=%FF", nil); st != 400 {
+		t.Fatalf("invalid utf-8 q: %d %s", st, raw)
+	}
+	if got := ids("q=%5C"); got != nil {
+		t.Fatalf("q=\\ matched %v", got)
+	}
+	st, raw := e.call(e.Admin, "GET", "/sections?departmentId=zz&termId=zz", nil)
+	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"termId", "departmentId"}) {
+		t.Fatalf("bad ids: %d %s", st, raw)
 	}
 }

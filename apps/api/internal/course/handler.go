@@ -43,18 +43,21 @@ func plainMember(s authz.Scope) bool { return s.Role == authz.Member }
 // scanSection scans one row of sectionCols (plus any extra trailing columns, e.g. my_role).
 func scanSection(sc interface{ Scan(...any) error }, extra ...any) (Section, error) {
 	var s Section
-	var staff, pending []byte
+	var staff, pending, meetings []byte
 	dest := []any{&s.ID, &s.CourseID, &s.TermID, &s.Number, &s.createdAt,
 		&s.Course.ID, &s.Course.DepartmentID, &s.Course.Code, &s.Course.Title,
-		&s.Term.ID, &s.Term.Name, &s.Term.StartsOn, &s.Term.EndsOn, &staff, &pending}
+		&s.Term.ID, &s.Term.Name, &s.Term.StartsOn, &s.Term.EndsOn, &staff, &pending, &meetings}
 	if err := sc.Scan(append(dest, extra...)...); err != nil {
 		return s, err
 	}
-	s.Staff, s.PendingStaff = []Staff{}, []PendingStaff{}
+	s.Staff, s.PendingStaff, s.Meetings = []Staff{}, []PendingStaff{}, []Meeting{}
 	if err := json.Unmarshal(staff, &s.Staff); err != nil {
 		return s, err
 	}
 	if err := json.Unmarshal(pending, &s.PendingStaff); err != nil {
+		return s, err
+	}
+	if err := json.Unmarshal(meetings, &s.Meetings); err != nil {
 		return s, err
 	}
 	return s, nil

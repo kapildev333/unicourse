@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
@@ -20,6 +22,24 @@ type Course struct {
 	Code         string `json:"code"`
 	Title        string `json:"title"`
 	createdAt    time.Time
+}
+
+var likeEsc = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// likeParam reads q: nil when blank after trim; else "%"+escaped+"%".
+func likeParam(r *http.Request) (any, *httpx.FieldError) {
+	v := strings.TrimSpace(r.URL.Query().Get("q"))
+	switch {
+	case v == "":
+		return nil, nil
+	case !utf8.ValidString(v):
+		return nil, &httpx.FieldError{Field: "q", Message: "must be valid UTF-8"}
+	case strings.ContainsRune(v, 0):
+		return nil, &httpx.FieldError{Field: "q", Message: "must not contain NUL"}
+	case utf8.RuneCountInString(v) > 100:
+		return nil, &httpx.FieldError{Field: "q", Message: "must be at most 100 characters"}
+	}
+	return "%" + likeEsc.Replace(v) + "%", nil
 }
 
 // courseFields validates departmentId, code and title (all errors at once, body field order).
@@ -75,16 +95,25 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, err
 	}
 	var dept any
+	var details []httpx.FieldError
 	if v := r.URL.Query().Get("departmentId"); v != "" {
-		if !tenant.IsUUID(v) {
-			return 0, nil, httpx.Validation(invalidUUID("departmentId"))
+		if tenant.IsUUID(v) {
+			dept = v
+		} else {
+			details = append(details, invalidUUID("departmentId"))
 		}
-		dept = v
+	}
+	q, fe := likeParam(r)
+	if fe != nil {
+		details = append(details, *fe)
+	}
+	if len(details) > 0 {
+		return 0, nil, httpx.Validation(details...)
 	}
 	rows, err := tx.QueryContext(r.Context(), `select id, department_id, code, title, created_at from courses
-		where ($4::uuid is null or department_id = $4)
+		where ($4::uuid is null or department_id = $4) and ($5::text is null or code ilike $5 or title ilike $5)
 		and ($1::timestamptz is null or (created_at, id) > ($1, $2::uuid))
-		order by created_at, id limit $3`, after, afterID, p.Limit+1, dept)
+		order by created_at, id limit $3`, after, afterID, p.Limit+1, dept, q)
 	if err != nil {
 		return 0, nil, err
 	}

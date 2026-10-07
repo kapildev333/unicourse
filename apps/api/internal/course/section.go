@@ -2,6 +2,7 @@ package course
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -35,14 +36,16 @@ type Section struct {
 	Term         tenant.Term    `json:"term"`
 	Staff        []Staff        `json:"staff"`
 	PendingStaff []PendingStaff `json:"pendingStaff"`
+	Meetings     []Meeting      `json:"meetings"`
 	createdAt    time.Time
 }
 
 type sectionAudit struct {
-	ID       string `json:"id"`
-	CourseID string `json:"courseId"`
-	TermID   string `json:"termId"`
-	Number   string `json:"number"`
+	ID       string         `json:"id"`
+	CourseID string         `json:"courseId"`
+	TermID   string         `json:"termId"`
+	Number   string         `json:"number"`
+	Meetings []MeetingInput `json:"meetings"`
 }
 
 // sectionCols and sectionFrom are the one select used wherever a Section is read (staff and
@@ -55,11 +58,12 @@ const sectionCols = `s.id, s.course_id, s.term_id, s.number, s.created_at,
 		from section_staff ss join users u on u.id = ss.user_id where ss.section_id = s.id), '[]'),
 	coalesce((select json_agg(json_build_object('email', i.email, 'role', p.role) order by p.role <> 'instructor', i.email)
 		from pending_section_staff p join invitations i on i.id = p.invitation_id
-		where p.section_id = s.id and i.accepted_at is null and i.expires_at > now()), '[]')`
+		where p.section_id = s.id and i.accepted_at is null and i.expires_at > now()), '[]'),
+	` + meetingsJSON
 
 const sectionFrom = ` from sections s join courses c on c.id = s.course_id join terms t on t.id = s.term_id`
 
-func sectionFields(courseID, termID, number string, create bool) (string, error) {
+func sectionFields(courseID, termID, number string, create bool) (string, []httpx.FieldError) {
 	var details []httpx.FieldError
 	if create {
 		for _, f := range [][2]string{{"courseId", courseID}, {"termId", termID}} {
@@ -74,10 +78,7 @@ func sectionFields(courseID, termID, number string, create bool) (string, error)
 	if fe != nil {
 		details = append(details, *fe)
 	}
-	if len(details) > 0 {
-		return "", httpx.Validation(details...)
-	}
-	return number, nil
+	return number, details
 }
 
 func sectionWriteErr(err error) error {
@@ -106,12 +107,17 @@ func loadForWrite(r *http.Request, tx *sql.Tx, id string) (a sectionAudit, dept 
 	if !tenant.IsUUID(id) {
 		return a, "", httpx.NotFound("section")
 	}
-	err = tx.QueryRowContext(r.Context(), `select s.id, s.course_id, s.term_id, s.number, c.department_id
+	var meetings []byte
+	err = tx.QueryRowContext(r.Context(), `select s.id, s.course_id, s.term_id, s.number, c.department_id, `+meetingsJSON+`
 		from sections s join courses c on c.id = s.course_id where s.id = $1 for update of s`, id).
-		Scan(&a.ID, &a.CourseID, &a.TermID, &a.Number, &dept)
+		Scan(&a.ID, &a.CourseID, &a.TermID, &a.Number, &dept, &meetings)
 	if errors.Is(err, sql.ErrNoRows) {
-		err = httpx.NotFound("section")
+		return a, "", httpx.NotFound("section")
+	} else if err != nil {
+		return a, "", err
 	}
+	a.Meetings = []MeetingInput{}
+	err = json.Unmarshal(meetings, &a.Meetings)
 	return
 }
 
@@ -123,12 +129,12 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err != nil {
 		return 0, nil, err
 	}
-	var term, course any
+	var term, course, dept any
 	var details []httpx.FieldError
 	for _, f := range []struct {
 		name string
 		dst  *any
-	}{{"termId", &term}, {"courseId", &course}} {
+	}{{"termId", &term}, {"courseId", &course}, {"departmentId", &dept}} {
 		if v := r.URL.Query().Get(f.name); v != "" {
 			if tenant.IsUUID(v) {
 				*f.dst = v
@@ -137,13 +143,18 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 			}
 		}
 	}
+	q, fe := likeParam(r)
+	if fe != nil {
+		details = append(details, *fe)
+	}
 	if len(details) > 0 {
 		return 0, nil, httpx.Validation(details...)
 	}
 	rows, err := tx.QueryContext(r.Context(), `select `+sectionCols+sectionFrom+`
 		where ($4::uuid is null or s.term_id = $4) and ($5::uuid is null or s.course_id = $5)
+		and ($6::uuid is null or c.department_id = $6) and ($7::text is null or c.code ilike $7 or c.title ilike $7)
 		and ($1::timestamptz is null or (s.created_at, s.id) > ($1, $2::uuid))
-		order by s.created_at, s.id limit $3`, after, afterID, p.Limit+1, term, course)
+		order by s.created_at, s.id limit $3`, after, afterID, p.Limit+1, term, course, dept, q)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -189,16 +200,20 @@ func createSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if plainMember(s) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ CourseID, TermID, Number string }
+	var in struct {
+		CourseID, TermID, Number string
+		Meetings                 []MeetingInput
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	number, err := sectionFields(in.CourseID, in.TermID, in.Number, true)
-	if err != nil {
-		return 0, nil, err
+	number, d := sectionFields(in.CourseID, in.TermID, in.Number, true)
+	ms, md := validateMeetings(in.Meetings)
+	if d = append(d, md...); len(d) > 0 {
+		return 0, nil, httpx.Validation(d...)
 	}
 	var dept string
-	err = tx.QueryRowContext(r.Context(), `select department_id from courses where id = $1`, in.CourseID).Scan(&dept)
+	err := tx.QueryRowContext(r.Context(), `select department_id from courses where id = $1`, in.CourseID).Scan(&dept)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil, httpx.NotFound("course")
 	} else if err != nil {
@@ -207,10 +222,13 @@ func createSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if !authz.CanManageDepartment(s, dept) {
 		return 0, nil, httpx.Forbidden()
 	}
-	a := sectionAudit{CourseID: in.CourseID, TermID: in.TermID, Number: number}
+	a := sectionAudit{CourseID: in.CourseID, TermID: in.TermID, Number: number, Meetings: ms}
 	if err := tx.QueryRowContext(r.Context(), `insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,$4) returning id`,
 		s.UniversityID, a.CourseID, a.TermID, a.Number).Scan(&a.ID); err != nil {
 		return 0, nil, sectionWriteErr(err)
+	}
+	if err := replaceMeetings(r.Context(), tx, s.UniversityID, a.ID, ms); err != nil {
+		return 0, nil, err
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.create", EntityType: "section", EntityID: a.ID, After: a}); err != nil {
 		return 0, nil, err
@@ -227,22 +245,39 @@ func updateSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if !authz.CanManageDepartment(s, dept) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ Number tenant.OptStr }
+	var in struct {
+		Number   tenant.OptStr
+		Meetings *[]MeetingInput
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
 	if err := tenant.PatchNulls(tenant.Named("number", in.Number)); err != nil {
 		return 0, nil, err
 	}
-	if !in.Number.Set {
+	if !in.Number.Set && in.Meetings == nil {
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
-	if after.Number, err = sectionFields("", "", in.Number.V, false); err != nil {
-		return 0, nil, err
+	var d, md []httpx.FieldError
+	if in.Number.Set {
+		after.Number, d = sectionFields("", "", in.Number.V, false)
 	}
-	if _, err := tx.ExecContext(r.Context(), `update sections set number = $2 where id = $1`, after.ID, after.Number); err != nil {
-		return 0, nil, sectionWriteErr(err)
+	if in.Meetings != nil {
+		after.Meetings, md = validateMeetings(*in.Meetings)
+	}
+	if d = append(d, md...); len(d) > 0 {
+		return 0, nil, httpx.Validation(d...)
+	}
+	if in.Number.Set {
+		if _, err := tx.ExecContext(r.Context(), `update sections set number = $2 where id = $1`, after.ID, after.Number); err != nil {
+			return 0, nil, sectionWriteErr(err)
+		}
+	}
+	if in.Meetings != nil {
+		if err := replaceMeetings(r.Context(), tx, s.UniversityID, after.ID, after.Meetings); err != nil {
+			return 0, nil, err
+		}
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.update", EntityType: "section", EntityID: after.ID, Before: before, After: after}); err != nil {
 		return 0, nil, err
