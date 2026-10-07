@@ -45,8 +45,11 @@ export function useSection(slug: string, sectionId: string): UseQueryResult<Sect
 export function useGradebook(slug: string, sectionId: string, enabled: boolean): UseQueryResult<Gradebook, ApiError> {
   return useQuery<Gradebook, ApiError>({
     queryKey: [slug, 'gradebook', sectionId],
-    queryFn: () =>
-      unwrap(api.GET('/universities/{slug}/sections/{id}/gradebook', { params: { path: { slug, id: sectionId } } })),
+    // the contract also declares text/csv (a string) for this path; the JSON default is what we ask for
+    queryFn: async () =>
+      (await unwrap(
+        api.GET('/universities/{slug}/sections/{id}/gradebook', { params: { path: { slug, id: sectionId } } }),
+      )) as Gradebook,
     enabled,
   })
 }
