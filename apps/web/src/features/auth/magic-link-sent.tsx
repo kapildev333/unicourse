@@ -6,7 +6,7 @@ export function MagicLinkSent({ email, onBack }: { email: string; onBack: () => 
   useEffect(() => heading.current?.focus(), [])
   return (
     <div>
-      <h1 ref={heading} tabIndex={-1} className="text-xl font-semibold tracking-tight">
+      <h1 ref={heading} tabIndex={-1} className="text-2xl text-ink">
         Check your email
       </h1>
       <p className="mt-2 text-sm">

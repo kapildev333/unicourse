@@ -6,11 +6,21 @@ import { useMe } from '../features/auth/use-me'
 
 function RootRedirect() {
   const me = useMe()
-  if (me.isPending) return <Loading />
-  if (me.isError) {
-    if (me.error.status === 401) return <Loading /> // root listener navigates to sign-in
+  if (me.isPending)
     return (
-      <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-8 py-6">
+      <div className="mx-auto max-w-336 px-6 py-8">
+        <Loading />
+      </div>
+    )
+  if (me.isError) {
+    if (me.error.status === 401)
+      return (
+        <div className="mx-auto max-w-336 px-6 py-8">
+          <Loading />
+        </div>
+      ) // root listener navigates to sign-in
+    return (
+      <main id="main" tabIndex={-1} className="mx-auto max-w-336 px-6 py-8">
         <ErrorBanner onRetry={() => void me.refetch()}>{errorMessage(me.error)}</ErrorBanner>
       </main>
     )
