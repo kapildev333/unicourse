@@ -209,7 +209,7 @@ export function ScoresImportDialog(props: {
             ).map(([k, n]) => (
               <div key={k} className="flex gap-1">
                 <dt className="text-ink-muted">{k}</dt>
-                <dd className={k === 'Errors' && n > 0 ? 'font-semibold text-danger' : ''}>{n}</dd>
+                <dd className={k === 'Errors' && n > 0 ? 'font-bold text-danger' : ''}>{n}</dd>
               </div>
             ))}
           </dl>

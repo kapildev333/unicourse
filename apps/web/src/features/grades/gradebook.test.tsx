@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
 import { GradebookPage } from './gradebook'
@@ -226,11 +226,10 @@ it('TA has inputs but no assessment controls', async () => {
   expect(screen.queryByRole('button', { name: /Finalize/ })).not.toBeInTheDocument()
 })
 
-it('admin reads text only and gets the Grade scale link', async () => {
+it('admin has instructor powers (D65): inputs, New assessment, Grade scale link', async () => {
   renderPage('admin')
-  expect(await screen.findByText('Erin Moe')).toBeInTheDocument()
-  expect(screen.queryAllByRole('textbox')).toHaveLength(0)
-  expect(screen.getAllByText('No score').length).toBeGreaterThan(0)
+  await input('Score for Erin Moe, Midterm')
+  expect(screen.getByRole('button', { name: 'New assessment' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Grade scale' })).toHaveAttribute('href', '/a/grade-scale')
 })
 
@@ -261,7 +260,8 @@ it('TA sees the no-assessments copy without an action', async () => {
 
 it('Export CSV requests text/csv and downloads a named file', async () => {
   const create = vi.fn(() => 'blob:x')
-  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }))
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }))
   let name = ''
   const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
     name = this.download
@@ -272,21 +272,49 @@ it('Export CSV requests text/csv and downloads a named file', async () => {
   })
   fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }))
   await waitFor(() => expect(create).toHaveBeenCalled())
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:x'))
   expect(calls(fn, GB).some(([r]) => r.headers.get('Accept') === 'text/csv')).toBe(true)
   expect(name).toBe('CS101-001-gradebook.csv')
   click.mockRestore()
 })
 
-it('Import scores opens the dialog for staff who enter scores, not for admins', async () => {
+it('Import scores opens the dialog for staff and admins, not for plain members', async () => {
   renderPage('ta')
   fireEvent.click(await screen.findByRole('button', { name: 'Import scores' }))
   expect(await screen.findByRole('heading', { name: 'Import scores' })).toBeInTheDocument()
 })
 
-it('admin has no Import scores button', async () => {
+it('admin has the Import scores button', async () => {
   renderPage('admin')
-  await screen.findByText('Weights total 90%')
-  expect(screen.queryByRole('button', { name: 'Import scores' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Import scores' })).toBeInTheDocument()
+})
+
+it('a newer draft survives the response of an older save and is saved on its own blur', async () => {
+  let release!: () => void
+  const fn = renderPage('instructor', {
+    [PUT1]: () => new Promise((r) => { release = () => r({ body: {} }) }),
+  })
+  const cell = await input('Score for Sam Lee, Midterm')
+  fireEvent.change(cell, { target: { value: '34' } })
+  fireEvent.blur(cell)
+  await screen.findByText('Saving…')
+  fireEvent.change(cell, { target: { value: '35' } })
+  await waitFor(() => expect(release).toBeTypeOf('function'))
+  await act(async () => release())
+  await waitFor(() => expect(screen.queryByText('Saving…')).not.toBeInTheDocument())
+  expect(cell.value).toBe('35')
+  expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+  fireEvent.blur(cell)
+  await waitFor(() => expect(calls(fn, PUT1)).toHaveLength(2))
+  expect(JSON.parse(await calls(fn, PUT1)[1][0].text())).toEqual({ scores: [{ userId: 'u-sam', points: 35 }] })
+})
+
+it('the description keeps a hyphenated course code', async () => {
+  const sec = section([{ userId: 'u0', role: 'instructor', email: 'x@a.edu' }])
+  renderPage('instructor', {
+    'GET /universities/a/sections/s1': () => ({ body: { ...sec, course: { ...sec.course, code: 'CS-101' } } }),
+  })
+  expect(await screen.findByText(/^CS-101 · Section 001 — /)).toBeInTheDocument()
 })
 
 const finalBook = () => ({

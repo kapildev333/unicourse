@@ -85,5 +85,5 @@ export async function downloadGradebookCsv(slug: string, sectionId: string, file
   a.href = url
   a.download = fileName
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url))
 }

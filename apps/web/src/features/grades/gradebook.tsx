@@ -268,11 +268,8 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
       patch((c) => {
         const next = { ...c }
         for (const b of batch)
-          next[key(b.student, a)] = {
-            draft: b.text,
-            sent: b.text,
-            status: 'saved',
-          }
+          if (c[key(b.student, a)]?.draft === b.text)
+            next[key(b.student, a)] = { draft: b.text, sent: b.text, status: 'saved' }
         return next
       })
       setPageError('')
@@ -293,6 +290,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
       patch((c) => {
         const next = { ...c }
         batch.forEach((b, i) => {
+          if (c[key(b.student, a)]?.draft !== b.text) return
           next[key(b.student, a)] = {
             draft: b.text,
             status: 'error',
@@ -375,7 +373,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
             </div>
           ))
         }
-        description={`${code.replace('-', ' · Section ')} — ${sec.course.title}, ${sec.term.name}`}
+        description={`${sec.course.code} · Section ${sec.number} — ${sec.course.title}, ${sec.term.name}`}
       />
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <span className="text-sm">Weights total {fmtNum(total)}%</span>
@@ -517,7 +515,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                 {finalized && (
                   <td>
                     <FinalCell s={s} />
-                    {access.finalize && (
+                    {access.finalize && s.final && (
                       <Button
                         variant="ghost"
                         size="sm"

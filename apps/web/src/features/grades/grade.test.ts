@@ -22,8 +22,8 @@ it('gradebookAccess by role', () => {
   const none = { view: false, scores: false, assessments: false, finalize: false }
   expect(gradebookAccess(mem('member'), 'i', section)).toEqual(all)
   expect(gradebookAccess(mem('member'), 't', section)).toEqual({ ...none, view: true, scores: true })
-  expect(gradebookAccess(mem('admin'), 'x', section)).toEqual({ ...none, view: true, finalize: true })
-  expect(gradebookAccess(mem('dept_admin', ['d1']), 'x', section)).toEqual({ ...none, view: true, finalize: true })
+  expect(gradebookAccess(mem('admin'), 'x', section)).toEqual(all)
+  expect(gradebookAccess(mem('dept_admin', ['d1']), 'x', section)).toEqual(all)
   expect(gradebookAccess(mem('dept_admin', ['d2']), 'x', section)).toEqual(none)
   expect(gradebookAccess(mem('member'), 'x', section)).toEqual(none)
 })

@@ -267,7 +267,7 @@ export function OverrideDialog(props: {
   return (
     <Dialog open onClose={onClose} title={`Change final grade for ${name}`}>
       <form ref={formRef} noValidate onSubmit={submit} className="flex flex-col gap-4">
-        {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={finalizeCopy} />}
+        {!fields.letter && !fields.reason && <FormErrors ref={bannerRef} error={m.error} copy={finalizeCopy} />}
         <FormField label="Grade" name="letter" error={fields.letter}>
           <select className={inputClass} value={value} onChange={(e) => setValue(e.target.value)}>
             <GradeOptions scale={scale} />

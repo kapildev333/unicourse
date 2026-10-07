@@ -13,8 +13,8 @@ export function gradebookAccess(m: MyMembership, userId: string, section: Sectio
   const instructor = staffRole === 'instructor'
   return {
     view: manager || !!staffRole,
-    scores: instructor || staffRole === 'ta',
-    assessments: instructor,
+    scores: manager || !!staffRole,
+    assessments: manager || instructor,
     finalize: instructor || manager,
   }
 }

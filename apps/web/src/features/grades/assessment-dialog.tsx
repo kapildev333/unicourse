@@ -131,7 +131,7 @@ export function AssessmentDialog(props: {
   return (
     <Dialog open onClose={onClose} title={assessment ? `Edit ${assessment.name}` : 'New assessment'}>
       <form ref={formRef} noValidate onSubmit={submit} className="flex flex-col gap-4">
-        {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={copy} />}
+        {!fields.name && !fields.maxPoints && !fields.weight && !fields.dueOn && <FormErrors ref={bannerRef} error={m.error} copy={copy} />}
         <FormField label="Name" name="name" error={fields.name}>
           <input type="text" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>

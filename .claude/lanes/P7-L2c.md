@@ -7,7 +7,7 @@ Landed on lane/P7-L2-grading-web; awaiting orchestrator verification. Gates in a
 - `OverrideDialog` lives in `finalize-dialog.tsx` (design §7); no `override-dialog.*` files were created.
 - Final column renders only once the section is finalized; Finalize button is disabled with a visible reason (loading scale, no students, weights != 100).
 - Finalize server override errors map to rows via `m.variables` (the sent overrides, in order).
-- Import scores button shows for `access.scores` when there is at least one assessment (admins: none, per D65 / §3.9).
+- Import scores button shows for `access.scores` when there is at least one assessment (admins included, D65).
 ## Requests
 - none
 ## Blockers
