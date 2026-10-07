@@ -65,6 +65,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const term = terms.find((t) => t.id === effectiveId)
   const refresh = useRefresh(slug, 'sections')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Section | null>(null)
   const [deleting, setDeleting] = useState<Section | null>(null)
   const [importing, setImporting] = useState(false)
   const [notice, setNotice] = useState('')
@@ -156,18 +157,28 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
                 </td>
                 <td className="text-right whitespace-nowrap">
                   {canManageDepartment(membership, s.course.departmentId) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-danger hover:bg-danger-soft"
-                      aria-label={`Delete ${s.course.code} section ${s.number}`}
-                      onClick={() => {
-                        del.reset()
-                        setDeleting(s)
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Edit ${s.course.code} section ${s.number}`}
+                        onClick={() => setEditing(s)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-danger hover:bg-danger-soft"
+                        aria-label={`Delete ${s.course.code} section ${s.number}`}
+                        onClick={() => {
+                          del.reset()
+                          setDeleting(s)
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </>
                   )}
                 </td>
               </tr>
@@ -210,6 +221,18 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
           }}
         />
       )}
+      {editing && term && (
+        <SectionDialog
+          slug={slug}
+          term={term}
+          section={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(code, number) => {
+            setNotice(`Section ${code} ${number} updated.`)
+            setEditing(null)
+          }}
+        />
+      )}
       <RemoveDialog
         open={deleting !== null}
         title={`Delete ${deleting?.course.code ?? ''} section ${deleting?.number ?? ''}?`}
@@ -226,8 +249,8 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
         onClose={() => setImporting(false)}
         title="Import sections"
         target={{ kind: 'sections', slug }}
-        columns={['courseCode', 'termName', 'number', 'instructorEmails', 'taEmails']}
-        hint="Separate several emails with semicolons."
+        columns={['courseCode', 'termName', 'number', 'instructorEmails', 'taEmails', 'meetings']}
+        hint="Separate several emails with semicolons. meetings lists weekly times separated by semicolons, for example Mon 10:00-11:15 @ Room 101; Wed 10:00-11:15 (days Mon to Sun, 24-hour times, location after @ optional). A section that already has meeting times keeps them."
         onDone={async (r) => {
           await refresh([slug, 'my-sections'], [slug, 'invitations'])
           setImporting(false)

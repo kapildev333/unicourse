@@ -21,6 +21,7 @@ const mk = (staff: unknown[], pendingStaff: unknown[] = []) => ({
   term,
   staff,
   pendingStaff,
+  meetings: [],
 })
 const err = (status: number, code: string) => ({ status, body: { error: { code, message: code, details: [] } } })
 const S = 'GET /universities/a/sections/s1'
@@ -140,14 +141,20 @@ it('explains a 409 and focuses the email input', async () => {
 })
 
 it('gives a student a read-only view and never fetches the roster', async () => {
-  const fn = mockApi({ [S]: () => ({ body: mk([ins, ta]) }), [E]: () => ({ body: { items: [] } }) })
+  const fn = mockApi({
+    [S]: () => ({ body: mk([ins, ta]) }),
+    [E]: () => ({ body: { items: [] } }),
+    'GET /universities/a/me/sections': () => ({
+      body: { terms: [{ term: {}, sections: [{ id: 's1', myRole: 'student' }] }] },
+    }),
+  })
   renderPage('u-stu')
   expect(await screen.findByText('Ida Ins')).toBeInTheDocument()
   expect(screen.queryByLabelText('Add by email')).toBeNull()
   expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
   expect(screen.queryByRole('heading', { name: 'Roster' })).toBeNull()
   expect(fn.mock.calls.some((c) => (c[0] as Request).url.includes('/enrollments'))).toBe(false)
-  expect(screen.getByText('Student')).toBeInTheDocument()
+  expect(await screen.findByText('Student')).toBeInTheDocument()
 })
 
 it('shows the 403 state', async () => {

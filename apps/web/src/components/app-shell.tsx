@@ -28,6 +28,9 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
           <Link to="/$slug/me" params={{ slug }} className={navBase} activeProps={navActive}>
             My sections
           </Link>
+          <Link to="/$slug/catalog" params={{ slug }} className={navBase} activeProps={navActive}>
+            Catalog
+          </Link>
           {isAdmin && (
             <Link to="/$slug/courses" params={{ slug }} className={navBase} activeProps={navActive}>
               Courses

@@ -14,6 +14,7 @@ import { Route as SlugRouteRouteImport } from './routes/$slug/route'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SlugIndexRouteImport } from './routes/$slug/index'
 import { Route as SlugAdminRouteImport } from './routes/$slug/admin'
+import { Route as SlugCatalogRouteImport } from './routes/$slug/catalog'
 import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
@@ -50,6 +51,11 @@ const SlugIndexRoute = SlugIndexRouteImport.update({
 const SlugAdminRoute = SlugAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => SlugRouteRoute,
+} as any)
+const SlugCatalogRoute = SlugCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
   getParentRoute: () => SlugRouteRoute,
 } as any)
 const SlugCoursesRoute = SlugCoursesRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/$slug/admin': typeof SlugAdminRouteWithChildren
+  '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
+  '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug': typeof SlugIndexRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/$slug/admin': typeof SlugAdminRouteWithChildren
+  '/$slug/catalog': typeof SlugCatalogRoute
   '/$slug/courses': typeof SlugCoursesRouteWithChildren
   '/$slug/me': typeof SlugMeRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/sign-in'
     | '/$slug/admin'
+    | '/$slug/catalog'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sign-in'
+    | '/$slug/catalog'
     | '/$slug/me'
     | '/invite/$token'
     | '/$slug'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/sign-in'
     | '/$slug/admin'
+    | '/$slug/catalog'
     | '/$slug/courses'
     | '/$slug/me'
     | '/invite/$token'
@@ -267,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/$slug/admin'
       preLoaderRoute: typeof SlugAdminRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
+    '/$slug/catalog': {
+      id: '/$slug/catalog'
+      path: '/catalog'
+      fullPath: '/$slug/catalog'
+      preLoaderRoute: typeof SlugCatalogRouteImport
       parentRoute: typeof SlugRouteRoute
     }
     '/$slug/courses': {
@@ -394,6 +413,7 @@ const SlugCoursesRouteWithChildren = SlugCoursesRoute._addFileChildren(
 
 interface SlugRouteRouteChildren {
   SlugAdminRoute: typeof SlugAdminRouteWithChildren
+  SlugCatalogRoute: typeof SlugCatalogRoute
   SlugCoursesRoute: typeof SlugCoursesRouteWithChildren
   SlugMeRoute: typeof SlugMeRoute
   SlugIndexRoute: typeof SlugIndexRoute
@@ -402,6 +422,7 @@ interface SlugRouteRouteChildren {
 
 const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugAdminRoute: SlugAdminRouteWithChildren,
+  SlugCatalogRoute: SlugCatalogRoute,
   SlugCoursesRoute: SlugCoursesRouteWithChildren,
   SlugMeRoute: SlugMeRoute,
   SlugIndexRoute: SlugIndexRoute,

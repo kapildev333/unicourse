@@ -132,7 +132,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     const ctx = await browser.newContext()
     const p = await ctx.newPage()
     await signIn(p, adminB, slugB)
-    await expect(p.getByText('No sections yet')).toBeVisible()
+    await expect(p.getByText('No terms yet')).toBeVisible()
     await p.goto(`/${slugB}/courses`)
     await expect(p.getByRole('button', { name: 'New course' }).first()).toBeVisible()
     await expect(p.getByRole('cell', { name: 'CS101', exact: true })).toHaveCount(0)

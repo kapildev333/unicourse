@@ -50,3 +50,8 @@ it('shows the university switcher with two memberships', async () => {
   await shell(mk(['admin', 'member']))
   expect(screen.getByLabelText('University')).toBeInTheDocument()
 })
+
+it('shows Catalog to everyone', async () => {
+  await shell(mk(['member']))
+  expect(screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
+})
