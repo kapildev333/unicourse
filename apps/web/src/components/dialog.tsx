@@ -38,9 +38,9 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className={`w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded-lg border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/40`}
+      className={`w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded-lg border border-line bg-surface p-6 text-ink shadow-dialog`}
     >
-      <h2 id={titleId} className="text-base font-semibold">
+      <h2 id={titleId} className="text-lg font-semibold">
         {title}
       </h2>
       {description && (
@@ -48,7 +48,11 @@ export function Dialog(props: {
           {description}
         </p>
       )}
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </dialog>
   )
+}
+
+export function DialogFooter({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 flex items-center justify-end gap-2 border-t border-line pt-4">{children}</div>
 }

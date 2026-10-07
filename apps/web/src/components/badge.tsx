@@ -5,10 +5,17 @@ const tones = {
   warning: 'border-warning/30 bg-warning-soft text-warning',
 }
 
-export function Badge(props: { tone: keyof typeof tones; className?: string; children: React.ReactNode }) {
-  const { tone, className = '', children } = props
+export function Badge(props: {
+  tone: keyof typeof tones
+  pill?: boolean
+  className?: string
+  children: React.ReactNode
+}) {
+  const { tone, pill, className = '', children } = props
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tones[tone]} ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-medium ${pill ? 'rounded-full' : 'rounded-md'} ${tones[tone]} ${className}`}
+    >
       {children}
     </span>
   )
@@ -25,7 +32,11 @@ const roleLabels: Record<string, string> = {
 export const roleLabel = (role: string) => roleLabels[role] ?? role
 
 export function RoleBadge({ role }: { role: string }) {
-  return <Badge tone={role === 'member' || role === 'student' ? 'neutral' : 'accent'}>{roleLabel(role)}</Badge>
+  return (
+    <Badge pill tone={role === 'member' || role === 'student' ? 'neutral' : 'accent'}>
+      {roleLabel(role)}
+    </Badge>
+  )
 }
 
 const actions = {
@@ -37,7 +48,5 @@ const actions = {
 
 export function ActionBadge({ action }: { action: keyof typeof actions }) {
   const a = actions[action]
-  return (
-    <Badge tone={a.tone}>{a.label}</Badge>
-  )
+  return <Badge tone={a.tone}>{a.label}</Badge>
 }

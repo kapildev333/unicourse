@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, createRootRoute, useNavigate } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { LucideProvider } from 'lucide-react'
 import { ApiError } from '../api/errors'
 
 function Root() {
@@ -29,13 +30,15 @@ function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:outline-2 focus:outline-focus"
-      >
-        Skip to content
-      </a>
-      <Outlet />
+      <LucideProvider size={16} strokeWidth={1.75}>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-line focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:text-ink focus:outline-2 focus:outline-offset-2 focus:outline-focus"
+        >
+          Skip to content
+        </a>
+        <Outlet />
+      </LucideProvider>
     </QueryClientProvider>
   )
 }

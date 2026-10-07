@@ -5,11 +5,15 @@ const variants = {
   primary: 'bg-accent text-on-accent hover:bg-accent-hover',
   secondary: 'border border-line-strong bg-surface text-ink hover:bg-canvas',
   danger: 'bg-danger text-on-accent hover:bg-danger-hover',
-  ghost: 'text-accent hover:bg-accent-soft',
+  ghost: 'text-accent hover:bg-accent-soft hover:text-accent-hover',
+  'ghost-danger': 'text-danger hover:bg-danger-soft hover:text-danger-hover',
 }
 
 export function Button(
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof typeof variants; size?: keyof typeof sizes },
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: keyof typeof variants
+    size?: keyof typeof sizes
+  },
 ) {
   const { className = '', type = 'button', variant = 'primary', size = 'md', ...rest } = props
   return <button type={type} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...rest} />
