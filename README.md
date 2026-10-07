@@ -58,7 +58,7 @@ Prerequisites: Docker, Go 1.27, Node 22. Run the API steps from `apps/api`. The 
    npm install && npm run dev
    ```
 
-6. Open <http://localhost:5173>, go to Sign in, and request a magic link for a persona email below, for example `amara.okafor@northfield.edu`. No mail is sent: copy the link from the API log line with `"msg":"mail"` and open it in the browser.
+6. Open <http://localhost:5173>, go to Sign in, and request a magic link for a persona email below, for example `amara.okafor@northfield.edu`. No mail is sent: copy the link from the API log line with `"msg":"mail"` and open it in the browser, then press the sign-in button on the confirmation page. You land on `/northfield/me`.
 
 ## Demo personas
 
