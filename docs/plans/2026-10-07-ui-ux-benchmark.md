@@ -19,7 +19,7 @@
 
 1. **Width** - the S5-68 assertion is the gate; the reviewer opens the lane's 390 captures in both themes, not only the assertion output.
 2. **Both themes** - each lane's screens checked light and dark at 1440 and 390.
-3. **Copy and selectors** - only the selectors in spec §5.7 change, only in the lane named there; any other e2e edit is a defect.
+3. **Copy and selectors** - only the e2e selectors in spec §5.7 change, only in the lane named there; any other e2e edit is a defect. Unit tests inside the lane's own scope change with its copy and need no listing.
 4. **No one-off recipe** - new patterns live in `components/` with a test and a line in `docs/design/P6-L1.md`; feature files compose them.
 5. **No literal colours** - `no-literal-colors.test.ts` green; the reviewer greps the diff for `dark:`, hex and palette utilities.
 
@@ -36,7 +36,7 @@ apps/web/src/features/courses/*, routes/$slug/{courses.tsx,courses/*,sections.$i
 apps/web/src/features/admin/*, routes/$slug/{admin.tsx,admin/*}                       Task 4
 apps/web/src/features/grades/*, routes/$slug/{grades,grade-scale,sections_.$id.grades}.tsx   Task 5
 apps/web/src/features/auth/*, routes/{sign-in,invite.$token}.tsx, e2e/{helpers,staffing.spec}.ts   Task 6
-apps/api/internal/course/import.go, a me handler, httpx/routes.go, openapi.json       Task 8
+apps/api/migrations/ (if needed), internal/course/import.go, sign-in, a me handler, httpx/routes.go, openapi.json   Task 8
 ```
 
 ---
@@ -71,14 +71,14 @@ Spec §4.1, §4.5, §5.4, §5.5.
 
 **Items:** S5-68 (assertion), S5-04, S5-05, S5-06, S5-13, S5-02, S5-03, S5-67 (captures).
 
-- [ ] S5-68: in `screens.ts` `snap`, at width 390 read `document.documentElement.scrollWidth` and `expect.soft(width, file).toBeLessThanOrEqual(390)`; also append `WIDE` lines to the index file. Run `npm run screens` and record the failing list (expected: the eleven bases of spec §5.5). This run is red until Task 6; it is not in CI.
+- [ ] S5-68: in `screens.ts` `snap`, at width 390 read `document.documentElement.scrollWidth` and `expect.soft(width, file).toBeLessThanOrEqual(390)`; also append `WIDE` lines to the index file. Run `npm run screens` and record the failing list (expected: the eleven bases of spec §5.5). The full run is red until Task 6 lands; it is not in CI. Each lane's gate is no WIDE line for the lane's own captures.
 - [ ] S5-67: `screens.ts` captures one success `StatusMessage` and the weight warning badge in dark (new bases `72-states-success-admin`, `73-states-weight-warning-instructor`).
 - [ ] S5-05: failing `app-shell.test.tsx`: on `/{slug}/sections/{id}` as staff "Courses" has `aria-current="page"`; on `/{slug}/grade-scale` as admin "Admin" has it; then the match rules.
 - [ ] S5-02: failing test: pressing `/` with focus on `body` focuses the search; with focus in an input it types; then the handler and `aria-keyshortcuts`, `title`.
 - [ ] S5-03, S5-04: grid slot for search; below 768 px three rows with nav links `min-h-11`. No unit test (layout); verified by captures.
 - [ ] S5-06: `TabNav` list `overflow-x-auto` with scroll-snap; existing `admin-layout.test.tsx` stays green.
-- [ ] S5-13: no-access page per the row; existing route tests green; e2e reads the heading only.
-- [ ] Gates as Task 1a. Commit.
+- [ ] S5-13: failing test for the no-access page: the link list is led by "Go to your university:"; with one membership a primary "Go to {university}" button and Sign out secondary; the slug text reads "this university's address"; then the page. Existing route tests green; e2e reads the heading only.
+- [ ] Gates as Task 1a, plus `npm run screens`: no WIDE line for the lane's own captures (04, 72, 73). Commit.
 
 **Orchestrator verification:** gates; `npm run screens`; the WIDE list is a subset of the eleven bases in spec §5.5, never a new one; compare 20, 30, 45, 52, 66 header at 1440 and 390 (header height at 390 measured on the capture, target about 150 px), 04 light and dark; nav current on 45 and 66.
 
@@ -91,13 +91,13 @@ Spec §4.6 (10, 11), §4.7, §4.8, §4.9, §4.18. After Task 1.
 **Items:** S5-24, S5-29, S5-30, S5-14 (10, 11), S5-27, S5-26, S5-25, S5-19, S5-23 (use), S5-20, S5-22 (use), S5-65, S5-64 (cards), S5-28, S5-32, S5-31, S5-21.
 
 - [ ] S5-24: failing `my-sections.test.tsx`: with `matchMedia('(min-width: 768px)')` false the schedule renders weekday regions as lists with one link per meeting and no grid; true renders the grid inside an `overflow-x-auto` wrapper; then the agenda (same regions and link names, so e2e `region Monday` holds).
-- [ ] S5-25, S5-26, S5-27, S5-28: failing tests: no Sat/Sun column when no meeting falls on them; a block has no instructor text; today's header has `aria-current="date"` and "Today" (fake timers); the time line exists only in today's column; then the changes.
+- [ ] S5-25, S5-26, S5-27, S5-28: failing tests: the grid keeps seven day regions, an empty Sat or Sun gets the narrow track; a block shows no visible instructor line but its link's accessible name still contains the instructor (`sr-only`), and the agenda row has none; the untimed list uses " · " (`schedule.tsx:124`); today's header has `aria-current="date"` and "Today" (fake timers); the time line exists only in today's column; then the changes.
 - [ ] S5-20: failing `schedule.test.ts` for `formatMeetings` (same time and room on Mon and Wed gives one line; differing rooms give two); then the helper; existing `formatMeeting` tests untouched.
 - [ ] S5-29, S5-30, S5-31: failing `catalog.test.tsx`: "Clear filters" appears with a department set and resets it, keeping the term; no-match title quotes `q`; a card in `mine` shows "Enrolled"; count reads "Showing 5 sections"; update the existing "No sections match" assertion (spec §5.7); then the changes.
 - [ ] S5-14: failing tests: admin on "No terms yet" sees a "Set up terms" link to the Terms tab; a student sees none; then the action.
 - [ ] S5-19, S5-21, S5-22, S5-23: failing tests: own address reads "You"; option text is the name only; instructor card has a "Gradebook" link; List/Schedule is a `SegmentedControl` with `aria-pressed`; then the changes.
 - [ ] S5-64, S5-65, S5-32: `Loading variant="cards"` while loading; load banners pass `title="Couldn't load your sections"` / `"Couldn't load sections"`; filter controls `w-full` below 768 px.
-- [ ] Gates: lint, typecheck, test, build, e2e, screens (no WIDE line for 20-23, 30-32). Commit.
+- [ ] Gates: lint, typecheck, test, build, e2e (`staffing.spec.ts:200`, `205-206` unchanged and green), screens: no WIDE line for the lane's own captures (20-23, 30-32). Commit.
 
 **Orchestrator verification:** gates; `npm run screens`; compare `before/` and new 10, 11, 20, 21, 22, 23, 30, 31, 32 at 1440 and 390 in both themes; `sips -g pixelWidth` on 21 and 23 light-390 and dark-390 gives 390; open the app at 390 in a real browser and tap a schedule row through to the section.
 
@@ -113,11 +113,11 @@ Spec §4.6 (12, 13), §4.10, §4.11, §4.12, §5.6. After Task 1.
 - [ ] S5-40: failing `section-dialog.test.tsx`: the dialog uses `wide`; the meeting group uses the two-column phone grid; then the change (needs the D69 amendment, spec §5.7; stop if not ruled).
 - [ ] S5-35: every table here passes `stack` and `data-label` per cell (course list, section list, roster, import preview); one test per table that cells carry labels.
 - [ ] S5-69: failing `roster.test.tsx`: a student without a name shows the email once and a muted dash in Name; then the change in `roster.tsx` and the other person cells (`access.ts` `personName` unchanged).
-- [ ] S5-14, S5-15, S5-16, S5-17: failing `section-list.test.tsx` and `course-list.test.tsx`: no terms hides New section, Import and the Term select and shows "Set up terms" to admins; no courses shows one primary; New course enabled while loading; then the changes; `PageHeader` above `TabNav` in `courses-layout.tsx`.
+- [ ] S5-14, S5-15, S5-16, S5-17: failing `section-list.test.tsx` and `course-list.test.tsx`: no terms keeps New section visible and disabled with its reason ("Add a term first"), hides Import and the Term select and shows "Set up terms" to admins (e2e `staffing.spec.ts:247` holds); no courses shows one primary; New course enabled while loading; then the changes; `PageHeader` above `TabNav` in `courses-layout.tsx`.
 - [ ] S5-33, S5-34, S5-36: failing tests: staff cells have no chip border and show "+2" past two names; then the filter row, count in the toolbar (`LoadMore showCount={false}`), staff text.
 - [ ] S5-41, S5-43, S5-44, S5-45, S5-39: failing tests: import shows one summary and no Message column when no row has a message; Roster heading row holds Import; headings carry counts; "Edit section" opens the dialog for editors only; remove-course body names the effect on sections (worker reads the API's delete behaviour first); then the changes.
 - [ ] S5-64, S5-65: table skeletons with the real column names; banners titled "Couldn't load courses" / "sections" / "section".
-- [ ] Gates as Task 2 (no WIDE line for 40-47). Commit.
+- [ ] Gates as Task 2 (no WIDE line for the lane's own captures, 12, 13, 40-47). Commit.
 
 **Orchestrator verification:** gates; `npm run screens`; compare 12, 13, 40-47, 70, 71 before and after, both themes, both widths; `sips` width 390 on 43-47 light-390; in a browser at 390 add a TA by email on section detail and add a meeting in the section dialog.
 
@@ -127,15 +127,15 @@ Spec §4.13, §5.6. After Task 1.
 
 **Scope:** `apps/web/src/features/admin/**`, `apps/web/src/routes/$slug/admin.tsx`, `apps/web/src/routes/$slug/admin/**`.
 
-**Items:** S5-35 (use), S5-51, S5-69, S5-48, S5-46, S5-50, S5-65, S5-64 (table), S5-71 (use), S5-47, S5-49, S5-34.
+**Items:** S5-35 (use), S5-51, S5-69, S5-48, S5-46, S5-50, S5-65, S5-64 (table), S5-71 (use), S5-47, S5-34. S5-49 and the S5-48 order are C9 (API), not here.
 
 - [ ] S5-35, S5-51: departments, terms, members and invitations tables pass `stack` with labels; the audit table keeps scroll with a sticky When column; one test per table.
 - [ ] S5-69: failing `members.test.tsx`: a member without a name shows one email line and no dash; then the change.
-- [ ] S5-48, S5-49: failing `invitations.test.tsx`: pending rows first, then by expiry; accepted rows show a dash in Expires; the Status filter narrows rows; then the changes.
+- [ ] S5-48: failing `invitations.test.tsx`: accepted rows show a muted dash in Expires; row order stays the API's; then the change.
 - [ ] S5-46: failing `terms.test.tsx` with fixed dates: Current, Upcoming, Past badges; then the column.
 - [ ] S5-50, S5-71: failing `audit-log.test.tsx`: past-tense labels for each action the API emits (list them from the API's audit calls); details use `Disclosure`; then the changes.
 - [ ] S5-47, S5-34, S5-64, S5-65: description link to Invitations; count in the toolbar; table skeletons; banners titled "Couldn't load members" and so on.
-- [ ] Gates as Task 2 (no WIDE line for 50-54). Commit.
+- [ ] Gates as Task 2 (no WIDE line for the lane's own captures, 50-54). Commit.
 
 **Orchestrator verification:** gates; `npm run screens`; compare 50-54 before and after, both themes, both widths; `sips` width 390 on 52 and 53 light-390 and dark-390; in a browser at 390 change a member's role from the stacked row.
 
@@ -156,21 +156,21 @@ Spec §4.14-§4.17, §5.6. After Task 1.
 - [ ] S5-60, S5-61, S5-71: failing `my-grades.test.tsx`: "Graded credits" and the in-progress line from the cards; disclosures use `Disclosure`; then the changes and the card alignment.
 - [ ] S5-62, S5-63: failing `scale-editor.test.tsx`: Range column values from the next row; "Unsaved changes" after an edit and gone after save; Save in the header; then the changes.
 - [ ] S5-64, S5-65: table skeleton on the gradebook; banners titled "Couldn't load the gradebook" and so on.
-- [ ] Gates as Task 2 (no WIDE line for 60-66). Commit.
+- [ ] Gates as Task 2 (no WIDE line for the lane's own captures, 60-66). Commit.
 
 **Orchestrator verification:** gates; `npm run screens`; compare 60-66 before and after, both themes, both widths; `sips` width 390 on 60-63; in a browser at 390 enter a score for the last assessment column and finalize from the dialog.
 
 ### Task 6 (P9-L6, W): entry pages, one search, separators and e2e selectors
 
-Spec §4.1 (S5-01), §4.2-§4.4, §5.6 (S5-70), §5.7. After Tasks 2-5 land; needs the §5.7 selector ruling in PLAN.md.
+Spec §4.1 (S5-01), §4.2-§4.4, §5.6 (S5-70), §5.7. After Tasks 2-5 land; needs the e2e selector ruling (spec §8, decision proposal 2) in PLAN.md.
 
-**Scope:** `apps/web/src/features/auth/**`, `apps/web/src/routes/sign-in.tsx`, `apps/web/src/routes/invite.$token.tsx`, `apps/web/src/components/app-shell.tsx` (search only), `apps/web/src/features/catalog/catalog.tsx` and `catalog.test.tsx`, the separator lines in `features/courses/{course-dialog,course-list,section-dialog,section-detail}.tsx`, `features/grades/{gradebook,my-grades}.tsx` and their tests, `apps/web/e2e/helpers.ts`, `apps/web/e2e/staffing.spec.ts`, `apps/web/e2e/screens.ts`.
+**Scope:** `apps/web/src/features/auth/**`, `apps/web/src/routes/sign-in.tsx`, `apps/web/src/routes/invite.$token.tsx`, `apps/web/src/components/app-shell.tsx` (search only), `apps/web/src/features/catalog/catalog.tsx` and `catalog.test.tsx`, the separator lines in `features/courses/{course-dialog,course-list,section-dialog,section-detail}.tsx`, `features/grades/{gradebook,my-grades}.tsx` and their tests, `features/courses/section-list.test.tsx` (it reads the section dialog's course options), `apps/web/e2e/helpers.ts`, `apps/web/e2e/staffing.spec.ts`, `apps/web/e2e/screens.ts`.
 
 **Items:** S5-07, S5-01, S5-10, S5-12, S5-08, S5-70, S5-11, S5-09.
 
 - [ ] S5-07: change the e2e selectors of spec §5.7 to the single field first (suite red), then failing `sign-in-page.test.tsx`: one input; providers and magic link act on its value; non-email value with the magic link shows the inline error; then the page. e2e green.
 - [ ] S5-01: change `staffing.spec.ts:212` to the header field (red); failing tests: on the Catalog the header field shows `q`; the Catalog has no Search input; then the change. e2e green.
-- [ ] S5-70: change the e2e strings at `staffing.spec.ts` 140-141, 159-160, 385-386 and `screens.ts:209` (red); then each separator in the listed files and their unit tests. e2e green.
+- [ ] S5-70: change the e2e strings at `staffing.spec.ts` 140-141, 159-160, 385-386 and `screens.ts:209` (red); then each separator in the listed files and their unit tests (not `schedule.tsx`, which Task 2 owns). e2e green.
 - [ ] S5-10, S5-11, S5-12, S5-08, S5-09: failing tests per row (resend re-posts and disables for 30 s with fake timers; inline link; invite info row; hint text; "Last used" badge from `localStorage`); then the changes.
 - [ ] Gates: lint, typecheck, test, build, e2e, screens: the WIDE list is empty. Commit.
 
@@ -182,11 +182,12 @@ Spec §6. Scope and steps are cut from the owner's answers; a designer lane firs
 
 ### Task 8 (P9-L8, D then W): display names (C1) - owner to confirm
 
-Spec §7 C1. API only; may run in parallel with any web task (disjoint `apps/api` scope). Designer writes `docs/design/P9-L8.md` (the import write rule, `PATCH /api/v1/me` body, validation and length, audit entry, RLS).
+Spec §7 C1. API only; may run in parallel with any web task (disjoint `apps/api` scope). Designer writes `docs/design/P9-L8.md` (the import write rule, `PATCH /api/v1/me` body, validation and length, audit entry, RLS). Roster rows for people without an account become invitations (D21: `pending_enrollments`, no `users` row), so the CSV name must be stored on the invitation and applied at sign-in with the same fill-only-if-empty rule; likely a migration, which the design covers.
 
-**Scope:** `apps/api/internal/course/import.go` and tests, the package that serves `GET /api/v1/me` and its tests, `apps/api/internal/httpx/routes.go`, `apps/api/openapi.json` (hot spots: single lane), `apps/web/src/api/types.ts` (regenerated only).
+**Scope:** `apps/api/migrations/` (new file, if the design adds the invitation name column), `apps/api/internal/course/import.go` and tests, the sign-in path that applies pending invitations and its tests, the package that serves `GET /api/v1/me` and its tests, `apps/api/internal/httpx/routes.go`, `apps/api/openapi.json` (hot spots: single lane), `apps/web/src/api/types.ts` (regenerated only).
 
 - [ ] Failing test: a roster import row with a name fills an empty `users.display_name` and never overwrites a set one; then the write in the import transaction.
+- [ ] Failing test: a roster row with a name for an email without an account stores the name on the invitation, and signing in with that email fills the new user's `display_name`; then the change.
 - [ ] Failing test: `PATCH /api/v1/me` sets the caller's name (trimmed, 1-100 characters, 400 otherwise), audited; then the handler and route; regenerate `types.ts`.
 - [ ] Gates: gofmt, `go vet`, `go test` against Postgres; web gates unchanged and green. Commit.
 
