@@ -28,6 +28,7 @@ import {
   type Gradebook,
 } from './queries'
 import { ScoreCell, type Cell } from './score-cell'
+import { ScoresImportDialog } from './scores-import-dialog'
 
 type Student = Gradebook['students'][number]
 
@@ -104,6 +105,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
   const [message, setMessage] = useState('')
   const [pageError, setPageError] = useState('')
   const [dialog, setDialog] = useState<'new' | Assessment | null>(null)
+  const [importing, setImporting] = useState(false)
   const exportCsv = useMutation({
     mutationFn: (fileName: string) => downloadGradebookCsv(slug, sectionId, fileName),
     onSuccess: () => setPageError(''),
@@ -308,6 +310,11 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         {!totalsHundred(assessments) && <Badge tone="warning">Must total 100% to finalize</Badge>}
         <div className="ml-auto flex gap-2">
           {editing && newButton}
+          {access.scores && assessments.length > 0 && (
+            <Button variant="secondary" onClick={() => setImporting(true)}>
+              Import scores
+            </Button>
+          )}
           <Button
             variant="secondary"
             disabled={exportCsv.isPending}
@@ -461,6 +468,19 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
             </tr>
           </tfoot>
         </Table>
+      )}
+      {importing && (
+        <ScoresImportDialog
+          slug={slug}
+          sectionId={sectionId}
+          assessments={assessments}
+          onClose={() => setImporting(false)}
+          onDone={(m) => {
+            setImporting(false)
+            setPageError('')
+            setMessage(m)
+          }}
+        />
       )}
       {dialog && (
         <AssessmentDialog

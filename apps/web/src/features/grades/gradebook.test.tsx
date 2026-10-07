@@ -276,3 +276,15 @@ it('Export CSV requests text/csv and downloads a named file', async () => {
   expect(name).toBe('CS101-001-gradebook.csv')
   click.mockRestore()
 })
+
+it('Import scores opens the dialog for staff who enter scores, not for admins', async () => {
+  renderPage('ta')
+  fireEvent.click(await screen.findByRole('button', { name: 'Import scores' }))
+  expect(await screen.findByRole('heading', { name: 'Import scores' })).toBeInTheDocument()
+})
+
+it('admin has no Import scores button', async () => {
+  renderPage('admin')
+  await screen.findByText('Weights total 90%')
+  expect(screen.queryByRole('button', { name: 'Import scores' })).not.toBeInTheDocument()
+})
