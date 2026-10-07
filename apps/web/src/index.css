@@ -1,36 +1,39 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/dm-sans';
-@import '@fontsource/dm-serif-display';
 
-/* Tokens and contrast: docs/design/P6-L1.md §1 (Olive Garden Feast). Light values here; dark below. */
+/* Tokens and contrast: docs/design/P6-L1.md §1 (Udemy palette, D57). Light values here; dark below. */
 @theme static {
   --color-*: initial;   /* no Tailwind default palette: tokens only */
-  --shadow-*: initial;  /* no default shadows: only shadow-dialog */
+  --shadow-*: initial;  /* no default shadows: only shadow-card and shadow-dialog */
 
   --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif: 'DM Serif Display', ui-serif, Georgia, 'Times New Roman', serif;
   --text-xs: 0.8125rem;              /* 13 px: spec minimum */
   --text-xs--line-height: 1.125rem;
-  --shadow-dialog: 0 16px 40px -12px rgb(40 54 24 / 0.45);  /* Pakistan green */
+  /* Spec 3.4: 4 px radius everywhere. rounded-md and rounded-lg are 4 px here too, so existing classes need no edit;
+     new code writes `rounded` (Tailwind's --radius, 4 px). The header search is the one rounded-full. */
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --shadow-card: 0 2px 4px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.08);  /* card hover only */
+  --shadow-dialog: 0 16px 40px -12px rgb(28 29 31 / 0.45);                 /* charcoal */
 
-  --color-canvas: #fefae0;
+  --color-canvas: #f7f9fa;
   --color-surface: #ffffff;
-  --color-line: #d4d7d1;
-  --color-line-strong: #7e8674;
-  --color-ink: #283618;
-  --color-ink-muted: #535e46;
-  --color-accent: #606c38;
-  --color-accent-hover: #905c21;
-  --color-accent-soft: #e7e9e1;
+  --color-line: #d1d7dc;
+  --color-line-strong: #6a6f73;
+  --color-ink: #1c1d1f;
+  --color-ink-muted: #6a6f73;
+  --color-accent: #a435f0;
+  --color-accent-hover: #5624d0;
+  --color-accent-soft: #f6ebfe;
   --color-on-accent: #ffffff;
-  --color-focus: #283618;
+  --color-focus: #1c1d1f;
   --color-danger: #b42318;
   --color-danger-hover: #8f1c13;
   --color-danger-soft: #fdf1f0;
   --color-success: #1d6b50;
   --color-success-soft: #e8f0ee;
-  --color-warning: #72511e;
-  --color-warning-soft: #f6e8d7;
+  --color-warning: #865213;
+  --color-warning-soft: #f4e8db;
 }
 
 html { color-scheme: light; }
@@ -38,46 +41,46 @@ html { color-scheme: light; }
 /* Dark: keep the two blocks identical (src/lib/theme.test.ts checks). */
 html[data-theme='dark'] {
   color-scheme: dark;
-  --color-canvas: #283618;
-  --color-surface: #374426;
-  --color-line: #5f684b;
-  --color-line-strong: #91967a;
-  --color-ink: #fefae0;
-  --color-ink-muted: #b8ba9f;
-  --color-accent: #dda15e;
-  --color-accent-hover: #e7bc85;
-  --color-accent-soft: #2f3a1b;
-  --color-on-accent: #283618;
-  --color-focus: #fefae0;
+  --color-canvas: #1c1d1f;
+  --color-surface: #2d2f31;
+  --color-line: #555759;
+  --color-line-strong: #888a8b;
+  --color-ink: #f7f9fa;
+  --color-ink-muted: #a6a8aa;
+  --color-accent: #c47cf5;
+  --color-accent-hover: #d29af8;
+  --color-accent-soft: #453057;
+  --color-on-accent: #1c1d1f;
+  --color-focus: #f7f9fa;
   --color-danger: #f4a39b;
   --color-danger-hover: #f8c4be;
-  --color-danger-soft: #4b3118;
+  --color-danger-soft: #421e1d;
   --color-success: #8fd4b8;
-  --color-success-soft: #254326;
-  --color-warning: #eac592;
-  --color-warning-soft: #3e2d1a;
+  --color-success-soft: #1c342e;
+  --color-warning: #ddbc93;
+  --color-warning-soft: #42301b;
 }
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
     color-scheme: dark;
-    --color-canvas: #283618;
-    --color-surface: #374426;
-    --color-line: #5f684b;
-    --color-line-strong: #91967a;
-    --color-ink: #fefae0;
-    --color-ink-muted: #b8ba9f;
-    --color-accent: #dda15e;
-    --color-accent-hover: #e7bc85;
-    --color-accent-soft: #2f3a1b;
-    --color-on-accent: #283618;
-    --color-focus: #fefae0;
+    --color-canvas: #1c1d1f;
+    --color-surface: #2d2f31;
+    --color-line: #555759;
+    --color-line-strong: #888a8b;
+    --color-ink: #f7f9fa;
+    --color-ink-muted: #a6a8aa;
+    --color-accent: #c47cf5;
+    --color-accent-hover: #d29af8;
+    --color-accent-soft: #453057;
+    --color-on-accent: #1c1d1f;
+    --color-focus: #f7f9fa;
     --color-danger: #f4a39b;
     --color-danger-hover: #f8c4be;
-    --color-danger-soft: #4b3118;
+    --color-danger-soft: #421e1d;
     --color-success: #8fd4b8;
-    --color-success-soft: #254326;
-    --color-warning: #eac592;
-    --color-warning-soft: #3e2d1a;
+    --color-success-soft: #1c342e;
+    --color-warning: #ddbc93;
+    --color-warning-soft: #42301b;
   }
 }
 
@@ -85,10 +88,10 @@ html[data-theme='dark'] {
   html { background: var(--color-canvas); color: var(--color-ink); line-height: 1.5; font-variant-numeric: tabular-nums; }
   body { -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { line-height: 1.25; }
-  /* DM Serif Display ships weight 400 only: never let the browser fake a bold. */
-  h1 { font-family: var(--font-serif); font-weight: 400; font-synthesis: none; letter-spacing: -0.01em; line-height: 1.2; }
+  /* Page titles: 32 px bold (spec 3.2). A size utility on an h1 (entry cards: text-2xl) overrides the size only. */
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
   a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 2px; }
-  dialog::backdrop { background: rgb(40 54 24 / 0.6); }  /* Pakistan green scrim, both modes */
+  dialog::backdrop { background: rgb(28 29 31 / 0.6); }  /* charcoal scrim, both modes */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -101,9 +104,9 @@ html[data-theme='dark'] {
 /* The two recipes. <Table> applies ui-table; <Loading> applies ui-skeleton. */
 @layer components {
   .ui-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-  .ui-table th { height: 2.5rem; padding: 0 1rem; background: var(--color-canvas); color: var(--color-ink-muted);
-                 font-size: 0.8125rem; font-weight: 600; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
-  .ui-table td { height: 2.5rem; padding: 0.625rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: middle; }
+  .ui-table th { height: 3rem; padding: 0 1rem; background: var(--color-canvas); color: var(--color-ink);
+                 font-size: 0.875rem; font-weight: 700; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
+  .ui-table td { height: 3rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: middle; }
   .ui-table tbody tr:last-child td { border-bottom: 0; }
   .ui-table tbody tr:hover td { background: var(--color-canvas); transition: background-color 150ms; }
   .ui-skeleton { display: block; height: 1rem; border-radius: 4px;

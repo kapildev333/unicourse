@@ -17,12 +17,12 @@ export const ErrorBanner = forwardRef<
       id={id}
       tabIndex={-1}
       role="alert"
-      className="flex gap-3 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
+      className="flex gap-3 rounded border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"
     >
       <CircleAlert className="mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
         {title && (
-          <p className="font-semibold">
+          <p className="font-bold">
             <span className="sr-only">Error: </span>
             {title}
           </p>

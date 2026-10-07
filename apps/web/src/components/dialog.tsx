@@ -38,9 +38,9 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className={`m-auto w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded-lg border border-line bg-surface p-6 text-ink shadow-dialog`}
+      className={`m-auto w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
     >
-      <h2 id={titleId} className="text-lg font-semibold">
+      <h2 id={titleId} className="text-xl font-bold">
         {title}
       </h2>
       {description && (

@@ -1,20 +1,19 @@
 const tones = {
-  accent: 'border-accent/30 bg-accent-soft text-accent',
-  neutral: 'border-line-strong bg-surface text-ink-muted',
-  danger: 'border-danger/30 bg-danger-soft text-danger',
-  warning: 'border-warning/30 bg-warning-soft text-warning',
+  accent: 'border-transparent bg-accent-soft text-ink',
+  neutral: 'border-line bg-surface text-ink-muted',
+  danger: 'border-transparent bg-danger-soft text-danger',
+  warning: 'border-transparent bg-warning-soft text-warning',
 }
 
 export function Badge(props: {
   tone: keyof typeof tones
-  pill?: boolean
   className?: string
   children: React.ReactNode
 }) {
-  const { tone, pill, className = '', children } = props
+  const { tone, className = '', children } = props
   return (
     <span
-      className={`inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-medium ${pill ? 'rounded-full' : 'rounded-md'} ${tones[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-bold ${tones[tone]} ${className}`}
     >
       {children}
     </span>
@@ -33,7 +32,7 @@ export const roleLabel = (role: string) => roleLabels[role] ?? role
 
 export function RoleBadge({ role }: { role: string }) {
   return (
-    <Badge pill tone={role === 'member' || role === 'student' ? 'neutral' : 'accent'}>
+    <Badge tone={role === 'member' || role === 'student' ? 'neutral' : 'accent'}>
       {roleLabel(role)}
     </Badge>
   )
