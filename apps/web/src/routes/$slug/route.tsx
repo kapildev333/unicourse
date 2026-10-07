@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
-import { Link, Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
 import { EntryLayout } from '../../components/entry-layout'
 import { AppShell } from '../../components/app-shell'
 import { Button } from '../../components/button'
+import { ButtonLink } from '../../components/button-link'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
@@ -14,7 +15,6 @@ function UniversityLayout() {
   const { slug } = Route.useParams()
   const me = useMe()
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   if (me.isPending)
     return (
       <div className="mx-auto max-w-336 px-6 py-8">
@@ -62,16 +62,9 @@ function UniversityLayout() {
         )}
         <div className="mt-6 flex flex-wrap gap-3">
           {me.data.memberships.length === 1 && (
-            <Button
-              onClick={() =>
-                void navigate({
-                  to: '/$slug/me',
-                  params: { slug: me.data.memberships[0].university.slug },
-                })
-              }
-            >
+            <ButtonLink to="/$slug/me" params={{ slug: me.data.memberships[0].university.slug }}>
               Go to {me.data.memberships[0].university.name}
-            </Button>
+            </ButtonLink>
           )}
           <Button variant="secondary" onClick={() => void signOut(queryClient)}>
             <LogOut size={16} aria-hidden="true" />

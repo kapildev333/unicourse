@@ -1,10 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { CalendarRange, Layers, Plus, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
+import { ButtonLink } from '../../components/button-link'
+import { ListCount } from '../../components/list-count'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
@@ -95,7 +97,6 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
     },
   })
 
-  const navigate = useNavigate()
   const noTerms = !termsQuery.isPending && !termsQuery.error && terms.length === 0
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
@@ -133,9 +134,9 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
         body="An administrator creates terms under Admin → Terms before sections can be added."
         action={
           membership.role === 'admin' ? (
-            <Button variant="secondary" onClick={() => void navigate({ to: '/$slug/admin/terms', params: { slug } })}>
+            <ButtonLink variant="secondary" to="/$slug/admin/terms" params={{ slug }}>
               Set up terms
-            </Button>
+            </ButtonLink>
           ) : undefined
         }
       />
@@ -257,9 +258,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
             </select>
           </FormField>
           {term && !list.isPending && !list.error && list.items.length > 0 && (
-            <p role="status" className="ml-auto text-sm text-ink-muted">
-              Showing {list.items.length}
-            </p>
+            <ListCount shown={list.items.length} className="ml-auto" />
           )}
         </div>
       )}

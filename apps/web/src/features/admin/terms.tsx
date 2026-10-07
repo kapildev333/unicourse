@@ -10,7 +10,7 @@ import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
-import { ListCount } from './list-count'
+import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
@@ -177,7 +177,7 @@ export function TermsPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <ListCount shown={list.items.length} />
+        <ListCount shown={list.items.length} className="mb-2 text-right" />
         <Table caption="Terms" stack>
           <thead>
             <tr>

@@ -9,7 +9,7 @@ import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
-import { ListCount } from './list-count'
+import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
 import { Table } from '../../components/table'
@@ -156,7 +156,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
   else
     body = (
       <>
-        <ListCount shown={list.items.length} />
+        <ListCount shown={list.items.length} className="mb-2 text-right" />
         <Table caption="Audit log">
           <thead>
             <tr>

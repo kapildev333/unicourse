@@ -42,7 +42,7 @@ const conflict = {
 async function openRoleDialog() {
   renderWithQuery(<MembersPage slug="x" />)
   fireEvent.click(await screen.findByRole('button', { name: 'Change role for bob@a.edu' }))
-  return screen.findByRole('dialog', { name: 'Change role for bob@a.edu' })
+  return screen.findByRole('dialog', { name: 'Change role for Bob Roe' })
 }
 
 it('lists role badge and department code', async () => {
@@ -113,7 +113,7 @@ it("changing someone else's role neither navigates nor refetches me", async () =
   await openRoleDialog()
   fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'member' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save role' }))
-  expect(await screen.findByText(/bob@a.edu is now/)).toBeInTheDocument()
+  expect(await screen.findByText(/Bob Roe is now/)).toBeInTheDocument()
   expect(navigate).not.toHaveBeenCalled()
   expect(fn.mock.calls.filter((c) => new URL((c[0] as Request).url).pathname.endsWith('/me'))).toHaveLength(1)
 })

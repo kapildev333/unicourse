@@ -7,7 +7,7 @@ import { Button } from '../../components/button'
 import { Dialog } from '../../components/dialog'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage, FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
-import { FormField, inputClass } from '../../components/form-field'
+import { FormField, inputClass, inputSizedClass } from '../../components/form-field'
 import { Table } from '../../components/table'
 import { personName } from '../courses/access'
 import { fmt2, finalPercent, letterFor, sentence } from './grade'
@@ -145,7 +145,7 @@ export function FinalizeDialog(props: {
           {tally.map(([l, n]) => `${l} ${n}`).join(' · ') || '—'}
         </p>
         <div className="max-h-[55vh] overflow-y-auto rounded border-b border-line">
-          <Table caption="Preview of final grades" className="relative">
+          <Table caption="Preview of final grades">
             <thead>
               <tr>
                 <th scope="col" className={capName}>
@@ -180,7 +180,7 @@ export function FinalizeDialog(props: {
                     <td>
                       <select
                         aria-label={`Grade for ${name}`}
-                        className={`${inputClass} min-w-28!`}
+                        className={`${inputSizedClass} min-w-28`}
                         value={pick?.value ?? ''}
                         onChange={(e) => setPick(s, { value: e.target.value })}
                       >

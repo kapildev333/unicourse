@@ -3,7 +3,7 @@ export function Table(props: React.TableHTMLAttributes<HTMLTableElement> & { cap
   const { caption, stack, children, className = '', ...rest } = props
   return (
     <div className="min-w-0">
-      <div className="overflow-x-auto rounded border border-line bg-surface">
+      <div className="relative overflow-x-auto rounded border border-line bg-surface">
         <table className={`ui-table ${stack ? 'ui-table-stack' : ''} ${className}`} {...rest}>
           <caption className="sr-only">{caption}</caption>
           {children}

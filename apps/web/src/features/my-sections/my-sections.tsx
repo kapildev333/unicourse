@@ -5,6 +5,7 @@ import { useId } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { RoleBadge } from '../../components/badge'
+import { ButtonLink } from '../../components/button-link'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
@@ -100,9 +101,9 @@ export function MySectionsPage(props: {
         body="Your schedule appears here once your university sets up its terms."
         action={
           membership.role === 'admin' ? (
-            <Link to="/$slug/admin/terms" params={{ slug }} className="text-accent underline hover:text-accent-hover">
+            <ButtonLink variant="secondary" to="/$slug/admin/terms" params={{ slug }}>
               Set up terms
-            </Link>
+            </ButtonLink>
           ) : undefined
         }
       />

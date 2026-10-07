@@ -54,11 +54,11 @@ async function noAccess(universities: string[]) {
   return router
 }
 
-it('offers one primary button for a single membership', async () => {
+it('offers one primary link for a single membership', async () => {
   const router = await noAccess(['Harbor College'])
   expect(screen.getByText(/this university's address/)).toBeInTheDocument()
   expect(screen.queryByText('Go to your university:')).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Go to Harbor College' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Go to Harbor College' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/harbor-college/me'))
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
 })
@@ -67,5 +67,5 @@ it('lists every university under the lead-in when there are several', async () =
   await noAccess(['Harbor College', 'Bay Institute'])
   expect(screen.getByText('Go to your university:')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Bay Institute' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /^Go to / })).toBeNull()
+  expect(screen.queryByRole('link', { name: /^Go to Bay/ })).toBeNull()
 })
