@@ -122,6 +122,14 @@ it('clears the input when q is removed from outside and does not write it back',
   expect(sectionUrls(fn).at(-1)!.searchParams.has('q')).toBe(false)
 })
 
+it("typing 'intro ' then waiting 450 ms keeps 'intro ' in the input", async () => {
+  setup()
+  const input = await screen.findByLabelText('Search')
+  fireEvent.change(input, { target: { value: 'intro ' } })
+  await new Promise((r) => setTimeout(r, 450))
+  expect(input).toHaveValue('intro ')
+})
+
 it('choosing a department sends departmentId', async () => {
   const fn = setup()
   await screen.findByText('CS201 title')

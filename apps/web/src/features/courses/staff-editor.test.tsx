@@ -235,7 +235,7 @@ it('shows Cancel on pending rows only to those who may remove them', async () =>
   expect(cancelBtn('t@a.edu')).toBeNull()
   d.unmount()
 
-  mockApi(routes)
+  mockApi({ ...routes, [S]: () => ({ body: mk([ins, ta], pending) }) })
   renderPage('u-ta')
   await screen.findByText('t@a.edu')
   expect(cancelBtn('t@a.edu')).toBeNull()
@@ -267,5 +267,5 @@ it('says Already cancelled on 404', async () => {
   })
   renderPage('u-ins')
   fireEvent.click(await screen.findByRole('button', { name: 'Cancel invitation for t@a.edu' }))
-  expect(await screen.findByText('Already cancelled')).toBeInTheDocument()
+  expect(await screen.findByText('Already cancelled.')).toBeInTheDocument()
 })

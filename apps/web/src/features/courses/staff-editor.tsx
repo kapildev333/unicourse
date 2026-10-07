@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
+import { ApiError } from '../../api/errors'
 import type { components } from '../../api/types'
 import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
@@ -78,11 +79,12 @@ export function StaffEditor(props: {
       ),
     onSuccess: async (_, s) => {
       await refresh([slug, 'my-sections'], [slug, 'invitations'])
-      setNotice(`Invitation for ${s.email} cancelled for this section`)
+      setNotice(`Invitation for ${s.email} cancelled for this section.`)
     },
     // a 404 means the row is already gone: refresh so it disappears
     onError: () => void refresh([slug, 'my-sections'], [slug, 'invitations']),
   })
+  const alreadyGone = cancel.error instanceof ApiError && cancel.error.code === 'not_found'
   const fields = useFieldErrors(add.error, copy)
   useFocusFirstError(formRef, add.error, bannerRef)
 
@@ -108,6 +110,7 @@ export function StaffEditor(props: {
                   aria-label={`Remove ${personName(s)} as ${roleName(role)}`}
                   onClick={() => {
                     remove.reset()
+                    cancel.reset()
                     setRemoving(s)
                   }}
                 >
@@ -149,7 +152,12 @@ export function StaffEditor(props: {
   return (
     <div className="flex flex-col gap-4">
       <StatusMessage message={notice} />
-      {cancel.error && <ErrorBanner>{errorMessage(cancel.error, { not_found: 'Already cancelled' })}</ErrorBanner>}
+      {alreadyGone && (
+        <p role="status" className="text-sm text-ink-muted">
+          Already cancelled.
+        </p>
+      )}
+      {cancel.error && !alreadyGone && <ErrorBanner>{errorMessage(cancel.error)}</ErrorBanner>}
       {group('Instructors', 'instructor', canManageInstructors, 'No instructors yet.')}
       {group('Teaching assistants', 'ta', canManageTAs, 'No TAs yet.')}
       {(canManageInstructors || canManageTAs) && (
@@ -160,6 +168,7 @@ export function StaffEditor(props: {
           onSubmit={(e) => {
             e.preventDefault()
             setNotice('')
+            cancel.reset()
             add.mutate({ email: email.trim(), role: roleRef.current })
           }}
         >

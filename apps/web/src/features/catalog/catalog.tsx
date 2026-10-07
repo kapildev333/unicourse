@@ -29,7 +29,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
   const [seenQ, setSeenQ] = useState(q)
   if (seenQ !== q) {
     setSeenQ(q)
-    setText(q ?? '')
+    if ((q ?? '') !== text.trim()) setText(q ?? '')
   }
   useEffect(() => {
     const t = setTimeout(() => {
