@@ -18,6 +18,17 @@ async function openSection(page: Page) {
   await page.getByRole('link', { name: 'CS101' }).click()
 }
 
+// Fill the section dialog's single Monday meeting row (the dialog is already open).
+async function mondayMeeting(page: Page, starts: string, ends: string, location: string) {
+  const dlg = page.getByRole('dialog')
+  await dlg.getByRole('button', { name: 'Add meeting time' }).click()
+  const row = dlg.getByRole('group', { name: 'Meeting 1' })
+  await row.getByLabel('Day').selectOption({ label: 'Monday' })
+  await row.getByLabel('Starts').fill(starts)
+  await row.getByLabel('Ends').fill(ends)
+  await row.getByLabel('Location').fill(location)
+}
+
 test('staffing flow across two universities', async ({ browser, page }) => {
   const sectionUrl = { v: '' }
 
@@ -114,6 +125,102 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     }
     await page.goto(sectionUrl.v)
     for (const s of students) await expect(page.getByRole('cell', { name: s, exact: true }).first()).toBeVisible()
+  })
+
+  await test.step('admin: overlapping Monday meetings on CS101 and CS102, a clashing MA201 taught by the professor', async () => {
+    await page.goto(`/${slugA}/admin/departments`)
+    await page.getByRole('button', { name: 'New department' }).first().click()
+    await page.getByLabel('Name').fill('Mathematics')
+    await page.getByLabel('Code').fill('MA')
+    await page.getByRole('button', { name: 'Create department' }).click()
+    await expect(page.getByRole('cell', { name: 'Mathematics', exact: true })).toBeVisible()
+
+    await page.goto(`/${slugA}/courses`)
+    for (const [dept, code, title] of [
+      ['CS — Computer Science', 'CS102', 'Data Structures'],
+      ['MA — Mathematics', 'MA201', 'Linear Algebra'],
+    ]) {
+      await page.getByRole('button', { name: 'New course' }).first().click()
+      const dlg = page.getByRole('dialog')
+      await dlg.getByLabel('Department').selectOption({ label: dept })
+      await dlg.getByLabel('Code').fill(code)
+      await dlg.getByLabel('Title').fill(title)
+      await dlg.getByRole('button', { name: 'Create course' }).click()
+      await expect(page.getByRole('cell', { name: code, exact: true })).toBeVisible()
+    }
+
+    await page.goto(`/${slugA}/courses/sections`)
+    await page.getByRole('button', { name: 'Edit CS101 section 001' }).click()
+    await mondayMeeting(page, '10:00', '11:15', 'Room 101')
+    await page.getByRole('dialog').getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+
+    for (const [course, starts, ends, room] of [
+      ['CS102 — Data Structures', '10:30', '12:00', 'Room 202'],
+      ['MA201 — Linear Algebra', '11:00', '12:00', 'Room 303'],
+    ]) {
+      await page.getByRole('button', { name: 'New section' }).first().click()
+      const dlg = page.getByRole('dialog')
+      await dlg.getByLabel('Course').selectOption({ label: course })
+      await dlg.getByLabel('Section number').fill('001')
+      await mondayMeeting(page, starts, ends, room)
+      await dlg.getByRole('button', { name: 'Create section' }).click()
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+    }
+    await expect(page.getByRole('link', { name: 'CS102' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'MA201' })).toBeVisible()
+  })
+
+  await test.step('admin: roster CSV puts the student in CS102, the professor teaches MA201', async () => {
+    await page.getByRole('link', { name: 'CS102' }).click()
+    await page.getByRole('button', { name: 'Import roster' }).first().click()
+    const dlg = page.getByRole('dialog')
+    await dlg.getByLabel('CSV file').setInputFiles(csv([`${students[0]},Student`]))
+    await expect(dlg.getByRole('button', { name: /^Import 1 row/ })).toBeEnabled()
+    await dlg.getByRole('button', { name: /^Import 1 row/ }).click()
+    await expect(page.getByText(/Import finished/)).toBeVisible()
+    await expect(page.getByRole('cell', { name: students[0], exact: true }).first()).toBeVisible()
+    await page.getByLabel('Add by email').fill(instr)
+    await page.getByRole('button', { name: 'Add instructor' }).click()
+    await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toBeVisible()
+
+    await page.goto(`/${slugA}/courses/sections`)
+    await page.getByRole('link', { name: 'MA201' }).click()
+    await page.getByLabel('Add by email').fill(instr)
+    await page.getByRole('button', { name: 'Add instructor' }).click()
+    await expect(page.getByRole('button', { name: `Remove ${instr} as Instructor` })).toBeVisible()
+  })
+
+  await test.step('student: schedule shows both sections, times and clash lines', async () => {
+    const ctx = await browser.newContext()
+    const p = await ctx.newPage()
+    await signIn(p, students[0], slugA)
+    await p.getByRole('button', { name: 'Schedule' }).click()
+    const monday = p.getByRole('region', { name: 'Monday' })
+    await expect(p.getByRole('region', { name: 'Sunday' })).toBeVisible()
+    await expect(monday.getByRole('link', { name: /^CS101-001/ })).toContainText('10:00–11:15')
+    await expect(monday.getByRole('link', { name: /^CS101-001/ })).toContainText('Clashes with CS102-001')
+    await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText('10:30–12:00')
+    await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText('Clashes with CS101-001')
+    await expect(monday.getByRole('link', { name: /^CS101-001/ })).toContainText(instr)
+    await expect(monday.getByRole('link', { name: /^CS102-001/ })).toContainText(instr)
+
+    await expect(p.getByRole('link', { name: 'Courses' })).toHaveCount(0)
+    await expect(p.getByRole('link', { name: 'Admin' })).toHaveCount(0)
+
+    await p.getByRole('link', { name: 'Catalog' }).click()
+    await p.getByLabel('Search').fill('MA201')
+    await expect(p.getByRole('row')).toHaveCount(2)
+    const row = p.getByRole('row', { name: /MA201-001/ })
+    await expect(row).toContainText(instr)
+    await expect(row).toContainText('Mon 11:00–12:00')
+    await expect(row).toContainText('Clashes with CS101-001, CS102-001')
+
+    await row.getByRole('link', { name: 'MA201-001' }).click()
+    await expect(p.getByRole('heading', { name: 'Meeting times' })).toBeVisible()
+    await expect(p.getByText('Monday 11:00–12:00 · Room 303')).toBeVisible()
+    await expect(p.getByRole('heading', { name: 'Roster' })).toHaveCount(0)
+    await ctx.close()
   })
 
   await test.step('TA accepts the invitation and sees the roster without instructor controls', async () => {
