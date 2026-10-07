@@ -22,13 +22,13 @@ Chosen by the owner on 2026-10-07: the look of Udemy's web app, which supersedes
 
 | Swatch | Hex | Light mode role | Dark mode role |
 |---|---|---|---|
-| Purple | `#A435F0` | accent: primary buttons (white text, 4.8:1), active states, focus ring base | primary button fill (white text); accent for icons |
-| Deep purple | `#5624D0` | links and accent text (8.2:1 on white), button hover | hover on links (as a lighter tint, derived) |
+| Purple | `#A435F0` | accent: primary buttons (white text, 4.8:1), links at rest (4.6:1 on the canvas), active states | a lighter tint (derived) for links; the primary button is that tint with charcoal text, since no one purple is both a readable link and a fill white text passes on (design §0) |
+| Deep purple | `#5624D0` | hover on links and buttons | hover on links (as a lighter tint, derived) |
 | Charcoal | `#1C1D1F` | ink: body text and headings (16.5:1 on white) | canvas: page background |
 | Grey | `#6A6F73` | muted text (5.1:1 on white), placeholder text | muted text as a lighter tint (derived) |
 | Mist | `#F7F9FA` | canvas: page background; table header; card hover | ink: body text on the dark canvas |
 
-Surfaces are white in light mode; the dark surface is a step above the dark canvas (derived, about `#2D2F31`). Hairlines are Udemy's `#D1D7DC` in light mode and a derived tint in dark. Derived shades are allowed only where these cannot meet §7 and each is written down with its source and measured ratio: a dark-mode link purple (a tint of Deep purple at or above 4.5:1 on the dark surface), accent-soft backgrounds for active navigation and badges (Purple at low alpha over the surface), hover shades. Purple is the one accent and appears only on actions, links and the current location, never as decoration or on large areas; this is how the look stays deliberate.
+Surfaces are white in light mode; the dark surface is a step above the dark canvas (derived, about `#2D2F31`). Hairlines are Udemy's `#D1D7DC` in light mode and a derived tint in dark. Derived shades are allowed only where these cannot meet §7 and each is written down with its source and measured ratio: a dark-mode link purple (a tint of Deep purple at or above 4.5:1 on the dark surface), accent-soft backgrounds for active navigation and badges (Purple at low alpha over the surface), hover shades. Purple is the one accent and appears only on actions, links, the current location and the card's cover band (a pale tint standing in for Udemy's cover image), never elsewhere as decoration; this is how the look stays deliberate. The focus ring is the ink colour in both modes (a purple ring on a purple button measures 1:1).
 
 Status colours stay outside the brand: danger (red), success (green), warning (amber), each as a text shade for its mode and a soft background, each ≥ 4.5:1 on the surface it sits on, used only for error, success or caution.
 
@@ -36,7 +36,7 @@ Status colours stay outside the brand: danger (red), success (green), warning (a
 
 One open-source family from Google Fonts, chosen by the owner on 2026-10-07 as the stand-in for Udemy Sans: **DM Sans** (variable), self-hosted through its fontsource package so the app makes no request to Google at runtime. No serif anywhere.
 
-- Weights 400 (body), 500 (labels, table headers, nav) and 700 (page titles, card titles, buttons, section headings). Page titles are bold and large; this is the one place the type is loud.
+- Weights 400 (body), 500 (labels, nav) and 700 (page titles, card titles, buttons, section headings, table headers). Page titles are bold and large; this is the one place the type is loud.
 - Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px minimum anywhere, 32 px page titles (`h1`, weight 700, line height 1.2, tracking -0.01em), 20 px section headings (`h2`), 16 px card titles (700). Line height 1.5 for body.
 - DM Sans has no tabular figures (D56); numbers set proportionally.
 
@@ -66,7 +66,7 @@ Colour and opacity transitions of 150 ms on hover and focus, nothing else animat
 
 Checked by the reviewer against each page:
 
-1. No gradients, glow, blur, glassmorphism or oversized rounded corners. Purple is the single accent and sits only on actions, links and the current location; never on backgrounds larger than a badge, never as decoration.
+1. No gradients, glow, blur, glassmorphism or oversized rounded corners. Purple is the single accent and sits only on actions, links, the current location and the card cover band; never on other backgrounds, never as decoration.
 2. No decorative hero, no feature cards with icons, no illustration placeholders, no marketing voice. The sign-in page is a form on a quiet canvas with the wordmark, not a split-screen pitch. Cards show data the product has (code, title, instructors, meetings); a card's cover block is a flat colour band with the course code, never a stock image.
 3. Hierarchy comes from size, weight and space, not from colour: one accent, used for actions and the current location only.
 4. Every empty state names what is missing in the product's own words and offers the one action that fixes it, or none if the viewer cannot act.
@@ -83,7 +83,7 @@ Every route the app has; each is restyled, none is added or removed.
 | Area | Pages | Notes for the design document |
 |---|---|---|
 | Entry | `/` (redirect), `/sign-in`, magic-link sent, `/invite/{token}` accept, "no access" | Centred white card on the canvas with the bold wordmark; 48 px bold purple submit; provider buttons full width with a charcoal border and Lucide icons; the divider done with tokens. |
-| Shell | header, main navigation, search, university switch, theme switch, sign-out, skip link | Udemy's top bar: white, 72 px, hairline below; bold wordmark; nav items as text links with the current one bold and underlined in purple; a search field in the middle (rounded, hairline border, Lucide `search`) that submits to the Catalog with `q`; theme switch, university switch and sign-out on the right. |
+| Shell | header, main navigation, search, university switch, theme switch, sign-out, skip link | Udemy's top bar: white, 72 px, hairline below; bold wordmark; nav items as text links with the current one bold and underlined in purple; a search field in the middle (rounded, `line-strong` border for 3:1, Lucide `search`, named and placeholdered "Find a course") that submits to the Catalog with `q`; theme switch, university switch and sign-out on the right; the signed-in email lives in the sign-out button's tooltip, not in the bar. |
 | My sections | `/{slug}/me` list and schedule, term picker | The list becomes a card grid: cover band with the class code, bold title, instructor line, meeting lines, role badge. The schedule keeps its week grid (regions per weekday, clash lines) restyled with the tokens. |
 | Catalog | `/{slug}/catalog` | Filters as one row of labelled controls above a card grid with the same card as My sections plus the clash note; "Showing n" and load-more below. The `q` search param arrives from the header search. |
 | Courses | `/{slug}/courses`, `/{slug}/courses/sections`, `/{slug}/sections/{id}` detail with staff editor, roster, meetings editor, course / section / import / remove dialogs | Admin tables keep rows (48 px, bold header text, hairlines); section detail gets a title band (code, title, term, instructors) above tabbed-looking sections for staff, meetings and roster; dialogs share one header/body/footer rhythm; import preview rows use the warning and danger badges. |
@@ -98,7 +98,7 @@ WCAG 2.1 AA in both modes: 4.5:1 for text, 3:1 for input borders, focus rings an
 
 - Allowed new packages, and no others: `lucide-react` and `@fontsource-variable/dm-sans` (runtime, bundled by Vite). D3 is amended for these two (D50).
 - Tailwind stays the styling layer; `index.css` is the single place tokens, fonts and the two base recipes (`ui-table`, skeleton) live. No new CSS files per feature.
-- Routes, copy, roles and API calls do not change. The header search is the one new behaviour: it navigates to `/{slug}/catalog?q=` with the typed text, which the Catalog already filters by. Where a page's pattern changes from table rows to cards (Catalog, My sections list), the end-to-end suite may swap selectors (`row`/`cell` to `listitem`/text) for the same assertions, and nothing else (D60). The retired class assertions in `admin-layout.test.tsx` become `aria-current="page"` assertions.
+- Routes, copy, roles and API calls do not change. The header search is the one new behaviour: it navigates to `/{slug}/catalog?q=` with the typed text, which the Catalog already filters by. Where a page's pattern changes from table rows to cards (Catalog, My sections list), the end-to-end suite may swap selectors (`row`/`cell` to `listitem`/text) for the same assertions, and the page's own unit tests may do the same, and nothing else (D60, D66). The retired class assertions in `admin-layout.test.tsx` become `aria-current="page"` assertions.
 - A unit test (`src/no-literal-colors.test.ts`) reads every `.tsx` and `.ts` file under `src/` except tests and `index.css` and fails on `#` hex colours, `bg-white`, `text-white`, `text-black`, arbitrary named colours such as `bg-[white]`, Tailwind palette utilities (grey, slate, zinc, neutral, stone and the hue scales), colour functions and `dark:` variants, stacked or not.
 
 ## 9. Gates
