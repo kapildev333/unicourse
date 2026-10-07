@@ -118,3 +118,15 @@ it('puts Save in the header, sizes the columns and makes Remove a neutral ghost'
   expect(input('Grade points, row 1').className).toContain('w-28')
   expect(screen.getByRole('button', { name: 'Remove row 1' }).className).not.toContain('text-danger')
 })
+
+it('shows Unsaved changes as muted text and never together with the saved notice', async () => {
+  renderPage('admin', { [P]: (r) => r.text().then((t) => ({ body: JSON.parse(t) })) })
+  await screen.findByLabelText('Letter, row 1')
+  fireEvent.change(input('Grade points, row 1'), { target: { value: '4.3' } })
+  expect(screen.getByText('Unsaved changes')).toHaveClass('text-ink-muted')
+  fireEvent.click(screen.getByRole('button', { name: 'Save scale' }))
+  await screen.findByText(/Grade scale saved/)
+  fireEvent.change(input('Grade points, row 1'), { target: { value: '4.2' } })
+  expect(screen.queryByText(/Grade scale saved/)).not.toBeInTheDocument()
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+})

@@ -148,7 +148,7 @@ export function FinalizeDialog(props: {
           <Table caption="Preview of final grades" className="relative">
             <thead>
               <tr>
-                <th scope="col" title="Student" className={capName}>
+                <th scope="col" className={capName}>
                   Student
                 </th>
                 <th scope="col" className="text-right">
@@ -180,7 +180,7 @@ export function FinalizeDialog(props: {
                     <td>
                       <select
                         aria-label={`Grade for ${name}`}
-                        className={inputClass}
+                        className={`${inputClass} min-w-28!`}
                         value={pick?.value ?? ''}
                         onChange={(e) => setPick(s, { value: e.target.value })}
                       >

@@ -133,8 +133,12 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
   })
   useFocusFirstError(formRef, errors ?? serverError, bannerRef)
 
-  const edit = (key: string, f: Field, v: string) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [f]: v } : r)))
+  const edit = (key: string, f: Field, v: string) => {
+    setNotice('')
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [f]: v } : r)))
+  }
   const load = (p: GradeScaleRow[]) => {
+    setNotice('')
     setRows(toEdit(p))
     setErrors(null)
     setServerError(null)
@@ -198,7 +202,7 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
         }
       />
       <form id={formId} ref={formRef} noValidate onSubmit={save} className="flex flex-col gap-4">
-        <StatusMessage message={notice} />
+        {notice && <StatusMessage message={notice} />}
         {errors?.table ? (
           <ErrorBanner ref={bannerRef} title="">
             {errors.table}
@@ -236,7 +240,11 @@ function ScaleForm({ slug, data }: { slug: string; data: GradeScale }) {
             </Button>
           )}
         </div>
-        <StatusMessage message={dirty ? 'Unsaved changes' : ''} />
+        {dirty && (
+          <p role="status" className="text-sm text-ink-muted">
+            Unsaved changes
+          </p>
+        )}
         <Table caption="Grade scale" className="relative">
           <thead>
             <tr>

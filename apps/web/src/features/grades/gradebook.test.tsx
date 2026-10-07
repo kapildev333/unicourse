@@ -410,3 +410,9 @@ it('names what failed to load', async () => {
   renderPage('instructor', { [GB]: () => ({ status: 500, body: { error: { code: 'internal', message: 'x', details: [] } } }) })
   expect(await screen.findByText("Couldn't load the gradebook")).toBeInTheDocument()
 })
+
+it('an explicit 0 score on a published assessment is not Missing', async () => {
+  renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 0 }, { percent: 0 })]))
+  await screen.findByText('Letters: A 1 · B 1')
+  expect(screen.queryByText('Missing')).not.toBeInTheDocument()
+})

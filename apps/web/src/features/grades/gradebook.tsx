@@ -456,7 +456,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         <Table caption={`Gradebook for ${code}`} className="relative">
           <thead>
             <tr>
-              <th scope="col" title="Student" className={`sticky left-0 z-10 w-auto bg-canvas ${capName}`}>
+              <th scope="col" className={`sticky left-0 z-10 bg-canvas sm:w-px sm:whitespace-nowrap ${capName}`}>
                 Student
               </th>
               {assessments.map((a) => (
@@ -504,7 +504,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
                   className={`sticky left-0 z-10 bg-surface font-bold ${capName}`}
                 >
                   {personName(s)}
-                  {s.displayName && <span className="block text-xs font-normal text-ink-muted">{s.email}</span>}
+                  {s.displayName && <span className="block truncate text-xs font-normal text-ink-muted">{s.email}</span>}
                 </th>
                 {assessments.map((a, col) => {
                   const k = key(s, a)
