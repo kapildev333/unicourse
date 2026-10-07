@@ -42,19 +42,7 @@ function UniversityLayout() {
         <p className="mt-2 text-sm text-ink-muted">
           Your account ({me.data.user.email}) isn't a member of this university's address.
         </p>
-        {me.data.memberships.length === 1 ? (
-          <Button
-            className="mt-6"
-            onClick={() =>
-              void navigate({
-                to: '/$slug/me',
-                params: { slug: me.data.memberships[0].university.slug },
-              })
-            }
-          >
-            Go to {me.data.memberships[0].university.name}
-          </Button>
-        ) : (
+        {me.data.memberships.length !== 1 && (
           <>
             <p className="mt-4 text-sm text-ink">Go to your university:</p>
             <ul className="mt-2 flex flex-col gap-1 text-sm">
@@ -72,10 +60,24 @@ function UniversityLayout() {
             </ul>
           </>
         )}
-        <Button variant="secondary" className="mt-6" onClick={() => void signOut(queryClient)}>
-          <LogOut size={16} aria-hidden="true" />
-          Sign out
-        </Button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {me.data.memberships.length === 1 && (
+            <Button
+              onClick={() =>
+                void navigate({
+                  to: '/$slug/me',
+                  params: { slug: me.data.memberships[0].university.slug },
+                })
+              }
+            >
+              Go to {me.data.memberships[0].university.name}
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => void signOut(queryClient)}>
+            <LogOut size={16} aria-hidden="true" />
+            Sign out
+          </Button>
+        </div>
       </EntryLayout>
     )
   }

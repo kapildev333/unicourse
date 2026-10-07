@@ -98,6 +98,19 @@ it('marks Admin current on the grade scale page', async () => {
   expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('aria-current', 'page')
 })
 
+it('matches current items after the slug, so a university called admin does not mark Admin', async () => {
+  const me = mk(['admin'])
+  me.memberships[0].university = uni('admin')
+  await shell(me, '/admin/me')
+  expect(screen.getByRole('link', { name: 'My sections' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: 'Admin' })).not.toHaveAttribute('aria-current')
+})
+
+it('keeps the accessible name "Sign out" on the icon-only control', async () => {
+  await shell(mk(['member']))
+  expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+})
+
 it('pressing / focuses the header search unless focus is in a field', async () => {
   await shell(mk(['member']))
   const box = screen.getByRole('searchbox', { name: 'Find a course' })
