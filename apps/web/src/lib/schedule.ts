@@ -53,3 +53,16 @@ export function assignLanes(slots: Pick<Slot, 'startsAt' | 'endsAt'>[]): { lane:
   })
   return { lane, lanes: Math.max(1, lastEnd.length) }
 }
+
+/** Meetings with the same time and room merged into one line each: 'Mon, Wed 10:00–11:20 · Hall B 204'. Lines ordered by their first weekday. */
+export function formatMeetings(ms: (Slot & { location: string })[]): string[] {
+  const groups = new Map<string, (Slot & { location: string })[]>()
+  for (const m of [...ms].sort((a, b) => a.weekday - b.weekday || a.startsAt.localeCompare(b.startsAt))) {
+    const k = `${m.startsAt}|${m.endsAt}|${m.location}`
+    groups.set(k, [...(groups.get(k) ?? []), m])
+  }
+  return [...groups.values()].map((g) => {
+    const { startsAt, endsAt, location } = g[0]
+    return `${g.map((m) => dayShort[m.weekday - 1]).join(', ')} ${startsAt}–${endsAt}${location ? ` · ${location}` : ''}`
+  })
+}

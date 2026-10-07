@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignLanes, classCode, clashesFor, currentTerm, formatMeeting, overlaps, toMinutes } from './schedule'
+import { assignLanes, classCode, clashesFor, currentTerm, formatMeeting, formatMeetings, overlaps, toMinutes } from './schedule'
 
 const s = (weekday: number, startsAt: string, endsAt: string) => ({ weekday, startsAt, endsAt })
 
@@ -72,4 +72,20 @@ describe('assignLanes', () => {
   it('touching shares a lane', () => expect(assignLanes([s(1, '09:00', '10:00'), s(1, '10:00', '11:00')]).lanes).toBe(1))
   it('overlapping', () => expect(assignLanes([s(1, '09:00', '10:30'), s(1, '10:00', '11:00')])).toEqual({ lane: [0, 1], lanes: 2 }))
   it('empty', () => expect(assignLanes([])).toEqual({ lane: [], lanes: 1 }))
+})
+
+describe('formatMeetings', () => {
+  const m = (weekday: number, startsAt: string, endsAt: string, location = '') => ({ weekday, startsAt, endsAt, location })
+  it('merges the same time and room across days', () => {
+    expect(formatMeetings([m(3, '10:00', '11:20', 'Hall B 204'), m(1, '10:00', '11:20', 'Hall B 204')])).toEqual([
+      'Mon, Wed 10:00–11:20 · Hall B 204',
+    ])
+  })
+  it('keeps differing rooms or times on separate lines', () => {
+    expect(formatMeetings([m(1, '10:00', '11:20', 'A'), m(3, '10:00', '11:20', 'B'), m(5, '09:00', '10:00')])).toEqual([
+      'Mon 10:00–11:20 · A',
+      'Wed 10:00–11:20 · B',
+      'Fri 09:00–10:00',
+    ])
+  })
 })

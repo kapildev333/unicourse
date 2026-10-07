@@ -54,8 +54,14 @@ function Wrapper({ initial }: { initial: { termId?: string; departmentId?: strin
   )
 }
 
-function setup(sections: unknown[] = items, terms: unknown[] = [fall], initial = {}) {
+function setup(sections: unknown[] = items, terms: unknown[] = [fall], initial = {}, role = 'member') {
   const fn = mockApi({
+    'GET /me': () => ({
+      body: {
+        user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
+        memberships: [{ university: { id: 'a', slug: 'a', name: 'A U' }, role, departmentIds: [] }],
+      },
+    }),
     'GET /universities/a/terms': () => ({ body: { items: terms } }),
     'GET /universities/a/departments': () => ({ body: { items: [{ id: 'd1', code: 'CS', name: 'Computer Science' }] } }),
     [S]: () => ({ body: { items: sections } }),
@@ -139,10 +145,44 @@ it('choosing a department sends departmentId', async () => {
 
 it('empty with a search says no match', async () => {
   setup([], [fall], { q: 'zzz' })
-  expect(await screen.findByText('No sections match')).toBeInTheDocument()
+  expect(await screen.findByText('No sections match "zzz"')).toBeInTheDocument()
+})
+
+it('Clear filters resets the department and keeps the term', async () => {
+  const fn = setup(items, [fall], { termId: 't2', departmentId: 'd1' })
+  await screen.findByText('CS201 title')
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+  await waitFor(() => expect(sectionUrls(fn).at(-1)!.searchParams.has('departmentId')).toBe(false))
+  expect(sectionUrls(fn).at(-1)!.searchParams.get('termId')).toBe('t2')
+  expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull()
+})
+
+it('no match with only a department names it and offers Clear filters', async () => {
+  setup([], [fall], { departmentId: 'd1' })
+  expect(await screen.findByText('No sections match "Computer Science"')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Clear filters' })).toHaveLength(2)
+})
+
+it('a card in my sections shows its role badge; others none', async () => {
+  const w = [{ ...sec('s1', 'CS201'), id: 'm1' }, sec('s9', 'CS900')]
+  setup(w)
+  const card = (await screen.findByText('CS201 title')).closest('li')!
+  expect(await within(card).findByText('Enrolled')).toBeInTheDocument()
+  expect(within(screen.getByText('CS900 title').closest('li')!).queryByText('Enrolled')).toBeNull()
+})
+
+it('count reads Showing 5 sections', async () => {
+  setup([...items, sec('s5', 'CS400')])
+  expect(await screen.findByText('Showing 5 sections')).toBeInTheDocument()
 })
 
 it('no terms', async () => {
   setup([], [])
   expect(await screen.findByText('No terms yet')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Set up terms' })).toBeNull()
+})
+
+it('no terms: an admin gets a Set up terms link to the Terms tab', async () => {
+  setup([], [], {}, 'admin')
+  expect(await screen.findByRole('link', { name: 'Set up terms' })).toHaveAttribute('href', '/a/admin/terms')
 })
