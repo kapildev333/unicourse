@@ -98,7 +98,7 @@ it('shows the invitation notice and the pending row on 202', async () => {
   expect((await screen.findByText(/invitation sent to new@a.edu/i)).closest('[role=status]')).not.toBeNull()
   const row = (await screen.findByText('new@a.edu', { selector: 'p' })).closest('li')!
   expect(within(row).getByText('Invited')).toBeInTheDocument()
-  expect(within(row).queryByRole('button')).toBeNull()
+  expect(within(row).getByRole('button', { name: 'Cancel invitation for new@a.edu' })).toBeInTheDocument()
 })
 
 it('removes staff through the dialog', async () => {
@@ -199,4 +199,73 @@ it('submits with the only available role on Enter', async () => {
   await waitFor(() => expect(fn.mock.calls.some((c) => (c[0] as Request).method === 'POST')).toBe(true))
   const post = fn.mock.calls.map((c) => c[0] as Request).find((r) => r.method === 'POST')!
   expect(await post.json()).toEqual({ email: 'tom@a.edu', role: 'ta' })
+})
+
+const pend = (email: string, role: string, invitationId: string) => ({ email, role, invitationId })
+const P = 'DELETE /universities/a/sections/s1/pending-staff/inv-1'
+
+it('shows Cancel on pending rows only to those who may remove them', async () => {
+  const pending = [pend('i@a.edu', 'instructor', 'inv-0'), pend('t@a.edu', 'ta', 'inv-1')]
+  const routes = { [S]: () => ({ body: mk([ins], pending) }), [E]: () => ({ body: { items: [] } }) }
+  const cancelBtn = (e: string) => screen.queryByRole('button', { name: `Cancel invitation for ${e}` })
+
+  mockApi(routes)
+  const a = renderPage('u-ins')
+  await screen.findByText('t@a.edu')
+  expect(cancelBtn('t@a.edu')).toBeInTheDocument()
+  expect(cancelBtn('i@a.edu')).toBeNull()
+  a.unmount()
+
+  mockApi(routes)
+  const b = renderPage('u-admin', 'admin')
+  await screen.findByText('t@a.edu')
+  expect(cancelBtn('t@a.edu')).toBeInTheDocument()
+  expect(cancelBtn('i@a.edu')).toBeInTheDocument()
+  b.unmount()
+
+  mockApi(routes)
+  const c = renderPage('u-da', 'dept_admin', ['d1'])
+  await screen.findByText('t@a.edu')
+  expect(cancelBtn('i@a.edu')).toBeInTheDocument()
+  c.unmount()
+
+  mockApi(routes)
+  const d = renderPage('u-da', 'dept_admin', ['d2'])
+  await screen.findByText('t@a.edu')
+  expect(cancelBtn('t@a.edu')).toBeNull()
+  d.unmount()
+
+  mockApi(routes)
+  renderPage('u-ta')
+  await screen.findByText('t@a.edu')
+  expect(cancelBtn('t@a.edu')).toBeNull()
+})
+
+it('cancels a pending invitation and refetches', async () => {
+  let pending = [pend('t@a.edu', 'ta', 'inv-1')]
+  const fn = mockApi({
+    [S]: () => ({ body: mk([ins], pending) }),
+    [E]: () => ({ body: { items: [] } }),
+    [P]: () => {
+      pending = []
+      return { status: 204 }
+    },
+  })
+  renderPage('u-ins')
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel invitation for t@a.edu' }))
+  expect(await screen.findByText(/Invitation for t@a.edu cancelled for this section/)).toBeInTheDocument()
+  await waitFor(() => expect(screen.queryByText('t@a.edu')).toBeNull())
+  const del = fn.mock.calls.map((c) => c[0] as Request).find((r) => r.method === 'DELETE')!
+  expect(new URL(del.url).pathname).toBe('/api/v1/universities/a/sections/s1/pending-staff/inv-1')
+})
+
+it('says Already cancelled on 404', async () => {
+  mockApi({
+    [S]: () => ({ body: mk([ins], [pend('t@a.edu', 'ta', 'inv-1')]) }),
+    [E]: () => ({ body: { items: [] } }),
+    [P]: () => err(404, 'not_found'),
+  })
+  renderPage('u-ins')
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel invitation for t@a.edu' }))
+  expect(await screen.findByText('Already cancelled')).toBeInTheDocument()
 })
