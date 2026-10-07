@@ -244,7 +244,9 @@ func TestLockedRowIsSkipped(t *testing.T) {
 	if err := tx.QueryRow(`select id from outbox_mails for update`).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Drain(context.Background()); err != nil || len(r.calls()) != 0 {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.Drain(ctx); err != nil || len(r.calls()) != 0 {
 		t.Fatalf("locked row sent: %v", err)
 	}
 	tx.Rollback()

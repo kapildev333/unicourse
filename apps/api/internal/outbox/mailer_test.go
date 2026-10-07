@@ -18,8 +18,8 @@ func TestLogMailer(t *testing.T) {
 	if err := m.Send(context.Background(), "a@a.edu", "Hi", "click\nhttps://x.test/p?q=1\nbye"); err != nil {
 		t.Fatal(err)
 	}
-	var line struct{ Msg, To, Text string }
-	if err := json.Unmarshal(buf.Bytes(), &line); err != nil || line.Msg != "mail" || line.To != "a@a.edu" ||
+	var line struct{ Msg, To, Subject, Text string }
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil || line.Msg != "mail" || line.To != "a@a.edu" || line.Subject != "Hi" ||
 		line.Text != "click\nhttps://x.test/p?q=1\nbye" {
 		t.Fatalf("log line %q (%v)", buf.String(), err)
 	}

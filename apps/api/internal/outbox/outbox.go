@@ -110,8 +110,13 @@ limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts)
 			return err
 		}
 		claimed = true
+		// ponytail: one send at a time per process (add goroutines when delivery rate matters).
+		// ponytail: at-least-once: a crash between SMTP accept and commit re-sends.
 		sendErr := s.Mailer.Send(ctx, to, subject, body)
 		if ctx.Err() != nil {
+			if sendErr == nil {
+				s.Log.Warn("mail sent but rolled back by shutdown, will be sent again", "id", id)
+			}
 			return ctx.Err() // roll back: row untouched, no attempt counted
 		}
 		if sendErr == nil {

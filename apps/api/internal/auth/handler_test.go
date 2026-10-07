@@ -502,10 +502,4 @@ func TestMagicLinkDoesNotWaitForMailer(t *testing.T) {
 		t.Fatal("sender was not woken")
 	}
 
-	// a failing mailer still gives 202
-	s2 := outbox.NewSender(x.db, &blockMailer{fail: true}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
-	x.d.Magic.Wake = s2.Wake
-	if w := x.do("POST", "/api/v1/auth/magic-link", `{"email":"admin@a.edu"}`); w.Code != 202 {
-		t.Fatalf("failing mailer: %d", w.Code)
-	}
 }

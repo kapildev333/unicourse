@@ -22,8 +22,8 @@ func linkErr(msg string) error {
 }
 
 // Send queues a 15 minute sign-in link in the outbox (sent after commit, never in the request). Emails
-// that are not allowed (no matching domain, no pending invitation) return nil with no row and no mail, so callers cannot enumerate. next must already be
-// validated by the caller; it is not stored.
+// that are not allowed (no matching domain, no pending invitation) return nil with no row and no mail,
+// so callers cannot enumerate. next must already be validated by the caller; it is not stored.
 func (m *MagicLinks) Send(ctx context.Context, email, next string) error {
 	email, err := NormalizeEmail(email)
 	if err != nil {

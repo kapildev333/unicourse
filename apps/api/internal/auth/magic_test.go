@@ -207,7 +207,12 @@ func TestMagicConsumeRace(t *testing.T) {
 func TestMagicSendQueuesUrgentMailAndWakes(t *testing.T) {
 	m, db, _ := newMagic(t)
 	wakes := 0
-	m.Wake = func() { wakes++ }
+	m.Wake = func() { // db is another connection: sees the row only once the send committed
+		wakes++
+		if n := sqlCount(t, db, `select count(*) from outbox_mails`); n != 1 {
+			t.Errorf("wake saw %d outbox rows, want 1 (wake before commit?)", n)
+		}
+	}
 	ctx := context.Background()
 	if err := m.Send(ctx, "alice@a.edu", ""); err != nil {
 		t.Fatal(err)

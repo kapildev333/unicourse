@@ -22,7 +22,7 @@ func WithTx(ctx context.Context, db *sql.DB, universityID string, fn func(tx *sq
 	})
 }
 
-// WithPlatformTx sets no tenant setting; only for universities, users, sessions and magic_links
+// WithPlatformTx sets no tenant setting; only for universities, users, sessions, magic_links and outbox_mails
 // (tenant tables return no rows and reject writes).
 func WithPlatformTx(ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) error) error {
 	return run(ctx, db, fn)
