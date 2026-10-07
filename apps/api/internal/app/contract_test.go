@@ -28,8 +28,6 @@ func readJSON(t *testing.T) map[string]any {
 
 // pending: routes in openapi.json that a later P7-L1 sub-lane registers. Empty when P7-L1c lands.
 var pending = map[string]bool{
-	"GET /api/v1/universities/{}/sections/{}/final-grades":                          true, // L1b
-	"POST /api/v1/universities/{}/sections/{}/final-grades":                         true, // L1b
 	"DELETE /api/v1/universities/{}/sections/{}/final-grades":                       true, // L1b
 	"PATCH /api/v1/universities/{}/sections/{}/final-grades/{}":                     true, // L1b
 	"GET /api/v1/universities/{}/me/grades":                                         true, // L1b
