@@ -304,3 +304,22 @@ func TestDepartmentDeleteWithAdmins(t *testing.T) {
 		t.Fatalf("%d %s", st, raw)
 	}
 }
+
+func TestDepartmentsRejectWrongCaseKey(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	st, raw := e.do(admin, "POST", deptPath, map[string]any{"NAME": "Math", "code": "MATH"})
+	var body struct {
+		Error struct {
+			Code    string
+			Details []struct{ Field, Message string }
+		}
+	}
+	if err := json.Unmarshal(raw, &body); err != nil || st != 400 || body.Error.Code != "validation_failed" ||
+		len(body.Error.Details) != 1 || body.Error.Details[0].Field != "NAME" || body.Error.Details[0].Message != "unknown field" {
+		t.Fatalf("wrong case: %d %s", st, raw)
+	}
+	if st, raw = e.do(admin, "POST", deptPath, map[string]any{"name": "Math", "code": "MATH"}); st != 201 {
+		t.Fatalf("right case: %d %s", st, raw)
+	}
+}

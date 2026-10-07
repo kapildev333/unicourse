@@ -122,7 +122,10 @@ func createDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if !authz.IsAdmin(s) {
 		return 0, nil, httpx.Forbidden()
 	}
-	var in struct{ Name, Code string }
+	var in struct {
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
@@ -149,7 +152,10 @@ func updateDepartment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if !IsUUID(id) {
 		return 0, nil, httpx.NotFound("department")
 	}
-	var in struct{ Name, Code OptStr }
+	var in struct {
+		Name OptStr `json:"name"`
+		Code OptStr `json:"code"`
+	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}

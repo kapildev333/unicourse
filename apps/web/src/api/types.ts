@@ -576,6 +576,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/sections/{id}/pending-staff/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel a pending staff assignment
+         * @description Who: admin, dept_admin; instructor of the section for ta rows. Deletes only the pending row for this section; the invitation stays (revoke it with deleteInvitation). 404 when the invitation has no pending row on this section.
+         */
+        delete: operations["deleteSectionPendingStaff"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/universities/{slug}/sections/{id}/enrollments": {
         parameters: {
             query?: never;
@@ -976,6 +996,11 @@ export interface components {
         /** @description Staff invited by email who have not signed in yet. */
         PendingStaff: {
             /**
+             * Format: uuid
+             * @description Pass to deleteSectionPendingStaff to cancel this assignment.
+             */
+            invitationId: string;
+            /**
              * Format: email
              * @example frank@a.edu
              */
@@ -1325,6 +1350,7 @@ export interface components {
         slug: string;
         id: string;
         userId: string;
+        invitationId: string;
         provider: "google" | "microsoft";
         /** @description Magic-link token (base64url). */
         token: string;
@@ -2553,6 +2579,33 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteSectionPendingStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                invitationId: components["parameters"]["invitationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled. */
             204: {
                 headers: {
                     [name: string]: unknown;

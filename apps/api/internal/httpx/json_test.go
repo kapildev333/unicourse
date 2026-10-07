@@ -9,7 +9,9 @@ import (
 
 func TestDecodeJSONUnknownField(t *testing.T) {
 	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"a","bogus":1}`))
-	var dst struct{ Name string }
+	var dst struct {
+		Name string `json:"name"`
+	}
 	err := DecodeJSON(r, &dst)
 	var e *Error
 	if !errors.As(err, &e) || e.Code != "validation_failed" || len(e.Details) != 1 || e.Details[0].Field != "bogus" {
@@ -19,7 +21,9 @@ func TestDecodeJSONUnknownField(t *testing.T) {
 
 func TestDecodeJSONTooLarge(t *testing.T) {
 	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"`+strings.Repeat("a", 1<<20)+`"}`))
-	var dst struct{ Name string }
+	var dst struct {
+		Name string `json:"name"`
+	}
 	err := DecodeJSON(r, &dst)
 	var e *Error
 	if !errors.As(err, &e) || e.Code != "validation_failed" || e.Message != "body too large" {
@@ -29,7 +33,9 @@ func TestDecodeJSONTooLarge(t *testing.T) {
 
 func TestDecodeJSONOK(t *testing.T) {
 	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"a"}`))
-	var dst struct{ Name string }
+	var dst struct {
+		Name string `json:"name"`
+	}
 	if err := DecodeJSON(r, &dst); err != nil || dst.Name != "a" {
 		t.Fatal(err, dst)
 	}
@@ -74,5 +80,38 @@ func TestDecodeJSONTypeError(t *testing.T) {
 	}
 	if e := decodeErr(t, `{"a":"x"}`, &dst); e.Details[0].Field != "a" || e.Details[0].Message != "invalid value" {
 		t.Fatalf("%#v", e)
+	}
+}
+
+func TestDecodeJSONExactCaseKeys(t *testing.T) {
+	type dst struct {
+		Name string `json:"name"`
+		Opt  string `json:"opt,omitempty"`
+		Skip string `json:"-"`
+	}
+	for _, c := range []struct{ body, bad string }{
+		{`{"name":"x"}`, ""},
+		{`{"opt":"x"}`, ""},
+		{`{"NAME":"x"}`, "NAME"},
+		{`{"Name":"x"}`, "Name"},
+		{`{"OPT":"x"}`, "OPT"},
+		{`{"-":"x"}`, "-"},
+		{`{"Skip":"x"}`, "Skip"},
+		{`{"skip":"x"}`, "skip"},
+	} {
+		err := DecodeJSON(httptest.NewRequest("POST", "/", strings.NewReader(c.body)), &dst{})
+		var e *Error
+		if c.bad == "" {
+			if err != nil {
+				t.Errorf("%s: %v", c.body, err)
+			}
+		} else if !errors.As(err, &e) || e.Code != "validation_failed" || len(e.Details) != 1 || e.Details[0].Field != c.bad || e.Details[0].Message != "unknown field" {
+			t.Errorf("%s: %#v", c.body, err)
+		}
+	}
+	// non-struct destinations skip the check
+	var m map[string]string
+	if err := DecodeJSON(httptest.NewRequest("POST", "/", strings.NewReader(`{"NAME":"x"}`)), &m); err != nil {
+		t.Error(err)
 	}
 }

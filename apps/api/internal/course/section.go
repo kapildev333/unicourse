@@ -22,8 +22,9 @@ type Staff struct {
 }
 
 type PendingStaff struct {
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	InvitationID string `json:"invitationId"`
+	Email        string `json:"email"`
+	Role         string `json:"role"`
 }
 
 // Section always embeds its course, term and (pending) staff; createdAt only feeds the list cursor.
@@ -56,7 +57,7 @@ const sectionCols = `s.id, s.course_id, s.term_id, s.number, s.created_at,
 	coalesce((select json_agg(json_build_object('userId', u.id, 'email', u.email, 'displayName', u.display_name, 'role', ss.role)
 		order by ss.role <> 'instructor', u.email)
 		from section_staff ss join users u on u.id = ss.user_id where ss.section_id = s.id), '[]'),
-	coalesce((select json_agg(json_build_object('email', i.email, 'role', p.role) order by p.role <> 'instructor', i.email)
+	coalesce((select json_agg(json_build_object('invitationId', i.id, 'email', i.email, 'role', p.role) order by p.role <> 'instructor', i.email)
 		from pending_section_staff p join invitations i on i.id = p.invitation_id
 		where p.section_id = s.id and i.accepted_at is null and i.expires_at > now()), '[]'),
 	` + meetingsJSON
@@ -202,8 +203,10 @@ func createSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		CourseID, TermID, Number string
-		Meetings                 []MeetingInput
+		CourseID string         `json:"courseId"`
+		TermID   string         `json:"termId"`
+		Number   string         `json:"number"`
+		Meetings []MeetingInput `json:"meetings"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
@@ -247,8 +250,8 @@ func updateSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Forbidden()
 	}
 	var in struct {
-		Number   tenant.OptStr
-		Meetings *[]MeetingInput
+		Number   tenant.OptStr   `json:"number"`
+		Meetings *[]MeetingInput `json:"meetings"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err

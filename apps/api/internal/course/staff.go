@@ -137,7 +137,10 @@ func createStaff(d tenant.Deps) tenant.Handler {
 		if err := allow(authz.CanManageTAs(ctx, tx, s, secID)); err != nil {
 			return 0, nil, err
 		}
-		var in struct{ Email, Role string }
+		var in struct {
+			Email string `json:"email"`
+			Role  string `json:"role"`
+		}
 		if err := httpx.DecodeJSON(r, &in); err != nil {
 			return 0, nil, err
 		}
@@ -256,6 +259,44 @@ func deleteStaff(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		return 0, nil, err
 	}
 	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "staff.delete", EntityType: "staff", EntityID: rowID, Before: a}); err != nil {
+		return 0, nil, err
+	}
+	return http.StatusNoContent, nil, nil
+}
+
+// deletePendingStaff cancels one pending assignment; the invitation itself stays (it may carry
+// other sections or a department-admin role; DELETE /invitations/{id} revokes it).
+func deletePendingStaff(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+	ctx, secID, invID := r.Context(), r.PathValue("id"), r.PathValue("invitationId")
+	if err := sectionExists(r, tx, secID); err != nil {
+		return 0, nil, err
+	}
+	if err := allow(authz.CanManageTAs(ctx, tx, s, secID)); err != nil {
+		return 0, nil, err
+	}
+	if !tenant.IsUUID(invID) {
+		return 0, nil, httpx.NotFound("pending staff")
+	}
+	var before struct {
+		InvitationID string `json:"invitationId"`
+		Email        string `json:"email"`
+		Role         string `json:"role"`
+	}
+	before.InvitationID = invID
+	err := tx.QueryRowContext(ctx, `delete from pending_section_staff p using invitations i
+		where i.id = p.invitation_id and p.section_id = $1 and p.invitation_id = $2
+		and i.accepted_at is null and i.expires_at > now() returning i.email, p.role`, secID, invID).Scan(&before.Email, &before.Role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil, httpx.NotFound("pending staff")
+	} else if err != nil {
+		return 0, nil, err
+	}
+	if before.Role == "instructor" {
+		if err := allow(authz.CanManageSection(ctx, tx, s, secID)); err != nil {
+			return 0, nil, err
+		}
+	}
+	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "pending_staff.delete", EntityType: "section", EntityID: secID, Before: before}); err != nil {
 		return 0, nil, err
 	}
 	return http.StatusNoContent, nil, nil

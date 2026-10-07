@@ -25,6 +25,7 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("GET", base+"/sections/{id}/staff", tenant.Wrap(d, listStaff))
 	r.Handle("POST", base+"/sections/{id}/staff", tenant.Wrap(d, createStaff(d)))
 	r.Handle("DELETE", base+"/sections/{id}/staff/{userId}", tenant.Wrap(d, deleteStaff))
+	r.Handle("DELETE", base+"/sections/{id}/pending-staff/{invitationId}", tenant.Wrap(d, deletePendingStaff))
 	r.Handle("GET", base+"/sections/{id}/enrollments", tenant.Wrap(d, listEnrollments))
 	r.Handle("DELETE", base+"/sections/{id}/enrollments/{userId}", tenant.Wrap(d, deleteEnrollment))
 	for _, im := range []struct {
