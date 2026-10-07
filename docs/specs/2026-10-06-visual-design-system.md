@@ -18,28 +18,27 @@ A marketing or landing site · a logo beyond a text wordmark · charts · a comp
 
 ### 3.1 Palette
 
-One coolors.co trending palette, used as is, chosen by the owner on 2026-10-06: **Olive Garden Feast**, `https://coolors.co/palette/606c38-283618-fefae0-dda15e-bc6c25`.
+Chosen by the owner on 2026-10-07: the look of Udemy's web app, which supersedes the coolors.co constraint (D57). The palette is Udemy's public brand colours, named here by role; the five swatches are used as is and everything else is derived and measured in the design document.
 
 | Swatch | Hex | Light mode role | Dark mode role |
 |---|---|---|---|
-| Dark moss green | `#606C38` | accent: primary buttons (white text, 5.7:1), links, active navigation, focus ring | surface tint for the raised table header; secondary accent |
-| Pakistan green | `#283618` | ink for body text and headings (13.5:1 on white) | canvas: page background |
-| Cornsilk | `#FEFAE0` | canvas: page background | ink: body text (12.2:1 on the dark canvas) |
-| Earth yellow | `#DDA15E` | warning and highlight backgrounds with dark text only (2.3:1 on white, never as text) | accent: links, active navigation, primary button fill with dark text (5.7:1 on the dark canvas) |
-| Tiger's eye | `#BC6C25` | accent hover on buttons; badge backgrounds with dark text; never body text on white (4.0:1) | accent hover; borders that must carry meaning (3.3:1 on the dark canvas) |
+| Purple | `#A435F0` | accent: primary buttons (white text, 4.8:1), active states, focus ring base | primary button fill (white text); accent for icons |
+| Deep purple | `#5624D0` | links and accent text (8.2:1 on white), button hover | hover on links (as a lighter tint, derived) |
+| Charcoal | `#1C1D1F` | ink: body text and headings (16.5:1 on white) | canvas: page background |
+| Grey | `#6A6F73` | muted text (5.1:1 on white), placeholder text | muted text as a lighter tint (derived) |
+| Mist | `#F7F9FA` | canvas: page background; table header; card hover | ink: body text on the dark canvas |
 
-Derived shades are allowed only where the five swatches cannot meet §7, and each one is written down in the design document with the swatch it is derived from and its measured ratio: a light-mode muted text (a Pakistan green tint, ≥ 6:1 on white and canvas), hairlines and a strong line for input borders (Pakistan green at low alpha over the surface, the strong one ≥ 3:1), an accent-soft background for active navigation and badges (Dark moss green at low alpha over the surface), a dark-mode surface one step lighter than the canvas, a dark-mode muted text and lines (Cornsilk at reduced alpha). Pure white `#FFFFFF` is the light-mode surface; there is no pure black anywhere.
+Surfaces are white in light mode; the dark surface is a step above the dark canvas (derived, about `#2D2F31`). Hairlines are Udemy's `#D1D7DC` in light mode and a derived tint in dark. Derived shades are allowed only where these cannot meet §7 and each is written down with its source and measured ratio: a dark-mode link purple (a tint of Deep purple at or above 4.5:1 on the dark surface), accent-soft backgrounds for active navigation and badges (Purple at low alpha over the surface), hover shades. Purple is the one accent and appears only on actions, links and the current location, never as decoration or on large areas; this is how the look stays deliberate.
 
-Status colours are not brand colours and stay out of the palette: danger (red), success (a cooler green that reads apart from the olive accent), warning (built on Earth yellow), each as a text shade for its mode and a soft background, each ≥ 4.5:1 on the surface it sits on. They are used only to mean error, success or caution, never for decoration.
+Status colours stay outside the brand: danger (red), success (green), warning (amber), each as a text shade for its mode and a soft background, each ≥ 4.5:1 on the surface it sits on, used only for error, success or caution.
 
 ### 3.2 Typography
 
-Two open-source families from Google Fonts, chosen by the owner on 2026-10-06, self-hosted through fontsource packages so the app makes no request to Google at runtime:
+One open-source family from Google Fonts, chosen by the owner on 2026-10-07 as the stand-in for Udemy Sans: **DM Sans** (variable), self-hosted through its fontsource package so the app makes no request to Google at runtime. No serif anywhere.
 
-- **DM Serif Display** for the wordmark and page titles (`h1`) only. It ships in one weight (400) with an italic; use the regular only. Tight tracking, sizes from 24 px up so its high contrast stays legible.
-- **DM Sans** (variable) for everything else: body, tables, forms, buttons, section headings (`h2`, `h3`). Weights 400, 500 and 600 only; optical size left to the font.
-
-Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px minimum anywhere (captions, badges), 24 px page titles, 16 px section headings. Line height 1.5 for body, 1.2 for titles. Tabular numerals (`font-variant-numeric: tabular-nums`) on tables, class codes, times and counts. System fonts remain the fallback stack.
+- Weights 400 (body), 500 (labels, table headers, nav) and 700 (page titles, card titles, buttons, section headings). Page titles are bold and large; this is the one place the type is loud.
+- Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px minimum anywhere, 32 px page titles (`h1`, weight 700, line height 1.2, tracking -0.01em), 20 px section headings (`h2`), 16 px card titles (700). Line height 1.5 for body.
+- DM Sans has no tabular figures (D56); numbers set proportionally.
 
 ### 3.3 Icons
 
@@ -47,10 +46,10 @@ Scale: 16 px body (`1rem`), 14 px for tables, forms and secondary text, 13 px mi
 
 ### 3.4 Shape, depth, spacing
 
-- Radius: 6 px for controls and badges, 8 px for cards, tables and dialogs; nothing larger, nothing fully rounded except role badges and avatars.
-- Depth: borders, not shadows. The only shadows are the dialog and the theme menu. No gradients, no blur, no glass.
+- Radius: 4 px for controls, cards, tables and dialogs; badges 4 px; nothing larger, nothing fully rounded except avatars. Primary and secondary buttons are 40 px tall (48 px for the sign-in submit), bold, with a 1 px charcoal border on the secondary.
+- Depth: 1 px borders in the hairline token. Cards get a 1 px border and, on hover, a soft shadow (the only hover shadow). The dialog has a shadow. No gradients, no blur, no glass.
 - Spacing on a 4 px grid; 8 px between related controls, 16 px inside cards, 24 px between page sections, 32 px page padding.
-- Density is that of a tool, not a landing page: 40 px table rows, 36 px inputs and buttons, content left-aligned in a 72 rem container.
+- Density: 48 px table rows, 40 px inputs, content left-aligned in a 84 rem container with 24 px gutters; card grids of 3 columns at 1024 px and up, 2 at 768 px, 1 below.
 
 ### 3.5 Motion
 
@@ -67,8 +66,8 @@ Colour and opacity transitions of 150 ms on hover and focus, nothing else animat
 
 Checked by the reviewer against each page:
 
-1. No gradients, glow, blur, glassmorphism, oversized rounded corners, or purple and indigo anywhere.
-2. No decorative hero, no three-column feature cards with icons, no illustration placeholders, no marketing voice. The sign-in page is a form on a quiet canvas with the wordmark, not a split-screen pitch.
+1. No gradients, glow, blur, glassmorphism or oversized rounded corners. Purple is the single accent and sits only on actions, links and the current location; never on backgrounds larger than a badge, never as decoration.
+2. No decorative hero, no feature cards with icons, no illustration placeholders, no marketing voice. The sign-in page is a form on a quiet canvas with the wordmark, not a split-screen pitch. Cards show data the product has (code, title, instructors, meetings); a card's cover block is a flat colour band with the course code, never a stock image.
 3. Hierarchy comes from size, weight and space, not from colour: one accent, used for actions and the current location only.
 4. Every empty state names what is missing in the product's own words and offers the one action that fixes it, or none if the viewer cannot act.
 5. Every table has a caption, aligned columns, tabular numbers, right-aligned numeric and action columns, and a row hover that is visible in both modes.
@@ -83,13 +82,13 @@ Every route the app has; each is restyled, none is added or removed.
 
 | Area | Pages | Notes for the design document |
 |---|---|---|
-| Entry | `/` (redirect), `/sign-in`, magic-link sent, `/invite/{token}` accept, "no access" | Centred card on canvas with the serif wordmark; provider buttons with Lucide icons; the divider between OIDC and email done with tokens, not `✓`/`·`. |
-| Shell | header, main navigation, university switch, theme switch, sign-out, skip link | Header on surface with a hairline; wordmark in serif; nav items with icons; the current item marked by weight and the accent, not only colour. |
-| My sections | `/{slug}/me` list and schedule, term picker | The week grid keeps its structure (`region` per weekday, clash lines); blocks get surface, hairline, tabular times; the clash state keeps text first, border second, in both modes. |
-| Catalog | `/{slug}/catalog` | Filters as one row of labelled controls; results table per §5.5. |
-| Courses | `/{slug}/courses`, `/{slug}/courses/sections`, `/{slug}/sections/{id}` detail with staff editor, roster, meetings editor, course / section / import / remove dialogs | Dialog header, body and footer rhythm shared by every dialog; import preview rows use the warning and danger badges from §3.1; staff editor rows align with the table rules. |
-| Admin | `/{slug}/admin` tabs: departments, terms, members, invitations, audit log | Tabs as an underlined tab list; audit log rows monospace-free, tabular timestamps. |
-| Shared | button, badge, dialog, empty state, error banner, form field, load more, loading, page header, status message, table | Each restyled once; pages consume them. Loading becomes a skeleton row set or an inline spinner with the same `role="status"`. |
+| Entry | `/` (redirect), `/sign-in`, magic-link sent, `/invite/{token}` accept, "no access" | Centred white card on the canvas with the bold wordmark; 48 px bold purple submit; provider buttons full width with a charcoal border and Lucide icons; the divider done with tokens. |
+| Shell | header, main navigation, search, university switch, theme switch, sign-out, skip link | Udemy's top bar: white, 72 px, hairline below; bold wordmark; nav items as text links with the current one bold and underlined in purple; a search field in the middle (rounded, hairline border, Lucide `search`) that submits to the Catalog with `q`; theme switch, university switch and sign-out on the right. |
+| My sections | `/{slug}/me` list and schedule, term picker | The list becomes a card grid: cover band with the class code, bold title, instructor line, meeting lines, role badge. The schedule keeps its week grid (regions per weekday, clash lines) restyled with the tokens. |
+| Catalog | `/{slug}/catalog` | Filters as one row of labelled controls above a card grid with the same card as My sections plus the clash note; "Showing n" and load-more below. The `q` search param arrives from the header search. |
+| Courses | `/{slug}/courses`, `/{slug}/courses/sections`, `/{slug}/sections/{id}` detail with staff editor, roster, meetings editor, course / section / import / remove dialogs | Admin tables keep rows (48 px, bold header text, hairlines); section detail gets a title band (code, title, term, instructors) above tabbed-looking sections for staff, meetings and roster; dialogs share one header/body/footer rhythm; import preview rows use the warning and danger badges. |
+| Admin | `/{slug}/admin` tabs: departments, terms, members, invitations, audit log | Tabs as a bold underlined tab list; tables as above; audit timestamps in muted text. |
+| Shared | button, badge, dialog, empty state, error banner, form field, load more, loading, page header, status message, table, card (new) | Each restyled once; pages consume them. Loading is a skeleton. The card is the one new shared component. |
 
 ## 7. Accessibility
 
@@ -97,9 +96,9 @@ WCAG 2.1 AA in both modes: 4.5:1 for text, 3:1 for input borders, focus rings an
 
 ## 8. Constraints and dependencies
 
-- Allowed new packages, and no others: `lucide-react` (runtime), `@fontsource-variable/dm-sans` and `@fontsource/dm-serif-display` (runtime, bundled by Vite). D3 is amended for these three (D50).
+- Allowed new packages, and no others: `lucide-react` and `@fontsource-variable/dm-sans` (runtime, bundled by Vite). D3 is amended for these two (D50).
 - Tailwind stays the styling layer; `index.css` is the single place tokens, fonts and the two base recipes (`ui-table`, skeleton) live. No new CSS files per feature.
-- Routes, copy, roles, API calls and test identifiers do not change. The retired class assertions in `admin-layout.test.tsx` become `aria-current="page"` assertions.
+- Routes, copy, roles and API calls do not change. The header search is the one new behaviour: it navigates to `/{slug}/catalog?q=` with the typed text, which the Catalog already filters by. Where a page's pattern changes from table rows to cards (Catalog, My sections list), the end-to-end suite may swap selectors (`row`/`cell` to `listitem`/text) for the same assertions, and nothing else (D60). The retired class assertions in `admin-layout.test.tsx` become `aria-current="page"` assertions.
 - A unit test (`src/no-literal-colors.test.ts`) reads every `.tsx` and `.ts` file under `src/` except tests and `index.css` and fails on `#` hex colours, `bg-white`, `text-white`, `text-black`, arbitrary named colours such as `bg-[white]`, Tailwind palette utilities (grey, slate, zinc, neutral, stone and the hue scales), colour functions and `dark:` variants, stacked or not.
 
 ## 9. Gates
