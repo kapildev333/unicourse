@@ -68,12 +68,13 @@ const prof2 = `david.mensah@${dom}`
 const newHire = `ingrid.larsen@${dom}`
 
 // code, title, credits, department, meetings [weekday, start, end, room], student indexes, instructor
+// (Amara, index 0, is in three of the five so the Catalog shows enrolled and open cards)
 const courses = [
   ['CS101', 'Introduction to Computer Science', 4, 'CS', [[1, '10:00', '11:20', 'Hall B 204'], [3, '10:00', '11:20', 'Hall B 204']], [0, 1, 2, 3, 4, 5, 6, 7], prof],
   ['CS210', 'Data Structures and Algorithms', 4, 'CS', [[2, '10:00', '11:20', 'Engineering Building 310'], [4, '10:00', '11:20', 'Engineering Building 310']], [0, 1, 2, 3, 4], prof],
   ['MATH201', 'Linear Algebra', 4, 'MATH', [[1, '13:00', '14:20', 'Science Center 112'], [3, '13:00', '14:20', 'Science Center 112']], [0, 1, 2, 3, 5, 6], prof],
-  ['ECON110', 'Principles of Microeconomics', 3, 'ECON', [[2, '13:30', '14:50', 'Mercer Hall 101'], [4, '13:30', '14:50', 'Mercer Hall 101']], [0, 4, 5, 6, 7], prof2],
-  ['BIO150', 'Cell Biology', 4, 'BIO', [[3, '15:00', '16:20', 'Life Sciences 120'], [5, '09:00', '10:20', 'Life Sciences 120']], [0, 1, 3, 7], prof2],
+  ['ECON110', 'Principles of Microeconomics', 3, 'ECON', [[2, '13:30', '14:50', 'Mercer Hall 101'], [4, '13:30', '14:50', 'Mercer Hall 101']], [4, 5, 6, 7], prof2],
+  ['BIO150', 'Cell Biology', 4, 'BIO', [[3, '15:00', '16:20', 'Life Sciences 120'], [5, '09:00', '10:20', 'Life Sciences 120']], [1, 3, 7], prof2],
 ] as const
 const depts = [['Computer Science', 'CS'], ['Mathematics', 'MATH'], ['Economics', 'ECON'], ['Biology', 'BIO']]
 const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -149,6 +150,9 @@ test('capture every screen', async ({ browser, page }) => {
   const taPage = await ctxs(ta)
   const prof2Page = await ctxs(prof2)
   const stu = await ctxs(people[0].email)
+  // staff names, so student and roster screens show people rather than emails
+  for (const [p, name] of [[profPage, 'Elena Marsh'], [taPage, 'Sofia Alvarez'], [prof2Page, 'David Mensah'], [page, 'Renata Quinn']] as const)
+    await api(p, 'patch', '/api/v1/me', { displayName: name })
   for (const p of people.slice(1)) await (await ctxs(p.email)).context().close()
   // ingrid.larsen is never signed in, so Invitations keeps one pending row
 
