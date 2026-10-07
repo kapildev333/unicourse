@@ -17,7 +17,7 @@ import (
 )
 
 func TestUnknownRoutesUseEnvelope(t *testing.T) {
-	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), func(context.Context) error { return errors.New("down") }, nil, nil)
+	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), nil, func(context.Context) error { return errors.New("down") }, nil, nil)
 	for _, c := range [][2]string{{"GET", "/api/v1/nope"}, {"POST", "/healthz"}} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(c[0], c[1], nil))
@@ -38,7 +38,7 @@ func TestUnknownRoutesUseEnvelope(t *testing.T) {
 }
 
 func TestReadyzReflectsDatabase(t *testing.T) {
-	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), func(context.Context) error { return nil }, nil, nil)
+	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), nil, func(context.Context) error { return nil }, nil, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/readyz", nil))
 	if rec.Code != http.StatusOK {
@@ -47,7 +47,7 @@ func TestReadyzReflectsDatabase(t *testing.T) {
 }
 
 func TestAPIMountedUnderV1(t *testing.T) {
-	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), func(context.Context) error { return nil }, app.NewRouter(app.Deps{}), nil)
+	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), nil, func(context.Context) error { return nil }, app.NewRouter(app.Deps{}), nil)
 	for _, c := range []struct {
 		path string
 		code int
@@ -70,7 +70,7 @@ func TestWebAppMounted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), func(context.Context) error { return nil }, app.NewRouter(app.Deps{}), web)
+	h := newHandler(slog.New(slog.NewJSONHandler(io.Discard, nil)), nil, func(context.Context) error { return nil }, app.NewRouter(app.Deps{}), web)
 	for _, c := range []struct {
 		path string
 		code int
