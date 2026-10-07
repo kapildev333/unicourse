@@ -216,7 +216,7 @@ func TestCourseListQ(t *testing.T) {
 	e := newEnv(t)
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 		_, err := tx.Exec(`insert into courses (university_id, department_id, code, title) values
-			($1,$2,'PCT1','100% online'), ($1,$2,'A_B','Under'), ($1,$3,'MATH9','Intro to Math')`, e.Fx.UniversityA, e.Fx.DeptA, e.DeptA2)
+			($1,$2,'PCT1','100% online'), ($1,$2,'A_B','Under\score'), ($1,$3,'MATH9','Intro to Math')`, e.Fx.UniversityA, e.Fx.DeptA, e.DeptA2)
 		return err
 	})
 	codes := func(query string) (int, []string) {
@@ -237,6 +237,7 @@ func TestCourseListQ(t *testing.T) {
 		{"q=INTRO", []string{"CS101", "MATH9"}},
 		{"q=%25", []string{"PCT1"}},
 		{"q=_", []string{"A_B"}},
+		{"q=%5C", []string{"A_B"}},
 		{"q=AxB", nil},
 		{"q=INTRO&departmentId=" + e.DeptA2, []string{"MATH9"}},
 	} {
@@ -250,6 +251,7 @@ func TestCourseListQ(t *testing.T) {
 	for q, want := range map[string][]string{
 		"q=" + strings.Repeat("a", 101): {"q"},
 		"q=a%00":                        {"q"},
+		"q=%FF":                         {"q"},
 		"departmentId=zz&q=" + strings.Repeat("a", 101): {"departmentId", "q"},
 	} {
 		st, raw := e.call(e.Admin, "GET", "/courses?"+q, nil)

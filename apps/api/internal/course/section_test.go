@@ -321,6 +321,12 @@ func TestSectionListFilters(t *testing.T) {
 			t.Errorf("%s: %v, want %v", c.q, got, c.want)
 		}
 	}
+	if st, raw := e.call(e.Admin, "GET", "/sections?q=%FF", nil); st != 400 {
+		t.Fatalf("invalid utf-8 q: %d %s", st, raw)
+	}
+	if got := ids("q=%5C"); got != nil {
+		t.Fatalf("q=\\ matched %v", got)
+	}
 	st, raw := e.call(e.Admin, "GET", "/sections?departmentId=zz&termId=zz", nil)
 	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"termId", "departmentId"}) {
 		t.Fatalf("bad ids: %d %s", st, raw)

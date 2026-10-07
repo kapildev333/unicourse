@@ -32,6 +32,8 @@ func likeParam(r *http.Request) (any, *httpx.FieldError) {
 	switch {
 	case v == "":
 		return nil, nil
+	case !utf8.ValidString(v):
+		return nil, &httpx.FieldError{Field: "q", Message: "must be valid UTF-8"}
 	case strings.ContainsRune(v, 0):
 		return nil, &httpx.FieldError{Field: "q", Message: "must not contain NUL"}
 	case utf8.RuneCountInString(v) > 100:

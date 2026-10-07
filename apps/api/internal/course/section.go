@@ -227,11 +227,7 @@ func createSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		s.UniversityID, a.CourseID, a.TermID, a.Number).Scan(&a.ID); err != nil {
 		return 0, nil, sectionWriteErr(err)
 	}
-	secs := make([]string, len(ms))
-	for i := range secs {
-		secs[i] = a.ID
-	}
-	if err := insertMeetings(r.Context(), tx, s.UniversityID, secs, ms); err != nil {
+	if err := replaceMeetings(r.Context(), tx, s.UniversityID, a.ID, ms); err != nil {
 		return 0, nil, err
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "section.create", EntityType: "section", EntityID: a.ID, After: a}); err != nil {
