@@ -58,8 +58,8 @@ func scanInvitation(row rowScanner) (Invitation, error) {
 }
 
 // CreateInvitation does no authorisation (callers check authz.CanInvite). tx must be a
-// pg.WithTx(in.UniversityID) transaction. Mail is sent before commit.
-func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, m outbox.Mailer, baseURL string) (Invitation, error) {
+// pg.WithTx(in.UniversityID) transaction. Mail is queued in tx (sent after commit).
+func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, enqueue func(context.Context, *sql.Tx, ...outbox.Mail) error, baseURL string) (Invitation, error) {
 	var details []httpx.FieldError
 	email, err := auth.NormalizeEmail(in.Email)
 	if err != nil {
@@ -104,7 +104,7 @@ func CreateInvitation(ctx context.Context, tx *sql.Tx, in NewInvitation, m outbo
 		return Invitation{}, err
 	}
 	subject, text := invitationMail(name, string(in.Role), auth.InvitationURL(baseURL, token, email), inv.ExpiresAt)
-	if err := m.Send(ctx, email, subject, text); err != nil {
+	if err := enqueue(ctx, tx, outbox.Mail{To: email, Subject: subject, Text: text}); err != nil {
 		return Invitation{}, err
 	}
 	return inv, nil
@@ -116,9 +116,9 @@ func invitationMail(name, role, url string, expiresAt time.Time) (subject, text 
 }
 
 // CreateInvitations is the batch form of CreateInvitation (one insert, one audit statement, one
-// mail each, all before commit). Precondition, NOT re-checked here: callers pass distinct, normalised
+// queued mail each, all in tx). Precondition, NOT re-checked here: callers pass distinct, normalised
 // emails that are neither active members nor already pending. Imports invite members only.
-func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, m outbox.Mailer, baseURL string) ([]Invitation, error) {
+func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserID string, emails []string, role authz.Role, baseURL string) ([]Invitation, error) {
 	if len(emails) == 0 {
 		return []Invitation{}, nil
 	}
@@ -164,11 +164,13 @@ func CreateInvitations(ctx context.Context, tx *sql.Tx, universityID, actorUserI
 	if err := tx.QueryRowContext(ctx, `select name from universities where id = $1`, universityID).Scan(&name); err != nil {
 		return nil, err
 	}
-	for _, v := range out {
+	mails := make([]outbox.Mail, len(out))
+	for i, v := range out {
 		subject, text := invitationMail(name, string(role), auth.InvitationURL(baseURL, tokenOf[v.Email], v.Email), v.ExpiresAt)
-		if err := m.Send(ctx, v.Email, subject, text); err != nil {
-			return nil, err
-		}
+		mails[i] = outbox.Mail{To: v.Email, Subject: subject, Text: text}
+	}
+	if err := outbox.Enqueue(ctx, tx, mails...); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -228,7 +230,7 @@ func createInvitation(d Deps) Handler {
 			}
 		}
 		inv, err := CreateInvitation(r.Context(), tx, NewInvitation{UniversityID: s.UniversityID, ActorUserID: s.UserID,
-			Email: in.Email, Role: authz.Role(in.Role), DepartmentIDs: in.DepartmentIDs}, d.Mailer, d.BaseURL)
+			Email: in.Email, Role: authz.Role(in.Role), DepartmentIDs: in.DepartmentIDs}, outbox.Enqueue, d.BaseURL)
 		if err != nil {
 			return 0, nil, err
 		}

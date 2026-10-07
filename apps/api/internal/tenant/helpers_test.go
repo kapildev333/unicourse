@@ -16,7 +16,6 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
-	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/testdb"
 )
@@ -28,7 +27,7 @@ type env struct {
 	Fx   testdb.Fixture
 	Deps Deps
 	Srv  *httptest.Server
-	Log  *syncBuf // request log lines (JSON) and mail lines
+	Log  *syncBuf // request log lines (JSON)
 }
 
 type syncBuf struct {
@@ -55,7 +54,7 @@ func newServer(t *testing.T, reg func(r *httpx.Router, d Deps)) *env {
 	fx := testdb.Seed(t, db)
 	logs := &syncBuf{}
 	l := slog.New(slog.NewJSONHandler(logs, nil))
-	d := Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, Mailer: outbox.LogMailer{L: l}, BaseURL: "http://localhost"}
+	d := Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, BaseURL: "http://localhost"}
 	r := httpx.NewRouter()
 	reg(r, d)
 	srv := httptest.NewServer(httpx.RequestIDMiddleware(httpx.LogMiddleware(l, httpx.Recover(r))))
