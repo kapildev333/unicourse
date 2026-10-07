@@ -147,7 +147,7 @@ func TestGradebookCSV(t *testing.T) {
 	st, h, b := e.callAccept(e.Inst, path, "text/csv")
 	want := "\ufeffemail,displayName,Midterm,Final,percent,letter,final\n" +
 		"stud2@a.edu,N stud2@a.edu,80.00,90.00,86.00,B,\n" +
-		"stud@a.edu,'=HYPERLINK(\"\"x\"\"),87.50,,87.50,B+,\n"
+		"stud@a.edu,\"'=HYPERLINK(\"\"x\"\")\",87.50,,87.50,B+,\n"
 	got := string(b)
 	if st != 200 || h.Get("Content-Type") != "text/csv; charset=utf-8" || h.Get("Content-Disposition") != `attachment; filename="gradebook.csv"` {
 		t.Fatalf("%d %v %s", st, h, got)
