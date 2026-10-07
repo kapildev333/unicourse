@@ -17,6 +17,7 @@ jobs:
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       UNICOURSE_TEST_DATABASE_URL: postgres://unicourse:unicourse@localhost:5432/unicourse_test?sslmode=disable
+      UNICOURSE_TEST_OWNER_DATABASE_URL: postgres://unicourse_owner:unicourse_owner@localhost:5432/unicourse_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - id: present
@@ -25,7 +26,7 @@ jobs:
         uses: actions/setup-go@v7
         with: { go-version-file: apps/api/go.mod, cache-dependency-path: apps/api/go.sum }
       - if: steps.present.outputs.present == 'true'
-        name: create app role and test database
+        name: create roles and databases
         run: PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f apps/api/docker/initdb.sql
       - if: steps.present.outputs.present == 'true'
         working-directory: apps/api
@@ -74,7 +75,7 @@ jobs:
         uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
       - if: steps.present.outputs.present == 'true'
-        name: create app role and databases
+        name: create roles and databases
         run: PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f apps/api/docker/initdb.sql
       - if: steps.present.outputs.present == 'true'
         working-directory: apps/web
