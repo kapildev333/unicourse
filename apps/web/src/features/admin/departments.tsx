@@ -88,7 +88,7 @@ function DepartmentForm(props: {
           type="text"
           autoCapitalize="characters"
           spellCheck={false}
-          className={`${inputClass}`}
+          className={inputClass}
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
         />
