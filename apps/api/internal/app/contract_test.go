@@ -26,11 +26,8 @@ func readJSON(t *testing.T) map[string]any {
 	return doc
 }
 
-// pending: routes in openapi.json that a later P7-L1 sub-lane registers. Empty when P7-L1c lands.
-var pending = map[string]bool{
-	"POST /api/v1/universities/{}/sections/{}/assessments/{}/scores/import/preview": true, // L1c
-	"POST /api/v1/universities/{}/sections/{}/assessments/{}/scores/import":         true, // L1c
-}
+// pending: routes in openapi.json that no Go code registers yet (none).
+var pending = map[string]bool{}
 
 func TestContractMatchesRouter(t *testing.T) {
 	doc := readJSON(t)
