@@ -67,5 +67,5 @@ it('lists every university under the lead-in when there are several', async () =
   await noAccess(['Harbor College', 'Bay Institute'])
   expect(screen.getByText('Go to your university:')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Bay Institute' })).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /^Go to Bay/ })).toBeNull()
+  expect(screen.queryByRole('link', { name: /^Go to / })).toBeNull()
 })
