@@ -70,7 +70,7 @@ The fixture file lists all of this literally; the design (§10) fixes its exact 
 `README.md` at the repository root, in this order, each section short and copy-paste ready:
 
 1. One paragraph: what UniCourse is (multi-tenant platform for universities: departments, terms, courses, sections, staff, rosters, schedule, grading, section content) and the stack in one line.
-2. Screenshots: six 1440-wide captures, light and dark pairs, committed under `docs/screens/` (D107): My sections (student, schedule view), Catalog, Section home with materials, Gradebook. Captured by `npm run screens` on the seeded state and copied in; total under 2 MB (PNG, optimised with the tool at hand or left as captured if already under the cap).
+2. Screenshots: eight 1440-wide captures, four views in light and dark pairs, committed under `docs/screens/` (D107): My sections (student, schedule view), Catalog, CS101 Materials (the capture script has no section Home capture; amended 2026-10-07 after P11-L2), Gradebook (instructor view). Taken on the `seed-demo` dataset so the README shows what a newcomer gets; `npm run screens` seeds its own university, so until it gains a `seed-demo` mode (§11) the captures are taken with a throwaway Playwright script outside the repo; total under 2 MB (PNG, left as captured).
 3. Quick start: prerequisites (Docker, Go 1.27, Node 22), then the exact commands: compose up, env block, migrate, `seed-demo`, run API, run web, open `http://localhost:5173`, request a magic link for a persona, copy it from the API log. One block per step, nothing the reader must infer.
 4. Demo personas: the table printed by `seed-demo` (role, name, email, what to look at).
 5. Tests and gates: the Go gates, the web gates, e2e, screens, and the one-integration-suite-at-a-time rule.
@@ -114,7 +114,7 @@ No new Go module, no new npm dependency, no migration, no contract change.
 ## 11. Deferred, with triggers
 
 - `--fixture <path>` for a second dataset: when someone needs a demo that is not Northfield.
-- The capture script and the e2e suite seeding through `seed-demo`: when either seed step changes for the third time.
+- The capture script and the e2e suite seeding through `seed-demo`, and a Materials capture in `screens.ts`: when either seed step changes for the third time, or when the README captures need retaking.
 - A JSON Schema for the fixture: when a non-engineer edits it.
 - A `make dev` or dev container: when the README quick start exceeds one screen.
 
@@ -125,5 +125,5 @@ Recorded in `PLAN.md` as D104 to D108, each "owner to confirm":
 - D104: CLI command, embedded JSON fixture, writes through the in-process real handlers (approach A).
 - D105: dataset is the capture seed's Northfield University, extended with Phase 10 content and a finalised section.
 - D106: `--reset` scoped to one slug; sign-in stays the real magic-link flow, links read from the API log.
-- D107: six screenshots committed under `docs/screens/`.
+- D107: eight screenshots (four views, light and dark) committed under `docs/screens/`.
 - D108: capture script and e2e keep their own seeding.
