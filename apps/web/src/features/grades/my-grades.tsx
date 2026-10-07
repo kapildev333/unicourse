@@ -66,8 +66,8 @@ function SectionCard({ slug, s }: { slug: string; s: GradeSection }) {
             {s.assessments.map((a) => (
               <li key={a.id}>
                 {a.points === undefined
-                  ? `${a.name} — Not graded yet · ${fmtNum(a.weight)}%`
-                  : `${a.name} — ${fmtNum(a.points)} / ${fmtNum(a.maxPoints)} · ${fmtNum(a.weight)}%`}
+                  ? `${a.name} · Not graded yet · ${fmtNum(a.weight)}%`
+                  : `${a.name} · ${fmtNum(a.points)} / ${fmtNum(a.maxPoints)} · ${fmtNum(a.weight)}%`}
                 {a.dueOn && ` · Due ${formatDate(a.dueOn)}`}
               </li>
             ))}

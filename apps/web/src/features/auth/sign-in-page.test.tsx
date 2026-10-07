@@ -1,20 +1,84 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act } from '@testing-library/react'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { SignInPage } from './sign-in-page'
 
-afterEach(() => vi.unstubAllGlobals())
+beforeEach(() => localStorage.clear())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
+
+const idField = () => screen.getByLabelText('University email or university ID')
 
 const submitMagic = (value: string) => {
-  fireEvent.change(screen.getByLabelText('Email'), { target: { value } })
-  fireEvent.submit(screen.getByRole('form', { name: 'Email me a sign-in link' }))
+  fireEvent.change(idField(), { target: { value } })
+  fireEvent.click(screen.getByRole('button', { name: /Email me a sign-in link/ }))
 }
 
-it('renders both providers and the email field', () => {
+it('renders one field, the magic link button and both providers', () => {
   renderWithQuery(<SignInPage />)
+  expect(screen.getAllByRole('textbox')).toHaveLength(1)
+  expect(screen.getByText(/or your university's short name such as northfield/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue with Microsoft' })).toBeInTheDocument()
-  expect(screen.getByLabelText('Email')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Email me a sign-in link' })).toBeInTheDocument()
+})
+
+it('shows the inline error when the magic link is asked for a non-email value', () => {
+  const fetchMock = mockApi({})
+  renderWithQuery(<SignInPage />)
+  submitMagic('northfield')
+  expect(screen.getByText('Enter your email to get a sign-in link')).toBeInTheDocument()
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it('shows the invitation info row with the email and prefills the field', () => {
+  renderWithQuery(<SignInPage email="new-hire@a.edu" />)
+  expect(screen.getByText(/You've been invited\. Sign in as/).textContent).toBe(
+    "You've been invited. Sign in as new-hire@a.edu to accept.",
+  )
+  expect(screen.getByText('new-hire@a.edu')).toHaveClass('whitespace-nowrap')
+  expect(idField()).toHaveValue('new-hire@a.edu')
+})
+
+it('marks the last used method from localStorage and records the one used', async () => {
+  localStorage.setItem('unicourse:last-sign-in', 'google')
+  mockApi({ 'POST /auth/magic-link': () => ({ status: 202 }) })
+  renderWithQuery(<SignInPage />)
+  expect(within(screen.getByRole('button', { name: /Continue with Google/ })).getByText('Last used')).toBeInTheDocument()
+  expect(screen.getAllByText('Last used')).toHaveLength(1)
+  submitMagic('alice@a.edu')
+  await screen.findByText('Check your email')
+  expect(localStorage.getItem('unicourse:last-sign-in')).toBe('magic')
+})
+
+it('resends the same email, says so, and waits 30 s before the next resend', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const fetchMock = mockApi({ 'POST /auth/magic-link': () => ({ status: 202 }) })
+  renderWithQuery(<SignInPage />)
+  submitMagic('alice@a.edu')
+  await screen.findByText('Check your email')
+  const again = screen.getByRole('button', { name: 'Send the link again' })
+  expect(again).toBeDisabled()
+  expect(screen.getByText(/You can send it again in 30 s/)).toBeInTheDocument()
+  await act(() => vi.advanceTimersByTimeAsync(30_000))
+  expect(again).toBeEnabled()
+  fireEvent.click(again)
+  expect(await screen.findByText('Sent again.')).toBeInTheDocument()
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(await fetchMock.mock.calls[1][0].json()).toEqual({ email: 'alice@a.edu' })
+  expect(again).toBeDisabled()
+})
+
+it('"use a different email" is an inline button that returns to the form', async () => {
+  mockApi({ 'POST /auth/magic-link': () => ({ status: 202 }) })
+  renderWithQuery(<SignInPage />)
+  submitMagic('alice@a.edu')
+  await screen.findByText('Check your email')
+  fireEvent.click(screen.getByRole('button', { name: 'use a different email' }))
+  expect(idField()).toBeInTheDocument()
 })
 
 it('requests a magic link and shows the check-your-email screen', async () => {

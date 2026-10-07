@@ -88,7 +88,7 @@ export function CourseDialog(props: {
             <option value="">Choose a department</option>
             {managed.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.code} — {d.name}
+                {d.code} · {d.name}
               </option>
             ))}
           </select>

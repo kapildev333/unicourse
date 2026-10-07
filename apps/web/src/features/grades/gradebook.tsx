@@ -384,7 +384,7 @@ export function GradebookPage({ slug, sectionId }: { slug: string; sectionId: st
         }
         description={
           <>
-            {`${sec.course.code} · Section ${sec.number} — ${sec.course.title}, ${sec.term.name}`}
+            {`${sec.course.code} · Section ${sec.number} · ${sec.course.title}, ${sec.term.name}`}
             {finalized && (
               <>
                 {' '}

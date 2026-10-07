@@ -314,7 +314,7 @@ it('the description keeps a hyphenated course code', async () => {
   renderPage('instructor', {
     'GET /universities/a/sections/s1': () => ({ body: { ...sec, course: { ...sec.course, code: 'CS-101' } } }),
   })
-  expect(await screen.findByText(/^CS-101 · Section 001 — /)).toBeInTheDocument()
+  expect(await screen.findByText(/^CS-101 · Section 001 · /)).toBeInTheDocument()
 })
 
 const finalBook = () => ({

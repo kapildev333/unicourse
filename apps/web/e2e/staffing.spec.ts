@@ -35,7 +35,7 @@ test('staffing flow across two universities', async ({ browser, page }) => {
   await test.step('create university A and sign in as its admin', async () => {
     const url = createUniversity({ name: `Uni A ${runId}`, slug: slugA, domain: dA, adminEmail: adminA })
     await page.goto(url)
-    await expect(page.getByLabel('Email', { exact: true })).toHaveValue(adminA)
+    await expect(page.getByLabel('University email or university ID')).toHaveValue(adminA)
     await signIn(page, adminA, slugA)
   })
 
@@ -137,8 +137,8 @@ test('staffing flow across two universities', async ({ browser, page }) => {
 
     await page.goto(`/${slugA}/courses`)
     for (const [dept, code, title] of [
-      ['CS — Computer Science', 'CS102', 'Data Structures'],
-      ['MA — Mathematics', 'MA201', 'Linear Algebra'],
+      ['CS · Computer Science', 'CS102', 'Data Structures'],
+      ['MA · Mathematics', 'MA201', 'Linear Algebra'],
     ]) {
       await page.getByRole('button', { name: 'New course' }).first().click()
       const dlg = page.getByRole('dialog')
@@ -156,8 +156,8 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
 
     for (const [course, starts, ends, room] of [
-      ['CS102 — Data Structures', '10:30', '12:00', 'Room 202'],
-      ['MA201 — Linear Algebra', '11:00', '12:00', 'Room 303'],
+      ['CS102 · Data Structures', '10:30', '12:00', 'Room 202'],
+      ['MA201 · Linear Algebra', '11:00', '12:00', 'Room 303'],
     ]) {
       await page.getByRole('button', { name: 'New section' }).first().click()
       const dlg = page.getByRole('dialog')
@@ -209,7 +209,8 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await expect(p.getByRole('link', { name: 'Admin' })).toHaveCount(0)
 
     await p.getByRole('link', { name: 'Catalog' }).click()
-    await p.getByLabel('Search').fill('MA201')
+    await p.getByRole('searchbox', { name: 'Find a course' }).fill('MA201')
+    await p.keyboard.press('Enter')
     await expect(p.getByRole('listitem')).toHaveCount(1)
     const row = p.getByRole('listitem').filter({ hasText: 'MA201-001' })
     await expect(row).toContainText(instr)
@@ -382,8 +383,8 @@ test('staffing flow across two universities', async ({ browser, page }) => {
     await expect(cs).toContainText('A-3.70 grade points · 92.00%')
     await expect(cs.getByText('Published scores (2)')).toBeVisible()
     await cs.getByText('Published scores (2)').click()
-    await expect(cs).toContainText('Midterm — 95 / 100 · 40%')
-    await expect(cs).toContainText('Final — 180 / 200 · 60%')
+    await expect(cs).toContainText('Midterm · 95 / 100 · 40%')
+    await expect(cs).toContainText('Final · 180 / 200 · 60%')
     const ma = p.getByRole('listitem').filter({ has: p.getByRole('link', { name: /^MA201-001/ }) })
     await expect(ma).toContainText('2.0 credits')
     await expect(ma).toContainText('B3.00 grade points · 83.00%')

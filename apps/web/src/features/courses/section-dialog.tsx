@@ -99,7 +99,7 @@ export function SectionDialog(props: {
         <p className="text-sm text-ink-muted">Term: {term.name}</p>
         {section ? (
           <p className="text-sm text-ink-muted">
-            Course: {section.course.code} — {section.course.title}
+            Course: {section.course.code} · {section.course.title}
           </p>
         ) : (
           <FormField
@@ -112,7 +112,7 @@ export function SectionDialog(props: {
               <option value="">Choose a course</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.code} — {c.title}
+                  {c.code} · {c.title}
                 </option>
               ))}
             </select>

@@ -87,6 +87,11 @@ it('the header search opens the catalog filtered by the typed text', async () =>
   expect(router.state.location.search).toEqual({ q: 'MA201' })
 })
 
+it('the header search shows the Catalog q and is empty elsewhere', async () => {
+  await shell(mk(['member']), '/u0/catalog?q=MA201')
+  expect(screen.getByRole('searchbox', { name: 'Find a course' })).toHaveValue('MA201')
+})
+
 it('marks Courses current on a section detail page', async () => {
   await shell(mk(['admin']), '/u0/sections/abc')
   expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('aria-current', 'page')
