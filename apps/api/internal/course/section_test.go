@@ -409,10 +409,7 @@ func TestSectionDescriptionField(t *testing.T) {
 		t.Fatalf("empty: %d %s", st, raw)
 	}
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-		if _, err := tx.Exec(`update sections set description = 'Hi' where id = $1`, e.SectionA); err != nil {
-			return err
-		}
-		_, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) values ($1, $2, $3)`, e.Fx.UniversityA, e.SectionA, e.UserID["stud@a.edu"])
+		_, err := tx.Exec(`update sections set description = 'Hi' where id = $1`, e.SectionA)
 		return err
 	})
 	for _, path := range []string{"/sections", "/sections/" + e.SectionA, "/me/sections"} {
