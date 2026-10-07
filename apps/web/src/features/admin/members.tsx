@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -17,11 +17,12 @@ import { ListCount } from '../../components/list-count'
 import { Loading } from '../../components/loading'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
+import { TextLink } from '../../components/text-link'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { useMe } from '../auth/use-me'
 import { DepartmentPicker } from './department-picker'
 import { useAllDepartments, useRefresh } from './queries'
-import { TabHeader } from './tab-header'
+import { PageHeader } from '../../components/page-header'
 
 type Membership = components['schemas']['Membership']
 type Role = Membership['role']
@@ -240,14 +241,14 @@ export function MembersPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <TabHeader
+      <PageHeader as="h2"
         title="Members"
         description={
           <>
             People with access to this university. Invite new people from{' '}
-            <Link to="/$slug/admin/invitations" params={{ slug }} className="text-accent hover:underline">
+            <TextLink to="/$slug/admin/invitations" params={{ slug }}>
               Invitations
-            </Link>
+            </TextLink>
             .
           </>
         }

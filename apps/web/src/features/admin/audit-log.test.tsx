@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { AuditLogPage } from './audit-log'
@@ -105,4 +105,27 @@ it('words every API action in the past tense and stacks on phones', async () => 
   expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
   expect(screen.getByRole('columnheader', { name: 'When' })).toHaveClass('sm:sticky')
   expect(screen.getAllByText('Show changes')).toHaveLength(actions.length)
+})
+
+it('shows a Target column with entity, name when present, and a short id', async () => {
+  mockApi({
+    ...members,
+    [L]: () => ({
+      body: {
+        items: [
+          entry('e1', { entityId: '0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11', after: { name: 'Fall 2026' } }),
+          entry('e2', { entityType: 'assessment', entityId: 'abcdef12-0000-0000-0000-000000000000', action: 'score.set' }),
+        ],
+        nextCursor: 'c2',
+        total: 7,
+      },
+    }),
+  })
+  renderWithQuery(<AuditLogPage slug="x" />)
+  expect(await screen.findByRole('columnheader', { name: 'Target' })).toBeInTheDocument()
+  expect(screen.getByText('Term Fall 2026')).toBeInTheDocument()
+  expect(screen.getByText('0b6f1c2e')).toBeInTheDocument()
+  expect(within(screen.getByRole('table')).getByText('Assessment')).toBeInTheDocument()
+  expect(screen.getByText('abcdef12')).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 7 changes')
 })

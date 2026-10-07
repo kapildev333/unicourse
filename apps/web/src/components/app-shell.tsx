@@ -4,6 +4,7 @@ import { LogOut, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
+import { AccountMenu } from './account-menu'
 import { Button } from './button'
 import { inputClass } from './form-field'
 import { ThemeSwitch } from './theme-switch'
@@ -96,7 +97,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
   return (
     <>
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex min-h-18 max-w-336 flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2 md:gap-y-3 md:py-3 xl:flex-nowrap xl:py-0">
+        <div className="mx-auto flex min-h-18 max-w-336 flex-wrap items-center gap-x-3 gap-y-2 md:gap-x-6 px-6 py-2 md:gap-y-3 md:py-3 xl:flex-nowrap xl:py-0">
           <div className="order-1 flex shrink-0 items-center gap-3">
             <span className="text-2xl leading-none font-bold tracking-tight text-ink">UniCourse</span>
             {me.memberships.length === 1 && (
@@ -154,13 +155,14 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
             )}
           </nav>
           <HeaderSearch slug={slug} />
-          <div className="order-2 ml-auto flex shrink-0 items-center gap-3 md:order-5 md:ml-0">
+          <div className="order-2 ml-auto flex shrink-0 items-center gap-2 md:order-5 md:gap-3 md:ml-0">
             <ThemeSwitch />
+            <AccountMenu user={me.user} />
             <Button
               variant="secondary"
               aria-label="Sign out"
               title={`Sign out (${me.user.email})`}
-              className="max-md:w-10 max-md:px-0"
+              className="max-md:hidden"
               onClick={() => void signOut(queryClient)}
             >
               <LogOut />

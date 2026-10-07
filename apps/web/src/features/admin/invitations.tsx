@@ -19,7 +19,7 @@ import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
 import { DepartmentPicker } from './department-picker'
 import { useAllDepartments, useRefresh } from './queries'
-import { TabHeader } from './tab-header'
+import { PageHeader } from '../../components/page-header'
 
 type Invitation = components['schemas']['Invitation']
 type Role = Invitation['role']
@@ -255,7 +255,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
 
   return (
     <>
-      <TabHeader
+      <PageHeader as="h2"
         title="Invitations"
         description="People you invite get access when they first sign in with that email."
         action={create}

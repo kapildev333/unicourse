@@ -155,3 +155,9 @@ it('pressing / focuses the header search unless focus is in a field', async () =
   expect(other).toHaveFocus()
   other.remove()
 })
+
+it('puts the Account menu beside Sign out, showing the name', async () => {
+  await shell(mk(['member']))
+  expect(screen.getByRole('button', { name: /^Account/ })).toHaveAccessibleName('Account A')
+  expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+})

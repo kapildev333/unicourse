@@ -12,11 +12,13 @@ import { BrandMark } from './brand-mark'
 import { MagicLinkSent } from './magic-link-sent'
 import { safeNext } from './safe-next'
 
+const rateLimited = 'Too many sign-in attempts. Try again in an hour.'
+
 const callbackCopy: Record<string, string> = {
   unauthenticated: "Sign-in didn't complete. Please try again.",
   forbidden: "This email can't sign in to UniCourse. Ask your university administrator to invite you.",
   validation_failed: 'That sign-in link has expired or was already used. Request a new one below.',
-  rate_limited: 'Too many sign-in attempts. Wait a minute, then try again.',
+  rate_limited: rateLimited,
   no_membership:
     "You're signed in, but your account isn't a member of any university yet. Ask your administrator for an invitation.",
 }
@@ -25,10 +27,11 @@ const fallbackCopy = 'Something went wrong while signing in. Please try again.'
 const identifierCopy = 'Enter your university email or university ID.'
 const magicEmailCopy = 'Enter your email to get a sign-in link'
 const providerCopy = {
+  rate_limited: rateLimited,
   'validation_failed:slug': identifierCopy,
   'validation_failed:email': 'Enter a valid email address.',
 }
-const magicCopy = { 'validation_failed:email': 'Enter a valid email address.' }
+const magicCopy = { rate_limited: rateLimited, 'validation_failed:email': 'Enter a valid email address.' }
 
 type Provider = 'google' | 'microsoft'
 type Method = Provider | 'magic'
