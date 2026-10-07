@@ -90,6 +90,8 @@ it('stacks rows on phones and shows Current, Upcoming and Past from the dates', 
           items: [
             fall,
             { id: '2', name: 'Spring 2027', startsOn: '2027-01-10', endsOn: '2027-05-01' },
+            { id: '4', name: 'Starts today', startsOn: '2026-10-07', endsOn: '2026-12-01' },
+            { id: '5', name: 'Ends today', startsOn: '2026-08-01', endsOn: '2026-10-07' },
             { id: '3', name: 'Spring 2026', startsOn: '2026-01-10', endsOn: '2026-05-01' },
           ],
         },
@@ -101,6 +103,8 @@ it('stacks rows on phones and shows Current, Upcoming and Past from the dates', 
     expect(within(row('Fall 2026')).getByText('Current')).toBeInTheDocument()
     expect(within(row('Spring 2027')).getByText('Upcoming')).toBeInTheDocument()
     expect(within(row('Spring 2026')).getByText('Past')).toBeInTheDocument()
+    expect(within(row('Starts today')).getByText('Current')).toBeInTheDocument()
+    expect(within(row('Ends today')).getByText('Current')).toBeInTheDocument()
     expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
     expect(screen.getByText('Fall 2026')).toHaveAttribute('data-label', 'Name')
   } finally {

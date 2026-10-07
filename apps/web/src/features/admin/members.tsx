@@ -160,7 +160,7 @@ export function MembersPage({ slug }: { slug: string }) {
   }
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Role', 'Departments', 'Status', 'Actions']} />
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Role', 'Departments', 'Status', '']} />
   else if (list.error) body = <ErrorBanner title="Couldn't load members" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0) body = <EmptyState icon={Users} title="No members yet" body="Invite people from Invitations." />
   else

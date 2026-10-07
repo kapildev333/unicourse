@@ -176,7 +176,7 @@ export function InvitationsPage({ slug, userRole }: { slug: string; userRole: st
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading variant="table" columns={['Email', 'Role', 'Departments', 'Status', 'Expires', 'Actions']} />
+  if (list.isPending) body = <Loading variant="table" columns={['Email', 'Role', 'Departments', 'Status', 'Expires', '']} />
   else if (list.error) body = <ErrorBanner title="Couldn't load invitations" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (

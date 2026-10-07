@@ -41,7 +41,7 @@ const verbs: Record<string, string> = {
 // Past-tense wording for each action the API emits (apps/api audit.Write calls); anything else falls back to "<Entity> <verb>".
 const actionLabels: Record<string, string> = {
   'membership.create': 'Member joined',
-  'membership.update': 'Member role changed',
+  'membership.update': 'Member updated',
   'membership.delete': 'Member removed',
   'invitation.create': 'Invitation sent',
   'invitation.accept': 'Invitation accepted',
@@ -170,7 +170,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
               const verb = e.action.split('.').pop() ?? e.action
               return (
                 <tr key={e.id}>
-                  <td className="sticky left-0 bg-surface whitespace-nowrap text-ink-muted">
+                  <td className="sticky left-0 bg-surface whitespace-nowrap text-ink-muted [tr:hover>&]:bg-canvas">
                     <time dateTime={e.at}>{formatDateTime(e.at)}</time>
                   </td>
                   <td>{e.actor ? e.actor.displayName || e.actor.email : 'System'}</td>

@@ -168,7 +168,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
   )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Code', 'Actions']} />
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Code', '']} />
   else if (list.error) body = <ErrorBanner title="Couldn't load departments" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (

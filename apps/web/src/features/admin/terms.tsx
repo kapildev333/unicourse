@@ -163,7 +163,7 @@ export function TermsPage({ slug }: { slug: string }) {
   const header = <PageHeader title="Terms" description="Academic terms that sections belong to." action={create} />
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Starts', 'Ends', 'Status', 'Actions']} />
+  if (list.isPending) body = <Loading variant="table" columns={['Name', 'Starts', 'Ends', 'Status', '']} />
   else if (list.error) body = <ErrorBanner title="Couldn't load terms" onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
   else if (list.items.length === 0)
     body = (

@@ -89,7 +89,7 @@ it('sends local-day bounds for the date filters', async () => {
 
 it('words every API action in the past tense and keeps the table scrolling', async () => {
   const actions: [string, string, string][] = [
-    ['membership.update', 'membership', 'Member role changed'],
+    ['membership.update', 'membership', 'Member updated'],
     ['invitation.accept', 'invitation', 'Invitation accepted'],
     ['invitation.delete', 'invitation', 'Invitation revoked'],
     ['final_grade.finalize', 'section', 'Grades finalized'],
