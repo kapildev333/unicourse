@@ -12,7 +12,7 @@ export function FormField(props: {
   name: string
   error?: string
   hint?: string
-  children: React.ReactElement
+  children: React.ReactElement<React.HTMLAttributes<HTMLElement>>
 }) {
   const { label, name, error, hint, children } = props
   const id = useId()
@@ -28,7 +28,7 @@ export function FormField(props: {
         name,
         'aria-invalid': error ? true : undefined,
         'aria-describedby':
-          [(children.props as { 'aria-describedby'?: string })['aria-describedby'], hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined,
+          [children.props['aria-describedby'], hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined,
       } as React.HTMLAttributes<HTMLElement>)}
       {hint && (
         <p id={hintId} className="text-xs text-ink-muted">

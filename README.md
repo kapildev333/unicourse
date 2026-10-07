@@ -15,7 +15,7 @@ Northfield University, the demo dataset as loaded by `seed-demo`: My sections, C
 
 ## Quick start
 
-Prerequisites: Docker, Go 1.27, Node 22.12 or newer. Run the API steps from `apps/api`. The demo is for local databases only.
+Prerequisites: Docker, Go 1.27, Node 22.22.2 or newer. Run the API steps from `apps/api`. The demo is for local databases only.
 
 1. Start Postgres (creates the roles and databases on a fresh volume):
 
