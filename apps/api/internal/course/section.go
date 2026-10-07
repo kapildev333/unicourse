@@ -122,9 +122,6 @@ func loadForWrite(r *http.Request, tx *sql.Tx, id string) (a sectionAudit, dept 
 }
 
 func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	if plainMember(s) {
-		return 0, nil, httpx.Forbidden()
-	}
 	p, after, afterID, err := tenant.Page(r)
 	if err != nil {
 		return 0, nil, err
@@ -166,6 +163,9 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		if err != nil {
 			return 0, nil, err
 		}
+		if plainMember(s) {
+			sec.PendingStaff = []PendingStaff{} // D41: pending invitees are for managers
+		}
 		if len(out.Items) == p.Limit {
 			out.NextCursor = httpx.NextCursor(last.createdAt.UTC(), last.ID)
 			break
@@ -184,14 +184,15 @@ func getSection(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	// design §14: any admin or dept_admin of the university may read one section (as the list shows it)
+	// design §14: any admin or dept_admin of the university may read one section with pendingStaff
 	if s.Role != authz.Member {
 		return http.StatusOK, sec, nil
 	}
-	if ok, err := authz.CanReadSection(r.Context(), tx, s, sec.ID); err != nil {
+	// D41: every member reads the section; only its staff see pending invitees
+	if ok, err := authz.CanReadRoster(r.Context(), tx, s, sec.ID); err != nil {
 		return 0, nil, err
 	} else if !ok {
-		return 0, nil, httpx.Forbidden()
+		sec.PendingStaff = []PendingStaff{}
 	}
 	return http.StatusOK, sec, nil
 }

@@ -37,7 +37,7 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("GET", base+"/me/sections", tenant.Wrap(d, getMySections))
 }
 
-// plainMember is true for callers who may not use the university-wide list and write routes.
+// plainMember is true for callers who may not use write routes (and see no pendingStaff in lists).
 func plainMember(s authz.Scope) bool { return s.Role == authz.Member }
 
 // scanSection scans one row of sectionCols (plus any extra trailing columns, e.g. my_role).

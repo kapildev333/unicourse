@@ -21,10 +21,10 @@ func TestSectionTruthTable(t *testing.T) {
 		{"admin", e.Admin, 200, 200, 201, 200},
 		{"dain", e.DaIn, 200, 200, 201, 200},
 		{"daout", e.DaOut, 200, 200, 403, 403}, // reads the whole university (design §14), writes only own departments
-		{"inst", e.Inst, 403, 200, 403, 403},
-		{"ta", e.TA, 403, 200, 403, 403},
-		{"stud", e.Stud, 403, 200, 403, 403},
-		{"other", e.Other, 403, 403, 403, 403},
+		{"inst", e.Inst, 200, 200, 403, 403},
+		{"ta", e.TA, 200, 200, 403, 403},
+		{"stud", e.Stud, 200, 200, 403, 403},
+		{"other", e.Other, 200, 200, 403, 403},
 	} {
 		n++
 		if st, raw := e.call(c.ck, "GET", "/sections", nil); st != c.list {
@@ -40,13 +40,13 @@ func TestSectionTruthTable(t *testing.T) {
 			t.Errorf("%s patch: %d %s", c.who, st, raw)
 		}
 	}
-	// the admin-created sections are in a section nobody but staff of S1 can read
+	// any member reads any section (D41)
 	st, raw := e.call(e.Admin, "POST", "/sections", map[string]any{"courseId": e.CourseA, "termId": e.TermA2, "number": "ZZ"})
 	other2 := jmap(t, raw)["id"].(string)
 	if st != 201 {
 		t.Fatal(st)
 	}
-	if st, _ := e.call(e.Inst, "GET", "/sections/"+other2, nil); st != 403 {
+	if st, _ := e.call(e.Inst, "GET", "/sections/"+other2, nil); st != 200 {
 		t.Errorf("instructor reads other section: %d", st)
 	}
 	if st, _ := e.call(e.DaOut, "DELETE", "/sections/"+e.SectionA, nil); st != 403 {
@@ -168,10 +168,10 @@ func TestSectionListEmbedsStaff(t *testing.T) {
 	if l.Items[0].Staff[0].DisplayName != "N inst@a.edu" || l.Items[0].Staff[0].UserID != e.UserID["inst@a.edu"] {
 		t.Errorf("staff fields %+v", l.Items[0].Staff[0])
 	}
-	// get returns the same embedded rows
+	// get returns the same embedded rows (pending masked for a plain member who is not staff)
 	st, raw = e.call(e.Stud, "GET", "/sections/"+e.SectionA, nil)
 	var one Section
-	if json.Unmarshal(raw, &one); st != 200 || len(one.Staff) != 4 || len(one.PendingStaff) != 2 {
+	if json.Unmarshal(raw, &one); st != 200 || len(one.Staff) != 4 || len(one.PendingStaff) != 0 {
 		t.Fatalf("get: %d %s", st, raw)
 	}
 	// filters
@@ -330,5 +330,74 @@ func TestSectionListFilters(t *testing.T) {
 	st, raw := e.call(e.Admin, "GET", "/sections?departmentId=zz&termId=zz", nil)
 	if _, f := errDetails(raw); st != 400 || !reflect.DeepEqual(f, []string{"termId", "departmentId"}) {
 		t.Fatalf("bad ids: %d %s", st, raw)
+	}
+}
+
+func TestPendingStaffMasking(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`with i as (insert into invitations (university_id, email, role, token_hash, expires_at)
+			values ($1, 'live@a.edu', 'member', decode(md5('live@a.edu'), 'hex'), now() + interval '1 day') returning id)
+			insert into pending_section_staff (university_id, invitation_id, section_id, role) select $1, id, $2, 'ta' from i`, e.Fx.UniversityA, e.SectionA)
+		return err
+	})
+	pend := func(raw []byte, list bool) int {
+		if list {
+			var l struct{ Items []Section }
+			json.Unmarshal(raw, &l)
+			for _, s := range l.Items {
+				if s.ID == e.SectionA {
+					return len(s.PendingStaff)
+				}
+			}
+			return -1
+		}
+		var s Section
+		json.Unmarshal(raw, &s)
+		return len(s.PendingStaff)
+	}
+	for _, c := range []struct {
+		who      string
+		ck       *http.Cookie
+		list, gt int
+	}{
+		{"admin", e.Admin, 1, 1}, {"dain", e.DaIn, 1, 1}, {"daout", e.DaOut, 1, 1},
+		{"inst", e.Inst, 0, 1}, {"ta", e.TA, 0, 1}, {"stud", e.Stud, 0, 0}, {"other", e.Other, 0, 0},
+	} {
+		st, raw := e.call(c.ck, "GET", "/sections", nil)
+		if st != 200 || pend(raw, true) != c.list {
+			t.Errorf("%s list: %d pending %d", c.who, st, pend(raw, true))
+		}
+		st, raw = e.call(c.ck, "GET", "/sections/"+e.SectionA, nil)
+		if st != 200 || pend(raw, false) != c.gt {
+			t.Errorf("%s get: %d pending %d", c.who, st, pend(raw, false))
+		}
+	}
+	for who, want := range map[string]int{"stud": 0, "inst": 1} {
+		ck := map[string]*http.Cookie{"stud": e.Stud, "inst": e.Inst}[who]
+		st, raw := e.call(ck, "GET", "/me/sections", nil)
+		var m MySections
+		if json.Unmarshal(raw, &m) != nil || st != 200 || len(m.Terms) == 0 {
+			t.Fatalf("%s me: %d %s", who, st, raw)
+		}
+		got := -1
+		for _, tm := range m.Terms {
+			for _, s := range tm.Sections {
+				if s.ID == e.SectionA {
+					got = len(s.PendingStaff)
+				}
+			}
+		}
+		if got != want {
+			t.Errorf("%s /me/sections pending %d want %d", who, got, want)
+		}
+	}
+	for _, c := range []struct {
+		ck   *http.Cookie
+		path string
+	}{{e.Stud, "/enrollments"}, {e.Other, "/enrollments"}, {e.Other, "/staff"}} {
+		if st, _ := e.call(c.ck, "GET", "/sections/"+e.SectionA+c.path, nil); st != 403 {
+			t.Errorf("%s: %d", c.path, st)
+		}
 	}
 }

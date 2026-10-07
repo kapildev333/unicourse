@@ -43,6 +43,9 @@ func getMySections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		if err != nil {
 			return 0, nil, err
 		}
+		if plainMember(s) && role == "student" {
+			sec.PendingStaff = []PendingStaff{}
+		}
 		if n := len(out.Terms); n == 0 || out.Terms[n-1].Term.ID != sec.Term.ID {
 			out.Terms = append(out.Terms, TermSections{Term: sec.Term, Sections: []MySection{}})
 		}

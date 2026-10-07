@@ -361,7 +361,7 @@ export interface paths {
         };
         /**
          * List Courses
-         * @description Who: admin, dept_admin. Admin and dept_admin see every course of the university; members get 403 (use /me/sections). Filters: departmentId, q (code or title); combined with AND.
+         * @description Who: member. Every active member reads the catalog (D37). Filters: departmentId, q (code or title); combined with AND.
          */
         get: operations["listCourses"];
         put?: never;
@@ -449,7 +449,7 @@ export interface paths {
         };
         /**
          * List Sections
-         * @description Who: admin, dept_admin. Admin and dept_admin see every section of the university; members get 403 (use /me/sections). Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.
+         * @description Who: member. Every active member reads every section of the university (D37). pendingStaff is [] for plain members. Filters: termId, courseId, departmentId (the course's department), q (course code or title); all combine with AND.
          */
         get: operations["listSections"];
         put?: never;
@@ -473,7 +473,7 @@ export interface paths {
         };
         /**
          * Get section
-         * @description Who: admin, dept_admin of the course's department, staff and enrolled members.
+         * @description Who: member. Any active member reads a section; rosters stay staff-only. pendingStaff is [] for a plain member who is not staff on the section.
          */
         get: operations["getSection"];
         put?: never;
@@ -503,7 +503,7 @@ export interface paths {
         put?: never;
         /**
          * Preview sections import
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots "Mon 10:00-11:15 @ Room 101"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; "@ location" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active", "meeting \"<slot>\" must look like Mon 10:00-11:15 @ Room 101", "meeting \"<slot>\": unknown weekday <X>", "meeting \"<slot>\": <field> <message>", "at most 20 meetings". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message "section exists; adds meetings"); an existing section's meetings are never changed (message "section exists; keeps meetings").
          */
         post: operations["previewSectionImport"];
         delete?: never;
@@ -523,7 +523,7 @@ export interface paths {
         put?: never;
         /**
          * Import sections
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role.
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots "Mon 10:00-11:15 @ Room 101"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; "@ location" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active", "meeting \"<slot>\" must look like Mon 10:00-11:15 @ Room 101", "meeting \"<slot>\": unknown weekday <X>", "meeting \"<slot>\": <field> <message>", "at most 20 meetings". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message "section exists; adds meetings"); an existing section's meetings are never changed (message "section exists; keeps meetings").
          */
         post: operations["importSections"];
         delete?: never;
@@ -1043,6 +1043,7 @@ export interface components {
             course: components["schemas"]["Course"];
             term: components["schemas"]["Term"];
             staff: components["schemas"]["SectionStaff"][];
+            /** @description Invitees not signed in yet. [] for callers who may not see them: plain members on GET /sections; plain members who are not staff on the section on GET /sections/{id}; student rows of /me/sections. */
             pendingStaff: components["schemas"]["PendingStaff"][];
             /** @description Ordered by weekday, then startsAt. */
             meetings: components["schemas"]["Meeting"][];

@@ -241,3 +241,34 @@ func TestSectionMeetingsCascadeAndAuthz(t *testing.T) {
 		t.Fatalf("cascade: %d rows", meetingCount(e, id))
 	}
 }
+
+func TestParseSlots(t *testing.T) {
+	long := strings.Repeat("x", 101)
+	cases := []struct {
+		cell string
+		want []MeetingInput
+		bad  string
+	}{
+		{"Mon 10:00-11:15 @ Room 101; wed 10:00-11:15", []MeetingInput{{1, "10:00", "11:15", "Room 101"}, {3, "10:00", "11:15", ""}}, ""},
+		{"MON 10:00 - 11:15", []MeetingInput{{1, "10:00", "11:15", ""}}, ""},
+		{"Mon 10:00-11:15 @", []MeetingInput{{1, "10:00", "11:15", ""}}, ""},
+		{"Mon 10:00-11:00; ", []MeetingInput{{1, "10:00", "11:00", ""}}, ""},
+		{"Mon 11:00-12:00; Mon 10:00-11:00", []MeetingInput{{1, "10:00", "11:00", ""}, {1, "11:00", "12:00", ""}}, ""},
+		{"", nil, ""},
+		{" ; ;", nil, ""},
+		{"Mon 10:00-10:00", nil, `meeting "Mon 10:00-10:00": endsAt must be after startsAt`},
+		{"Xyz 10:00-11:00", nil, `meeting "Xyz 10:00-11:00": unknown weekday Xyz`},
+		{"Monday 10:00-11:00", nil, `meeting "Monday 10:00-11:00": unknown weekday Monday`},
+		{"Mon 9:00-10:00", nil, `meeting "Mon 9:00-10:00": startsAt must be a time HH:MM`},
+		{"Mon 10:00 11:00", nil, `meeting "Mon 10:00 11:00" must look like Mon 10:00-11:15 @ Room 101`},
+		{"Mon 10:00-11:15 Room", nil, `meeting "Mon 10:00-11:15 Room" must look like Mon 10:00-11:15 @ Room 101`},
+		{"Mon 10:00-11:00 @ " + long, nil, `meeting "Mon 10:00-11:00 @ ` + long + `": location must be at most 100 characters`},
+		{strings.TrimSuffix(strings.Repeat("Mon 10:00-11:00;", 21), ";"), nil, "at most 20 meetings"},
+	}
+	for _, c := range cases {
+		got, bad := parseSlots(c.cell)
+		if bad != c.bad || !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%q: got %v %q, want %v %q", c.cell, got, bad, c.want, c.bad)
+		}
+	}
+}
