@@ -196,3 +196,63 @@ func (d Dir) Walk(fn func(universityID, id string, modTime time.Time) error) err
 	}
 	return nil
 }
+
+// RemoveUniversity deletes <root>/<universityID> with its blobs and .tmp/; a missing directory is not
+// an error. Only a uuid-named directory directly under root can be removed.
+func (d Dir) RemoveUniversity(universityID string) error {
+	if err := d.check(universityID); err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Join(d.Root, universityID))
+}
+
+// WalkTemp calls fn for every file in <root>/<uuid>/.tmp/ (uploads that never committed), with the file
+// name relative to .tmp. It stops at, and returns, the first error from fn or the file system.
+func (d Dir) WalkTemp(fn func(universityID, name string, modTime time.Time) error) error {
+	if d.Root == "" {
+		return errNoDir
+	}
+	unis, err := os.ReadDir(d.Root)
+	if err != nil {
+		return err
+	}
+	for _, u := range unis {
+		if !u.IsDir() || !uuidRe.MatchString(u.Name()) {
+			continue
+		}
+		files, err := os.ReadDir(filepath.Join(d.Root, u.Name(), ".tmp"))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			if !f.Type().IsRegular() {
+				continue
+			}
+			info, err := f.Info()
+			if err != nil {
+				return err
+			}
+			if err := fn(u.Name(), f.Name(), info.ModTime()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// RemoveTemp deletes one file listed by WalkTemp; a missing file is not an error.
+func (d Dir) RemoveTemp(universityID, name string) error {
+	if err := d.check(universityID); err != nil {
+		return err
+	}
+	if name == "" || name != filepath.Base(name) || name == "." || name == ".." {
+		return fmt.Errorf("blob: bad temp file name %q", name)
+	}
+	if err := os.Remove(filepath.Join(d.Root, universityID, ".tmp", name)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}

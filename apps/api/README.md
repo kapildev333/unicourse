@@ -104,7 +104,7 @@ Material files live under `UNICOURSE_FILES_DIR/<university_id>/<material_id>`; u
 
 - The database row is the source of truth: a file without a row is garbage, a row without a file is a logged 500 on download.
 - Restore the database and the files directory together.
-- `UNICOURSE_OWNER_DATABASE_URL=... UNICOURSE_FILES_DIR=... unicourse-admin prune-files` lists files no material references and materials whose file is missing (rows are never touched); `--delete` removes the orphan files. Files younger than one hour and `.tmp/` are skipped; `.tmp/` files older than a day can be deleted by hand.
+- `UNICOURSE_OWNER_DATABASE_URL=... UNICOURSE_FILES_DIR=... unicourse-admin prune-files` lists files no material references and materials whose file is missing (rows are never touched); `--delete` removes the orphan files. Files younger than one hour are skipped. Files in `<university>/.tmp/` (uploads that crashed before commit) older than a day are listed as `<university>/.tmp/<name>` and removed by `--delete` too; younger ones are skipped. `seed-demo --reset` removes the replaced university's whole files directory.
 - One volume is the ceiling (D88): all API processes must share the directory. Moving to an S3-compatible store means replacing `internal/blob` behind the same methods.
 
 ## Run the whole app from one binary

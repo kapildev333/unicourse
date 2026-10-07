@@ -259,3 +259,76 @@ func TestCommitSyncFailureLeavesNothing(t *testing.T) {
 		t.Fatalf(".tmp = %v", n)
 	}
 }
+
+func TestRemoveUniversity(t *testing.T) {
+	d := newDir(t)
+	commit(t, d, uni1, idA)
+	commit(t, d, uni2, idB)
+	if _, err := d.Put(uni1, strings.NewReader("x")); err != nil { // leaves a .tmp file
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(d.Root, "not-a-uuid"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.RemoveUniversity(uni1); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.RemoveUniversity(uni1); err != nil {
+		t.Fatalf("missing: %v", err)
+	}
+	if n := entries(t, d.Root); len(n) != 2 {
+		t.Fatalf("root = %v", n)
+	}
+	for _, bad := range []string{"not-a-uuid", "..", "", "../" + uni2} {
+		if err := d.RemoveUniversity(bad); !errors.Is(err, ErrBadID) {
+			t.Errorf("%q: %v", bad, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(d.Root, "not-a-uuid")); err != nil {
+		t.Error("removed a non-uuid directory")
+	}
+	if err := (Dir{}).RemoveUniversity(uni1); err == nil {
+		t.Error("zero dir")
+	}
+}
+
+func TestWalkTempAndRemoveTemp(t *testing.T) {
+	d := newDir(t)
+	commit(t, d, uni1, idA)
+	tmp, err := d.Put(uni1, strings.NewReader("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Base(tmp.path)
+	if err := os.MkdirAll(filepath.Join(d.Root, "not-a-uuid", ".tmp"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.Root, "not-a-uuid", ".tmp", "up-1"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(d.Root, uni1, ".tmp", "subdir"), 0o750); err != nil { // not a regular file: skipped
+		t.Fatal(err)
+	}
+	var got []string
+	if err := d.WalkTemp(func(u, n string, _ time.Time) error { got = append(got, u+"/"+n); return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != uni1+"/"+name {
+		t.Fatalf("got %v", got)
+	}
+	if err := d.RemoveTemp(uni1, "../"+idA); err == nil {
+		t.Error("path traversal accepted")
+	}
+	if err := d.RemoveTemp(uni1, name); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.RemoveTemp(uni1, name); err != nil {
+		t.Fatalf("missing: %v", err)
+	}
+	if n := entries(t, filepath.Join(d.Root, uni1, ".tmp")); len(n) != 1 || n[0] != "subdir" {
+		t.Fatalf(".tmp = %v", n)
+	}
+	if _, err := os.Stat(filepath.Join(d.Root, uni1, idA)); err != nil {
+		t.Error("blob removed")
+	}
+}
