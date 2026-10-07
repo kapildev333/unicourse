@@ -219,7 +219,7 @@ func enrollmentApplier(d tenant.Deps, s authz.Scope, secID string) csvimport.App
 				return err
 			}
 		}
-		invs, err := tenant.CreateInvitations(ctx, tx, s.UniversityID, s.UserID, newEmails, authz.Member, d.Mailer, d.BaseURL)
+		invs, err := tenant.CreateInvitations(ctx, tx, s.UniversityID, s.UserID, newEmails, authz.Member, d.BaseURL)
 		if err != nil {
 			return err
 		}
@@ -629,7 +629,7 @@ func sectionApplier(d tenant.Deps, s authz.Scope) csvimport.Applier {
 			fresh = append(fresh, e)
 		}
 		sort.Strings(fresh)
-		invs, err := tenant.CreateInvitations(ctx, tx, s.UniversityID, s.UserID, fresh, authz.Member, d.Mailer, d.BaseURL)
+		invs, err := tenant.CreateInvitations(ctx, tx, s.UniversityID, s.UserID, fresh, authz.Member, d.BaseURL)
 		if err != nil {
 			return err
 		}

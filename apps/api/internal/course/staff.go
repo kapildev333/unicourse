@@ -12,6 +12,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -186,7 +187,7 @@ func createStaff(d tenant.Deps) tenant.Handler {
 		}
 		invID := st.InvitationID
 		if invID == "" {
-			inv, err := tenant.CreateInvitation(ctx, tx, tenant.NewInvitation{UniversityID: s.UniversityID, ActorUserID: s.UserID, Email: email, Role: authz.Member}, d.Mailer, d.BaseURL)
+			inv, err := tenant.CreateInvitation(ctx, tx, tenant.NewInvitation{UniversityID: s.UniversityID, ActorUserID: s.UserID, Email: email, Role: authz.Member}, outbox.Enqueue, d.BaseURL)
 			if err != nil {
 				return 0, nil, err
 			}

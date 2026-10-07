@@ -86,7 +86,7 @@ func TestRosterImport(t *testing.T) {
 	if p.Counts["add"] != 1 || p.Counts["invite"] != 1 || p.Counts["error"] != 3 || p.Counts["exists"] != 1 {
 		t.Fatalf("counts %v", p.Counts)
 	}
-	if e.count(`select count(*) from enrollments`) != 1 || e.Mails.count() != 0 {
+	if e.count(`select count(*) from enrollments`) != 1 || e.count(`select count(*) from outbox_mails`) != 0 {
 		t.Fatal("preview wrote")
 	}
 	// commit with error rows: line details, nothing written
@@ -114,7 +114,7 @@ func TestRosterImport(t *testing.T) {
 	if e.count(`select count(*) from enrollments where section_id = $1`, e.SectionA) != 2 ||
 		e.count(`select count(*) from pending_enrollments`) != 2 ||
 		e.count(`select count(*) from audit_log where action = 'enrollment.create'`) != 1 ||
-		e.count(`select count(*) from audit_log where action = 'invitation.create'`) != 2 || e.Mails.count() != 2 {
+		e.count(`select count(*) from audit_log where action = 'invitation.create'`) != 2 || e.count(`select count(*) from outbox_mails`) != 2 {
 		t.Fatal("commit state wrong")
 	}
 	// second run: everything exists
@@ -239,7 +239,7 @@ func TestSectionsImport(t *testing.T) {
 	if e.count(`select count(*) from sections`) != 3 ||
 		e.count(`select count(*) from section_staff`) != 5 || // inst, ta + section 002: other, inst, ta
 		e.count(`select count(*) from pending_section_staff`) != 1 ||
-		e.count(`select count(*) from audit_log where action = 'section.create'`) != 2 || e.Mails.count() != 1 {
+		e.count(`select count(*) from audit_log where action = 'section.create'`) != 2 || e.count(`select count(*) from outbox_mails`) != 1 {
 		t.Fatalf("sections state: staff=%d", e.count(`select count(*) from section_staff`))
 	}
 	if p := e.preview(e.Admin, "/sections/import", ok); p.Counts["exists"] != 3 {
@@ -386,7 +386,7 @@ func TestRosterImportLarge(t *testing.T) {
 	if d := time.Since(start); d > 15*time.Second {
 		t.Fatalf("took %v", d)
 	}
-	if e.count(`select count(*) from pending_enrollments`) != 5000 || e.Mails.count() != 5000 {
+	if e.count(`select count(*) from pending_enrollments`) != 5000 || e.count(`select count(*) from outbox_mails`) != 5000 {
 		t.Fatal("rows missing")
 	}
 }
