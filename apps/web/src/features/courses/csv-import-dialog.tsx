@@ -121,6 +121,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
     return [...byLine.filter(bad), ...byLine.filter((r) => !bad(r))]
   }, [preview, failed])
   const shown = rows.slice(0, CEILING)
+  const showMessage = rows.some((r) => failed.get(r.line) ?? r.message)
 
   let banner: React.ReactNode = null
   if (error && failed.size > 0) {
@@ -194,34 +195,17 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
         {status}
       </p>
       {banner}
-      {counts && (
-        <dl className="flex gap-4 text-sm">
-          {(
-            [
-              ['Add', counts.add],
-              ['Invite', counts.invite],
-              ['Exists', counts.exists],
-              ['Errors', errorCount],
-            ] as const
-          ).map(([k, n]) => (
-            <div key={k} className="flex gap-1">
-              <dt className="text-ink-muted">{k}</dt>
-              <dd className={k === 'Errors' && n > 0 ? 'font-bold text-danger' : ''}>{n}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
       {preview && file && (
         <div>
           <div className="max-h-[55vh] overflow-y-auto">
-            <Table caption={`Preview of ${file.name}`}>
+            <Table caption={`Preview of ${file.name}`} stack>
               <thead>
                 <tr>
                   <th scope="col" className="text-right">
                     Line
                   </th>
                   <th scope="col">Result</th>
-                  <th scope="col">Message</th>
+                  {showMessage && <th scope="col">Message</th>}
                   {columns.map((c) => (
                     <th key={c} scope="col">
                       {c}
@@ -234,13 +218,21 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
                   const bad = r.action === 'error' || failed.has(r.line)
                   return (
                     <tr key={r.line} className={bad ? 'bg-danger-soft' : ''}>
-                      <td className="text-right">{r.line}</td>
-                      <td>
+                      <td data-label="Line" className="text-right">
+                        {r.line}
+                      </td>
+                      <td data-label="Result">
                         <ActionBadge action={bad ? 'error' : r.action} />
                       </td>
-                      <td className={bad ? 'text-danger' : ''}>{failed.get(r.line) ?? r.message}</td>
+                      {showMessage && (
+                        <td data-label="Message" className={bad ? 'text-danger' : ''}>
+                          {failed.get(r.line) ?? r.message}
+                        </td>
+                      )}
                       {columns.map((c) => (
-                        <td key={c}>{r.data[c.toLowerCase()] ?? ''}</td>
+                        <td key={c} data-label={c}>
+                          {r.data[c.toLowerCase()] ?? ''}
+                        </td>
                       ))}
                     </tr>
                   )

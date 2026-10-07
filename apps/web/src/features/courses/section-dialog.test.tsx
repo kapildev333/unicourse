@@ -172,3 +172,11 @@ it('footer puts Cancel before the submit button; the number input is not monospa
   expect(cancel.parentElement).toBe(submit.parentElement)
   expect(screen.getByLabelText('Section number')).not.toHaveClass('font-mono')
 })
+
+it('opens wide, with the two-column phone grid for a meeting row', async () => {
+  setup({}, existing)
+  const dlg = await screen.findByRole('dialog')
+  expect(dlg).toHaveClass('max-w-4xl')
+  expect(group(1).getByLabelText('Day').closest('div[role=group]')).toHaveClass('grid-cols-2', 'sm:grid-cols-[minmax(0,8rem)_minmax(0,7rem)_minmax(0,7rem)_minmax(0,1fr)_auto]')
+  expect(group(1).getByLabelText('Location').parentElement!.parentElement).toHaveClass('col-span-2')
+})

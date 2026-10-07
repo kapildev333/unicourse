@@ -169,3 +169,48 @@ it('preselects the only manageable department in the course dialog', async () =>
   const dialog = await screen.findByRole('dialog', { name: 'New course', hidden: true })
   expect(within(dialog).getByLabelText('Department')).toHaveValue('d1')
 })
+
+it('stacks the table with a label on every data cell', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => ({ body: { items: [c1] } }) })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  expect(screen.getByRole('table', { name: 'Courses' })).toHaveClass('ui-table-stack')
+  const labels = within(screen.getByText('CS101').closest('tr')!)
+    .getAllByRole('cell')
+    .map((c) => c.getAttribute('data-label'))
+  expect(labels).toEqual(['Code', 'Title', 'Department', null])
+})
+
+it('shows one primary and no filter or header pair while there are no courses', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => ({ body: { items: [] } }) })
+  renderPage(admin)
+  await screen.findByText('No courses yet')
+  expect(screen.getAllByRole('button', { name: 'New course' })).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: 'Import courses' })).toHaveLength(1)
+  expect(screen.queryByLabelText('Department')).toBeNull()
+})
+
+it('keeps New course enabled while the list loads and shows a table skeleton', () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => new Promise(() => {}) as never })
+  renderPage(admin)
+  return screen.findByRole('button', { name: 'New course' }).then((b) => {
+    expect(b).toBeEnabled()
+    expect(screen.getByRole('columnheader', { name: 'Department', hidden: true })).toBeInTheDocument()
+  })
+})
+
+it('names the failure and shows the count in the toolbar', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => err(500, 'internal') })
+  renderPage(admin)
+  expect(await screen.findByText("Couldn't load courses")).toBeInTheDocument()
+})
+
+it('puts the count in the toolbar and the delete body names the effect on sections', async () => {
+  mockApi({ [D]: () => ({ body: { items: [cs] } }), [L]: () => ({ body: { items: [c1] } }) })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  expect(screen.getByRole('search')).toHaveTextContent('Showing 1')
+  fireEvent.click(screen.getByRole('button', { name: 'Delete CS101' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Delete CS101?', hidden: true })
+  expect(dialog).toHaveTextContent(/still has sections can't be deleted/)
+})

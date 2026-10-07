@@ -61,8 +61,8 @@ export function MeetingsEditor(props: {
         const j = sentKeys.indexOf(r.key)
         const has = (f: string) => j >= 0 && fields[`meetings[${j}].${f}`]
         return (
-          <div key={r.key} role="group" aria-label={`Meeting ${i + 1}`} className="grid grid-cols-[minmax(0,8rem)_minmax(0,7rem)_minmax(0,7rem)_minmax(0,1fr)_auto] items-start gap-3">
-            <div>
+          <div key={r.key} role="group" aria-label={`Meeting ${i + 1}`} className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[minmax(0,8rem)_minmax(0,7rem)_minmax(0,7rem)_minmax(0,1fr)_auto]">
+            <div className="col-span-2 sm:col-span-1">
               <FormField
                 label="Day"
                 name={`meetings[${i}].weekday`}
@@ -109,7 +109,7 @@ export function MeetingsEditor(props: {
                 />
               </FormField>
             </div>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <FormField
                 label="Location"
                 name={`meetings[${i}].location`}
@@ -127,7 +127,7 @@ export function MeetingsEditor(props: {
             <Button
               variant="ghost"
               size="sm"
-              className="mt-7.5"
+              className="col-span-2 justify-self-start sm:col-span-1 sm:mt-7.5"
               aria-label={`Remove meeting ${i + 1}`}
               onClick={() => onChange(rows.filter((_, k) => k !== i))}
             >

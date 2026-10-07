@@ -10,7 +10,6 @@ import { errorMessage } from '../../components/form-errors'
 import { FormField, inputClass } from '../../components/form-field'
 import { LoadMore } from '../../components/load-more'
 import { Loading } from '../../components/loading'
-import { PageHeader } from '../../components/page-header'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
@@ -67,17 +66,11 @@ export function CourseListPage(props: {
   })
 
   const deptCode = new Map(departments.map((d) => [d.id, d.code]))
-  const actions = (
-    <div className="flex gap-2">
-      <Button variant="secondary" onClick={() => setImporting(true)}>
-        <Upload />
-        Import courses
-      </Button>
-      <Button disabled={list.isPending} onClick={() => setEditing('new')}>
-        <Plus />
-        New course
-      </Button>
-    </div>
+  const importButton = (
+    <Button variant="secondary" onClick={() => setImporting(true)}>
+      <Upload />
+      Import courses
+    </Button>
   )
   const newButton = (
     <Button onClick={() => setEditing('new')}>
@@ -85,10 +78,23 @@ export function CourseListPage(props: {
       New course
     </Button>
   )
+  // the empty state holds the pair, so the header pair is hidden while the list is empty (one primary on screen)
+  const empty = !list.isPending && !list.error && list.items.length === 0
+  const actions = empty ? undefined : (
+    <div className="flex gap-2">
+      {importButton}
+      {newButton}
+    </div>
+  )
 
   let body: React.ReactNode
-  if (list.isPending) body = <Loading />
-  else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
+  if (list.isPending) body = <Loading variant="table" columns={['Code', 'Title', 'Department', '']} />
+  else if (list.error)
+    body = (
+      <ErrorBanner title="Couldn't load courses" onRetry={list.refetch}>
+        {errorMessage(list.error, listCopy)}
+      </ErrorBanner>
+    )
   else if (list.items.length === 0)
     body = (
       <EmptyState
@@ -99,13 +105,18 @@ export function CourseListPage(props: {
             ? 'This department has no courses. Create one or import a CSV.'
             : 'Create a course or import your catalog from a CSV file.'
         }
-        action={newButton}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            {newButton}
+            {importButton}
+          </div>
+        }
       />
     )
   else
     body = (
       <>
-        <Table caption="Courses">
+        <Table caption="Courses" stack>
           <thead>
             <tr>
               <th scope="col">Code</th>
@@ -119,9 +130,11 @@ export function CourseListPage(props: {
           <tbody>
             {list.items.map((c) => (
               <tr key={c.id}>
-                <td className="font-medium">{c.code}</td>
-                <td>{c.title}</td>
-                <td>{deptCode.get(c.departmentId) ?? '—'}</td>
+                <td data-label="Code" className="font-medium">
+                  {c.code}
+                </td>
+                <td data-label="Title">{c.title}</td>
+                <td data-label="Department">{deptCode.get(c.departmentId) ?? '—'}</td>
                 <td className="text-right whitespace-nowrap">
                   {canManageDepartment(membership, c.departmentId) && (
                     <>
@@ -151,29 +164,40 @@ export function CourseListPage(props: {
           isFetchingNextPage={list.isFetchingNextPage}
           onClick={list.fetchNextPage}
           shown={list.items.length}
+          showCount={false}
         />
       </>
     )
 
   return (
     <>
-      <PageHeader title="Courses" description="Catalog courses by department." action={actions} />
-      <div role="search" className="mb-6">
-        <FormField label="Department" name="departmentId">
-          <select
-            className={`${inputClass} w-64`}
-            value={departmentId ?? ''}
-            onChange={(e) => onDepartmentChange(e.target.value)}
-          >
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.code} — {d.name}
-              </option>
-            ))}
-          </select>
-        </FormField>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <p className="text-base text-ink-muted">Catalog courses by department.</p>
+        {actions}
       </div>
+      {(!empty || departmentId) && (
+        <div role="search" className="mb-6 flex flex-wrap items-end gap-4">
+          <FormField label="Department" name="departmentId">
+            <select
+              className={`${inputClass} w-full sm:w-72`}
+              value={departmentId ?? ''}
+              onChange={(e) => onDepartmentChange(e.target.value)}
+            >
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code} — {d.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {!list.isPending && !list.error && list.items.length > 0 && (
+            <p role="status" className="ml-auto text-sm text-ink-muted">
+              Showing {list.items.length}
+            </p>
+          )}
+        </div>
+      )}
       <StatusMessage message={notice} />
       {body}
       {editing !== null && (
@@ -193,7 +217,7 @@ export function CourseListPage(props: {
       <RemoveDialog
         open={deleting !== null}
         title={`Delete ${deleting?.code ?? ''}?`}
-        description={`This permanently deletes “${deleting?.title ?? ''}”.`}
+        description={`This permanently deletes “${deleting?.title ?? ''}”. A course that still has sections can't be deleted: delete its sections first.`}
         confirmLabel="Delete"
         pendingLabel="Deleting…"
         pending={del.isPending}

@@ -1,19 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Users } from 'lucide-react'
+import { ArrowLeft, Pencil, Users } from 'lucide-react'
+import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { ApiError } from '../../api/errors'
 import type { components } from '../../api/types'
 import { RoleBadge } from '../../components/badge'
+import { Button } from '../../components/button'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
 import { PageHeader } from '../../components/page-header'
+import { StatusMessage } from '../../components/status-message'
 import { formatMeeting } from '../../lib/schedule'
 import { useMySections } from '../my-sections/my-sections'
 import { useMe, useUniversity } from '../auth/use-me'
 import { personName, sectionAccess } from './access'
 import { Roster } from './roster'
+import { SectionDialog } from './section-dialog'
 import { StaffEditor } from './staff-editor'
 
 type Section = components['schemas']['Section']
@@ -22,6 +26,8 @@ const backClass = 'mb-3 inline-flex items-center gap-1 text-sm font-medium text-
 
 export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId: string }) {
   const { membership } = useUniversity()
+  const [editing, setEditing] = useState(false)
+  const [notice, setNotice] = useState('')
   const me = useMe().data
   const q = useQuery<Section, ApiError>({
     queryKey: [slug, 'sections', 'detail', sectionId],
@@ -57,7 +63,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
     return (
       <>
         {back}
-        <ErrorBanner title={title} onRetry={title ? undefined : () => void q.refetch()}>
+        <ErrorBanner title={title ?? "Couldn't load section"} onRetry={title ? undefined : () => void q.refetch()}>
           {errorMessage(q.error, copy)}
         </ErrorBanner>
       </>
@@ -89,15 +95,38 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
             </>
           }
           action={
-            ownRole && (
-              <span>
-                <span className="sr-only">You are: </span>
-                <RoleBadge role={ownRole} />
-              </span>
+            (ownRole || access.manager) && (
+              <div className="flex items-center gap-3">
+                {ownRole && (
+                  <span>
+                    <span className="sr-only">You are: </span>
+                    <RoleBadge role={ownRole} />
+                  </span>
+                )}
+                {access.manager && (
+                  <Button variant="secondary" onClick={() => setEditing(true)}>
+                    <Pencil />
+                    Edit section
+                  </Button>
+                )}
+              </div>
             )
           }
         />
       </div>
+      <StatusMessage message={notice} />
+      {editing && (
+        <SectionDialog
+          slug={slug}
+          term={section.term}
+          section={section}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setNotice('Section updated.')
+            setEditing(false)
+          }}
+        />
+      )}
       <section aria-labelledby="meetings-h">
         <h2 id="meetings-h" className={h2}>
           Meeting times
@@ -114,7 +143,7 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
       </section>
       <section aria-labelledby="staff-h" className={rule}>
         <h2 id="staff-h" className={h2}>
-          Staff
+          Staff <span className="font-normal text-ink-muted">{section.staff.length + section.pendingStaff.length}</span>
         </h2>
         <StaffEditor
           slug={slug}
@@ -128,9 +157,6 @@ export function SectionDetailPage({ slug, sectionId }: { slug: string; sectionId
       </section>
       {access.canViewRoster && (
         <section aria-labelledby="roster-h" className={rule}>
-          <h2 id="roster-h" className={h2}>
-            Roster
-          </h2>
           <Roster slug={slug} sectionId={section.id} canEdit={access.canEditRoster} />
         </section>
       )}

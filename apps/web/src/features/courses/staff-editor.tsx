@@ -48,6 +48,7 @@ export function StaffEditor(props: {
     mutationFn: (body: { email: string; role: Role }) =>
       unwrap(api.POST('/universities/{slug}/sections/{id}/staff', { params: { path: { slug, id: sectionId } }, body })),
     onSuccess: async (data, body) => {
+      setEmail('') // before the refetch so a late clear can't wipe the next email being typed
       if ('invited' in data) {
         await refresh([slug, 'my-sections'], [slug, 'invitations'])
         setNotice(`Invitation sent to ${body.email}. They will appear on the staff once they sign in.`)
@@ -55,7 +56,6 @@ export function StaffEditor(props: {
         await refresh([slug, 'my-sections'])
         setNotice(`${personName(data)} added as ${body.role === 'ta' ? 'TA' : 'Instructor'}.`)
       }
-      setEmail('')
     },
   })
   const remove = useMutation({
@@ -163,7 +163,7 @@ export function StaffEditor(props: {
         <form
           ref={formRef}
           noValidate
-          className="flex items-end gap-2"
+          className="flex flex-col gap-1.5"
           onSubmit={(e) => {
             e.preventDefault()
             setNotice('')
@@ -171,36 +171,51 @@ export function StaffEditor(props: {
             add.mutate({ email: email.trim(), role: roleRef.current })
           }}
         >
-          <FormField
-            label="Add by email"
-            name="email"
-            hint="If they don't have an account yet, we'll email them an invitation."
-            error={fields.email}
-          >
-            <input
-              type="email"
-              autoComplete="off"
-              className={`${inputClass} w-72`}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                // with two submit buttons the role is ambiguous: require a button click
-                if (e.key === 'Enter' && canManageInstructors && canManageTAs) e.preventDefault()
-              }}
-            />
-          </FormField>
-          {canManageInstructors && (
-            <Button type="submit" variant="secondary" disabled={add.isPending} onClick={() => (roleRef.current = 'instructor')}>
-              <UserPlus />
-              Add instructor
-            </Button>
-          )}
-          {canManageTAs && (
-            <Button type="submit" variant="secondary" disabled={add.isPending} onClick={() => (roleRef.current = 'ta')}>
-              <UserPlus />
-              Add TA
-            </Button>
-          )}
+          <div className="flex flex-wrap items-start gap-2">
+            <div className="w-full sm:w-auto sm:min-w-64 sm:flex-1">
+              <FormField label="Add by email" name="email" error={fields.email}>
+                <input
+                  type="email"
+                  autoComplete="off"
+                  aria-describedby="add-staff-hint"
+                  className={inputClass}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    // with two submit buttons the role is ambiguous: require a button click
+                    if (e.key === 'Enter' && canManageInstructors && canManageTAs) e.preventDefault()
+                  }}
+                />
+              </FormField>
+            </div>
+            {canManageInstructors && (
+              <Button
+                type="submit"
+                variant="secondary"
+                className="sm:mt-6.5"
+                disabled={add.isPending}
+                onClick={() => (roleRef.current = 'instructor')}
+              >
+                <UserPlus />
+                Add instructor
+              </Button>
+            )}
+            {canManageTAs && (
+              <Button
+                type="submit"
+                variant="secondary"
+                className="sm:mt-6.5"
+                disabled={add.isPending}
+                onClick={() => (roleRef.current = 'ta')}
+              >
+                <UserPlus />
+                Add TA
+              </Button>
+            )}
+          </div>
+          <p id="add-staff-hint" className="text-xs text-ink-muted">
+            If they don't have an account yet, we'll email them an invitation.
+          </p>
         </form>
       )}
       {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={add.error} copy={copy} />}

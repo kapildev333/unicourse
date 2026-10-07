@@ -153,7 +153,7 @@ it('gives a student a read-only view and never fetches the roster', async () => 
   })
   renderPage('u-stu')
   await screen.findAllByText('Ida Ins') // the title band and the Staff section both name the instructor
-  expect(within(screen.getByRole('region', { name: 'Staff' })).getByText('Ida Ins')).toBeInTheDocument()
+  expect(within(screen.getByRole('region', { name: /^Staff/ })).getByText('Ida Ins')).toBeInTheDocument()
   expect(screen.queryByLabelText('Add by email')).toBeNull()
   expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
   expect(screen.queryByRole('heading', { name: 'Roster' })).toBeNull()
@@ -172,7 +172,7 @@ it('shows a dept_admin of another department a read-only view with no role badge
   const fn = mockApi({ [S]: () => ({ body: mk([ins, ta]) }), [E]: () => ({ body: { items: [] } }) })
   renderPage('u-da', 'dept_admin', ['d2'])
   await screen.findAllByText('Ida Ins') // the title band and the Staff section both name the instructor
-  expect(within(screen.getByRole('region', { name: 'Staff' })).getByText('Ida Ins')).toBeInTheDocument()
+  expect(within(screen.getByRole('region', { name: /^Staff/ })).getByText('Ida Ins')).toBeInTheDocument()
   expect(screen.queryByText('Student')).toBeNull()
   expect(screen.queryByText(/You are:/)).toBeNull()
   expect(screen.queryByLabelText('Add by email')).toBeNull()
@@ -273,4 +273,61 @@ it('says Already cancelled on 404', async () => {
   renderPage('u-ins')
   fireEvent.click(await screen.findByRole('button', { name: 'Cancel invitation for t@a.edu' }))
   expect(await screen.findByText('Already cancelled.')).toBeInTheDocument()
+})
+
+it('wraps the add row and keeps the helper outside the flex row', async () => {
+  mockApi({ [S]: () => ({ body: mk([ins]) }), [E]: () => ({ body: { items: [] } }) })
+  renderPage('u-ins')
+  const input = await screen.findByLabelText('Add by email')
+  const row = screen.getByRole('button', { name: 'Add TA' }).parentElement!
+  expect(row).toHaveClass('flex-wrap', 'items-start')
+  expect(row).toContainElement(input)
+  const hint = screen.getByText(/we'll email them an invitation/)
+  expect(row).not.toContainElement(hint)
+  expect(input).toHaveAccessibleDescription(/invitation/)
+})
+
+it('Edit section opens the dialog for editors only; headings carry counts', async () => {
+  mockApi({ [S]: () => ({ body: mk([ins], [{ invitationId: 'i1', email: 'p@a.edu', role: 'ta' }]) }), [E]: () => ({ body: { items: [] } }) })
+  renderPage('u-x', 'admin')
+  expect(await screen.findByRole('heading', { name: 'Staff 2' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Roster 0' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Edit section' }))
+  expect(await screen.findByRole('dialog', { name: 'Edit CS101-001' })).toBeInTheDocument()
+})
+
+it('Edit section is absent for staff who cannot manage the section', async () => {
+  mockApi({ [S]: () => ({ body: mk([ins]) }), [E]: () => ({ body: { items: [] } }) })
+  renderPage('u-ins')
+  await screen.findByRole('heading', { name: /^Staff/ })
+  expect(screen.queryByRole('button', { name: 'Edit section' })).toBeNull()
+})
+
+it('names the failure', async () => {
+  mockApi({ [S]: () => err(500, 'internal') })
+  renderPage('u-x')
+  expect(await screen.findByText("Couldn't load section")).toBeInTheDocument()
+})
+
+it('clears the email box before the refetch resolves', async () => {
+  let posted = false
+  let release!: () => void
+  const gate = new Promise<void>((r) => (release = r))
+  mockApi({
+    [S]: async () => {
+      if (posted) await gate
+      return { body: mk([ins]) }
+    },
+    [E]: () => ({ body: { items: [] } }),
+    'POST /universities/a/sections/s1/staff': () => {
+      posted = true
+      return { status: 201, body: tom }
+    },
+  })
+  renderPage('u-ins')
+  const input = await screen.findByLabelText('Add by email')
+  fireEvent.change(input, { target: { value: 'tom@a.edu' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add TA' }))
+  await waitFor(() => expect(input).toHaveValue(''))
+  release()
 })

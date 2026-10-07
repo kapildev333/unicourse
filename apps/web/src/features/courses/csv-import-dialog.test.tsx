@@ -203,3 +203,24 @@ it('lists every file error', async () => {
   expect(await screen.findByText('Missing column code.')).toBeInTheDocument()
   expect(screen.getByText('Missing column title.')).toBeInTheDocument()
 })
+
+it('shows one summary, labels the cells and omits Message when no row has one', async () => {
+  const result = { checksum: 'k', rows: [row(2, 'add'), row(3, 'add')], counts: counts(2, 0) }
+  setup({ [PREVIEW]: () => ({ body: result }) })
+  pick()
+  await screen.findByRole('table')
+  expect(screen.queryByRole('columnheader', { name: 'Message' })).toBeNull()
+  expect(screen.queryByText('Exists')).toBeNull()
+  expect(screen.getAllByRole('status').filter((s) => s.textContent?.includes('rows checked'))).toHaveLength(1)
+  expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+  const cells = screen.getAllByRole('row')[1].querySelectorAll('td')
+  expect([...cells].map((c) => c.getAttribute('data-label'))).toEqual(['Line', 'Result', 'departmentCode', 'code', 'title'])
+})
+
+it('keeps the Message column when a row has a message', async () => {
+  setup({
+    [PREVIEW]: () => ({ body: { checksum: 'k', rows: [row(2, 'error', { message: 'bad code' })], counts: counts(0, 1) } }),
+  })
+  pick()
+  expect(await screen.findByRole('columnheader', { name: 'Message' })).toBeInTheDocument()
+})

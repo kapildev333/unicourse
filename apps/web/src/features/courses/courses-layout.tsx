@@ -19,6 +19,7 @@ export function CoursesLayout() {
   }
   return (
     <>
+      <PageHeader title="Courses" />
       <TabNav label="Courses sections">
         <Link to="/$slug/courses" params={{ slug }} activeOptions={{ exact: true }} {...tabLink}>
           Courses

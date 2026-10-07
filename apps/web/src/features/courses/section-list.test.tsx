@@ -82,7 +82,7 @@ it('lists sections with staff chips and invited chips', async () => {
   expect(within(row).getByRole('link', { name: 'CS101' })).toHaveAttribute('href', '/a/sections/s1')
   const cells = within(row).getAllByRole('cell')
   expect(within(cells[2]).getByText('Dana Poe')).toBeInTheDocument()
-  expect(within(cells[3]).getByText('x@a.edu (invited)')).toBeInTheDocument()
+  expect(within(cells[3]).getByText('x@a.edu Invited')).toBeInTheDocument()
   expect(screen.getByRole('table', { name: 'Sections in Spring 2026' })).toBeInTheDocument()
   const none = screen.getByText('MATH1').closest('tr')!
   expect(within(none).getAllByText('none')).toHaveLength(2)
@@ -191,4 +191,56 @@ it('requests only the department courses for a dept_admin with one department', 
   const u = fn.mock.calls.map((c) => new URL((c[0] as Request).url)).find((u) => u.pathname.endsWith('/courses'))!
   expect(u.searchParams.get('departmentId')).toBe('d1')
   expect(screen.queryByText(/Showing the first 200/)).toBeNull()
+})
+
+const jo = { userId: 'u2', email: 'jo@a.edu', displayName: '', role: 'instructor' }
+const many = section('s9', 'BIO1', 'd1', {
+  staff: [dana, jo, { ...dana, userId: 'u3', displayName: 'Eve Ray' }],
+  pendingStaff: [],
+})
+
+it('stacks the table with labels and shows staff as plain text, +N past two names', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({ [T]: () => ({ body: { items: terms } }), [L]: () => ({ body: { items: [s1, many] } }) })
+  renderPage(admin)
+  const row = (await screen.findByText('BIO1')).closest('tr')!
+  expect(screen.getByRole('table', { name: 'Sections in Spring 2026' })).toHaveClass('ui-table-stack')
+  expect(within(row).getAllByRole('cell').map((c) => c.getAttribute('data-label'))).toEqual([
+    'Course',
+    'Section',
+    'Instructors',
+    'TAs',
+    null,
+  ])
+  expect(within(row).getByText('Dana Poe +2').parentElement).toHaveAttribute('title', 'Dana Poe, jo@a.edu, Eve Ray')
+  expect(row.querySelector('.border')).toBeNull()
+  expect(screen.getByRole('search')).toHaveTextContent('Showing 2')
+})
+
+it('without terms: New section disabled with its reason, no Import or Term, Set up terms for admins only', async () => {
+  mockApi({ [T]: () => ({ body: { items: [] } }) })
+  renderPage(admin)
+  await screen.findByText('No terms yet')
+  expect(screen.getByRole('button', { name: 'New section' })).toBeDisabled()
+  expect(screen.getByText('Add a term first')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Import sections' })).toBeNull()
+  expect(screen.queryByLabelText('Term')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Set up terms' })).toBeInTheDocument()
+})
+
+it('without terms a dept_admin gets no Set up terms action', async () => {
+  mockApi({ [T]: () => ({ body: { items: [] } }) })
+  renderPage({ role: 'dept_admin', departmentIds: ['d1'] })
+  await screen.findByText('No terms yet')
+  expect(screen.queryByRole('button', { name: 'Set up terms' })).toBeNull()
+})
+
+it('names the failure', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({
+    [T]: () => ({ body: { items: terms } }),
+    [L]: () => ({ status: 500, body: { error: { code: 'internal', message: 'x', details: [] } } }),
+  })
+  renderPage(admin)
+  expect(await screen.findByText("Couldn't load sections")).toBeInTheDocument()
 })
