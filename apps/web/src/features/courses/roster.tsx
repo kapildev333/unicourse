@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { Upload, Users } from 'lucide-react'
 import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -45,7 +46,12 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
       setNotice(`${personName(e)} removed from the roster.`)
     },
   })
-  const importButton = <Button variant="secondary" onClick={() => setImporting(true)}>Import roster</Button>
+  const importButton = (
+    <Button variant="secondary" onClick={() => setImporting(true)}>
+      <Upload />
+      Import roster
+    </Button>
+  )
 
   let body: React.ReactNode
   if (list.isPending) body = <Loading />
@@ -54,6 +60,7 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
     body = (
       <EmptyState
         title="No students yet"
+        icon={Users}
         body={
           canEdit
             ? 'Import a CSV of student emails to build the roster.'
@@ -87,9 +94,8 @@ export function Roster(props: { slug: string; sectionId: string; canEdit: boolea
                 {canEdit && (
                   <td className="text-right">
                     <Button
-                      variant="ghost"
+                      variant="ghost-danger"
                       size="sm"
-                      className="text-danger hover:bg-danger-soft"
                       aria-label={`Remove ${personName(e)} from the roster`}
                       onClick={() => {
                         remove.reset()

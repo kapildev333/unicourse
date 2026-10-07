@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { CalendarRange, Layers, Plus, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -47,7 +48,7 @@ function Chips({ section, staffRole }: { section: Section; staffRole: 'instructo
       ))}
       {pending.map((s) => (
         <li key={s.email}>
-          <Badge tone="neutral" className="border-dashed italic">
+          <Badge tone="neutral" className="border-dashed">
             {s.email} (invited)
           </Badge>
         </li>
@@ -91,9 +92,11 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const actions = (
     <div className="flex gap-2">
       <Button variant="secondary" onClick={() => setImporting(true)}>
+        <Upload />
         Import sections
       </Button>
       <Button disabled={!term} onClick={() => setCreating(true)}>
+        <Plus />
         New section
       </Button>
     </div>
@@ -107,6 +110,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
     body = (
       <EmptyState
         title="No terms yet"
+        icon={CalendarRange}
         body="An administrator creates terms under Admin → Terms before sections can be added."
       />
     )
@@ -116,8 +120,14 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
     body = (
       <EmptyState
         title={`No sections in ${term.name}`}
+        icon={Layers}
         body="Create sections one at a time or import them from a CSV file."
-        action={<Button onClick={() => setCreating(true)}>New section</Button>}
+        action={(
+          <Button onClick={() => setCreating(true)}>
+            <Plus />
+            New section
+          </Button>
+        )}
       />
     )
   else
@@ -167,9 +177,8 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
                         Edit
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="ghost-danger"
                         size="sm"
-                        className="text-danger hover:bg-danger-soft"
                         aria-label={`Delete ${s.course.code} section ${s.number}`}
                         onClick={() => {
                           del.reset()
@@ -197,7 +206,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   return (
     <>
       <PageHeader title="Sections" description="Sections of each course in a term." action={actions} />
-      <div role="search" className="mb-4">
+      <div role="search" className="mb-6">
         <FormField label="Term" name="termId">
           <select className={`${inputClass} w-64`} value={effectiveId ?? ''} onChange={(e) => onTermChange(e.target.value)}>
             {terms.map((t) => (
