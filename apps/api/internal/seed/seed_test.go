@@ -210,7 +210,7 @@ func TestRunSeedsDemo(t *testing.T) {
 			t.Errorf("%s: got %d, want %d", c.what, got, c.want)
 		}
 	}
-	if n := count(t, db, u, `select count(*) from announcements a join users x on x.id = a.author_id where x.display_name = 'Sofia Alvarez'`); n != 1 {
+	if n := count(t, db, u, `select count(*) from announcements a join users x on x.id = a.author_user_id where x.display_name = 'Sofia Alvarez'`); n != 1 {
 		t.Errorf("announcements by Sofia: %d", n)
 	}
 	for _, p := range f.People {
@@ -236,7 +236,7 @@ func TestRunSeedsDemo(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			got, err := os.ReadFile(filepath.Join(o.Files.Root(), u, id))
+			got, err := os.ReadFile(filepath.Join(o.Files.Root, u, id))
 			if err != nil || !bytes.Equal(got, want) {
 				t.Errorf("blob of %s: %v", name, err)
 			}
