@@ -5,6 +5,7 @@ Spec 2: `docs/specs/2026-10-06-student-schedule.md` · plan `docs/plans/2026-10-
 Spec 3: `docs/specs/2026-10-06-visual-design-system.md` · plan `docs/plans/2026-10-06-visual-design-system.md` (Phase 6, done)
 Spec 4: `docs/specs/2026-10-07-grading.md` · plan `docs/plans/2026-10-07-grading.md` (Phase 7, starting)
 Spec 5: `docs/specs/2026-10-07-ui-ux-benchmark.md` · plan `docs/plans/2026-10-07-ui-ux-benchmark.md` (Phase 8 done; Phase 9 proposed)
+Spec 6: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-06-section-content.md` (Phase 10, started 2026-10-07 in a second orchestrator session)
 
 ## Decisions
 | # | Decision | Status |
@@ -92,6 +93,11 @@ Spec 5: `docs/specs/2026-10-07-ui-ux-benchmark.md` · plan `docs/plans/2026-10-0
 | D85 | One search (S5-01): the Catalog page's own Search input goes and the header field carries `q`; extends D59 | Agreed (owner, 2026-10-07) |
 | D86 | Card cover band 96 to 64 px (S5-18): a change to the look the owner chose in D57, shown on the review page before it is built | Agreed (owner, 2026-10-07) |
 | D87 | Owner's answer to Spec 5 §6 (2026-10-07: "I have confirmed everything and I am okay with whatever you recommend"): every direction call takes the spec's recommendation. Picked: B2 user menu after C1; B3 Google and Microsoft brand marks as a two-mark exception to D53; B6 quiet destructive row actions (muted at rest, red on hover and focus) and the grade-scale Remove as a neutral ghost; B9 test `tnum` on the bundled DM Sans, keep D56 if absent; B11 neutral badges for states, accent-soft for roles. Kept as they are: B1, B4, B5, B7, B8, B10, B12, B13, B14. P9-L7 builds B3, B6, B9, B11; B2 follows P9-L8 | Agreed (owner, 2026-10-07) |
+| D88 | Spec 6 (section home page, announcements, weekly materials, TA parity) was written on 2026-10-06 under D8 delegation as "Spec 5 / Phase 8 / D70-D73" in PR #65, never merged, and overtaken by the benchmark's numbering; on 2026-10-07 the owner pointed a second `/orchestrate` loop at #65 ("execute any remaining work for this phase"), so it is renumbered Spec 6 / Phase 10 / D88-D91 and #65 is closed in favour of this PR. File bytes live on a local directory `UNICOURSE_FILES_DIR/<university_id>/<material_id>` behind `internal/blob` (one implementation, no interface); metadata in Postgres under RLS; an S3-compatible store is the upgrade when API processes cannot share a volume. Alternatives weighed: S3 now (needs a SigV4 signer or a new module), Postgres `bytea` (100 MB decks make the database and backups heavy) | Orchestrator 2026-10-06, owner to confirm |
+| D89 | Instructors and TAs have identical powers over section content, including editing and deleting another author's announcement; staffing and grade finalization stay as Specs 1 and 4 define them. Content is readable by staff, enrolled students, admins and department admins; a plain member sees the description only | Orchestrator 2026-10-06, owner to confirm |
+| D90 | Announcements are emailed through the existing outbox to the roster minus the author, on by default (`email: true`), never on edit; the outbox's one-mail-at-a-time ceiling (backlog) is accepted for announcements | Orchestrator 2026-10-06, owner to confirm |
+| D91 | Description, week notes and announcement bodies are plain text rendered with line breaks; Markdown is deferred to the first instructor who asks. Allowed uploads: pdf, png, jpg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md, csv, 100 MB each; downloads are always attachments with `nosniff` and a sandbox CSP | Orchestrator 2026-10-06, owner to confirm |
+| D92 | Phase 10 coexists with Phase 9 (the other session) like D64: this phase owns new packages `internal/content` and `internal/blob`, migration `0007` (P9-L8 keeps `0006`), `features/section/**` and the new `sections_.$id.*` route files; `routes.go`, `openapi.json` and `types.ts` are additive and whoever lands second rebases; P10-L2 waits for P9-L3 (it moves the roster and staff editor out of `section-detail.tsx`) and P10-L3 waits for P9-L6 (e2e single owner, D80). The two sessions number decisions from `origin/main` and renumber the later one | Orchestrator 2026-10-07 |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -252,6 +258,17 @@ Plan: `docs/plans/2026-10-07-ui-ux-benchmark.md`, one task per lane; items by S5
 | P9-L7 - Direction items the owner picks (B1-B14) | per item | per item | approved (D87): B3, B6, B9, B11; B2 after L8 |
 | P9-L8 - Display names API (C1, Task 8, D then W) | Opus 5.5 design, Sonnet 5.5 build | `apps/api/internal/course` (import), the `me` handler package, `apps/api/internal/httpx/routes.go`, `apps/api/openapi.json`, a migration for the invitation name, `apps/web/src/api/types.ts` | approved (D83), not started |
 
+## Phase 10 - Section content: home page, announcements, weekly materials (Spec 6, started 2026-10-07)
+Plan: `docs/plans/2026-10-06-section-content.md`; coexistence with Phase 9 in D92. Run by the second orchestrator session.
+
+| Lane | Model | Scope (disjoint from Phase 9, D92) | Status |
+|------|-------|------------------|--------|
+| P10-L1 - Content API (Task 1, D; sub-lanes a, b) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P10-L1.md`, `apps/api/migrations/0007_section_content.sql`, `apps/api/internal/{content,blob}`, `apps/api/internal/authz`, `apps/api/internal/course` (`section.go` description, blob cleanup on delete), `apps/api/internal/config`, `apps/api/internal/app`, `apps/api/cmd/unicourse-admin`, `apps/api/openapi.json`, `apps/web/src/api/types.ts`, `apps/api/docker-compose.yml`, `apps/api/README.md`, `apps/web/e2e/env.ts`, `global-setup.ts` | designer launched |
+| P10-L2 - Section web (Task 2, D; sub-lanes a, b) | Opus 5.5 design, Sonnet 5.5 build | `docs/design/P10-L2.md`, `apps/web/src/features/section/**`, `apps/web/src/features/courses/section-detail.tsx`, `apps/web/src/routes/$slug/sections.$id.tsx`, `apps/web/src/routes/$slug/sections_.$id.{announcements,materials,participants}.tsx` | after P10-L1a and P9-L3 |
+| P10-L3 - End-to-end extension (Task 3, W) | Sonnet 5.5 | `apps/web/e2e/staffing.spec.ts`, `apps/web/e2e/fixtures/**` | after L1, L2 and P9-L6 |
+
+Order: P10-L1 designer → L1a → PR → (L1b ∥ P10-L2 designer → L2a → L2b) → P10-L3.
+
 ## Backlog
 - The CLI runs as `unicourse_owner` (D48); a third, non-owning platform role for everyday university creation is the upgrade when a non-engineer runs the CLI.
 - Whoever consumes `?next=` on sign-in must accept same-origin paths only (raised by P0-L3 review).
@@ -298,3 +315,4 @@ Plan: `docs/plans/2026-10-07-ui-ux-benchmark.md`, one task per lane; items by S5
 - 2026-10-07: P8-L1 (#75) and P8-L2 (#76) landed after review, fix round and the orchestrator's own capture run; 141 captures and 56 Dribbble preview images sit in the orchestrator's scratchpad for the comparison lanes. P8-L3 cut into three parallel comparison sub-lanes (a entry/shell/sections/catalog, b courses/dialogs/admin, c grading/states/dark/phone) and a synthesis sub-lane d that writes Spec 5 and its plan; a, b, c launched.
 - 2026-10-07: P8-L3 (#78) landed: Spec 5 and its plan after three comparison sub-lanes, synthesis, a request-changes review and a fix round, re-checked by the orchestrator. Phase 8 complete. The review page for the owner is published (P8-L4). D79-D86 proposed from Spec 5 §8; Phase 9 cut into eight lanes, not started. The 10-minute loop stopped here; the owner reviews the page, D75-D86 and B1-B14.
 - 2026-10-07: Owner confirmed D75-D86 and every §6 recommendation (D87). Phase 9 approved, not started.
+- 2026-10-07: Owner started a second 10-minute loop pointed at PR #65 (section content, never merged) while the Phase 9 loop runs in another session. The spec and plan are renumbered Spec 6 / Phase 10 / D88-D91 (D92 for the coexistence rules), #65 closed; P10-L1 designer launched. The Phase 9 session was told which files this phase holds.
