@@ -105,14 +105,14 @@ func TestMyGradesGPA(t *testing.T) {
 		_, err := tx.Exec(`update final_grades set credits = 3.0 where section_id = $1`, g2)
 		return err
 	})
-	if _, again := e.raw(e.Stud, "GET", "/me/grades", nil); !strings.Contains(again, `"gpa":3.43`) { // (24.79 + 9.00) / 9.7
+	if _, again := e.raw(e.Stud, "GET", "/me/grades", nil); !strings.Contains(again, `"gpa":3.48`) { // (24.79 + 9.00) / 9.7
 		t.Errorf("%s", again)
 	}
 }
 
 func TestMyGradesShape(t *testing.T) {
 	e := newEnv(t)
-	if st, body := e.raw(e.Other, "GET", "/me/grades", nil); st != 200 || body != `{"terms":[],"cumulativeCredits":0}` {
+	if st, body := e.raw(e.Other, "GET", "/me/grades", nil); st != 200 || strings.TrimSpace(body) != `{"terms":[],"cumulativeCredits":0}` {
 		t.Errorf("empty: %d %s", st, body)
 	}
 	if st, body := e.raw(e.Inst, "GET", "/me/grades", nil); st != 200 || !strings.Contains(body, `"terms":[]`) {

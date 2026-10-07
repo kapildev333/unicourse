@@ -28,6 +28,9 @@ func (e *env) finals(c string) []fgRow {
 	return l.Items
 }
 
+// compact drops the spaces jsonb adds, so audit payloads compare like response bodies.
+func compact(s sql.NullString) string { return strings.ReplaceAll(s.String, " ", "") }
+
 func (e *env) finalize(body any) (int, string) {
 	e.T.Helper()
 	return e.raw(e.Admin, "POST", "/sections/"+e.SectionA+"/final-grades", body)
@@ -202,8 +205,8 @@ func TestFinalizeSnapshot(t *testing.T) {
 		t.Error("rows after reopen")
 	}
 	n, bef, _ := e.audit("final_grade.reopen", e.SectionA)
-	if n != 1 || !strings.Contains(bef.String, e.UserID["stud2@a.edu"]) || !strings.Contains(bef.String, `"letter":"B"`) {
-		t.Errorf("reopen audit %d %s", n, bef.String)
+	if n != 1 || !strings.Contains(compact(bef), e.UserID["stud2@a.edu"]) || !strings.Contains(compact(bef), `"letter":"B"`) {
+		t.Errorf("reopen audit %d %s", n, compact(bef))
 	}
 	if st, _ := e.raw(e.Admin, "DELETE", "/sections/"+e.SectionA+"/final-grades", nil); st != 404 {
 		t.Errorf("second reopen %d", st)
@@ -230,8 +233,8 @@ func TestOverridePatch(t *testing.T) {
 		return tx.QueryRow(`select id from final_grades where user_id = $1`, e.UserID["stud2@a.edu"]).Scan(&rowID)
 	})
 	n, bef, aft := e.audit("final_grade.override", rowID)
-	if n != 1 || !strings.Contains(bef.String, `"letter":"B"`) || !strings.Contains(aft.String, `"letter":"A"`) || !strings.Contains(aft.String, e.SectionA) {
-		t.Errorf("audit %d %s %s", n, bef.String, aft.String)
+	if n != 1 || !strings.Contains(compact(bef), `"letter":"B"`) || !strings.Contains(compact(aft), `"letter":"A"`) || !strings.Contains(compact(aft), e.SectionA) {
+		t.Errorf("audit %d %s %s", n, compact(bef), compact(aft))
 	}
 	if st, body := e.patchFinal(e.Admin, "stud2@a.edu", map[string]any{"status": "incomplete", "reason": "doc"}); st != 200 || strings.Contains(body, "percent") || strings.Contains(body, "letter") || strings.Contains(body, "points") {
 		t.Errorf("incomplete: %d %s", st, body)
