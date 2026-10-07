@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { RouterProvider, createMemoryHistory, createRoute, createRootRoute, createRouter } from '@tanstack/react-router'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import type { Me } from '../features/auth/use-me'
 import { AppShell } from './app-shell'
@@ -8,7 +8,11 @@ import { AppShell } from './app-shell'
 const uni = (slug: string) => ({ id: slug, slug, name: `${slug} University` })
 const mk = (roles: ('admin' | 'dept_admin' | 'member')[]): Me => ({
   user: { id: 'u1', email: 'a@a.edu', displayName: 'A' } as Me['user'],
-  memberships: roles.map((role, i) => ({ university: uni(`u${i}`), role, departmentIds: [] })),
+  memberships: roles.map((role, i) => ({
+    university: uni(`u${i}`),
+    role,
+    departmentIds: [],
+  })),
 })
 
 async function shell(me: Me) {
@@ -19,13 +23,22 @@ async function shell(me: Me) {
       </AppShell>
     ),
   })
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/'] }) })
+  const stub = createRoute({
+    getParentRoute: () => root,
+    path: '$slug/catalog',
+    component: () => null,
+  })
+  const router = createRouter({
+    routeTree: root.addChildren([stub]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
   render(
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   )
   await screen.findByText('content')
+  return router
 }
 
 it('hides Admin and Courses from members', async () => {
@@ -54,4 +67,13 @@ it('shows the university switcher with two memberships', async () => {
 it('shows Catalog to everyone', async () => {
   await shell(mk(['member']))
   expect(screen.getByRole('link', { name: 'Catalog' })).toBeInTheDocument()
+})
+
+it('the header search opens the catalog filtered by the typed text', async () => {
+  const router = await shell(mk(['member']))
+  const box = screen.getByRole('searchbox', { name: 'Find a course' })
+  fireEvent.change(box, { target: { value: '  MA201 ' } })
+  fireEvent.submit(screen.getByRole('search', { name: 'Catalog' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/u0/catalog'))
+  expect(router.state.location.search).toEqual({ q: 'MA201' })
 })

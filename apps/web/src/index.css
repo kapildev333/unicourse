@@ -1,37 +1,114 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/dm-sans';
 
-@theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+/* Tokens and contrast: docs/design/P6-L1.md §1 (Udemy palette, D57). Light values here; dark below. */
+@theme static {
+  --color-*: initial;   /* no Tailwind default palette: tokens only */
+  --shadow-*: initial;  /* no default shadows: only shadow-card and shadow-dialog */
 
-  --color-canvas: #f6f6f4;        /* page background, table header */
-  --color-surface: #ffffff;       /* cards, tables, dialogs, inputs */
-  --color-line: #e2e1dc;          /* hairlines, table rules */
-  --color-line-strong: #8c8a83;   /* input borders, secondary button border (>= 3:1 on white) */
-  --color-ink: #1b1c1e;           /* body text, 16.9:1 on white */
-  --color-ink-muted: #5b5e65;     /* secondary text, 6.4:1 on white, 6.0:1 on canvas */
-  --color-accent: #1f4f8f;        /* primary buttons, links, active nav; white on it 8.6:1 */
-  --color-accent-hover: #173d70;
-  --color-accent-soft: #e9eff8;   /* active nav background, admin badge background */
-  --color-focus: #1d4ed8;         /* focus outline, >= 3:1 on white and canvas */
-  --color-danger: #b42318;        /* destructive buttons and error text; 6.2:1 on white */
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --text-xs: 0.8125rem;              /* 13 px: spec minimum */
+  --text-xs--line-height: 1.125rem;
+  /* Spec 3.4: 4 px radius everywhere. rounded-md and rounded-lg are 4 px here too, so existing classes need no edit;
+     new code writes `rounded` (Tailwind's --radius, 4 px). The header search is the one rounded-full. */
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --shadow-card: 0 2px 4px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.08);  /* card hover only */
+  --shadow-dialog: 0 16px 40px -12px rgb(28 29 31 / 0.45);                 /* charcoal */
+
+  --color-canvas: #f7f9fa;
+  --color-surface: #ffffff;
+  --color-line: #d1d7dc;
+  --color-line-strong: #6a6f73;
+  --color-ink: #1c1d1f;
+  --color-ink-muted: #6a6f73;
+  --color-accent: #a435f0;
+  --color-accent-hover: #5624d0;
+  --color-accent-soft: #f6ebfe;
+  --color-on-accent: #ffffff;
+  --color-focus: #1c1d1f;
+  --color-danger: #b42318;
   --color-danger-hover: #8f1c13;
-  --color-danger-soft: #fdf1f0;   /* error banner background */
-  --color-success: #1e6b3b;       /* success text 6.5:1 on white */
-  --color-success-soft: #eef7f1;
+  --color-danger-soft: #fdf1f0;
+  --color-success: #1d6b50;
+  --color-success-soft: #e8f0ee;
+  --color-warning: #865213;
+  --color-warning-soft: #f4e8db;
+}
+
+html { color-scheme: light; }
+
+/* Dark: keep the two blocks identical (src/lib/theme.test.ts checks). */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-canvas: #1c1d1f;
+  --color-surface: #2d2f31;
+  --color-line: #555759;
+  --color-line-strong: #888a8b;
+  --color-ink: #f7f9fa;
+  --color-ink-muted: #a6a8aa;
+  --color-accent: #c47cf5;
+  --color-accent-hover: #d29af8;
+  --color-accent-soft: #453057;
+  --color-on-accent: #1c1d1f;
+  --color-focus: #f7f9fa;
+  --color-danger: #f4a39b;
+  --color-danger-hover: #f8c4be;
+  --color-danger-soft: #421e1d;
+  --color-success: #8fd4b8;
+  --color-success-soft: #1c342e;
+  --color-warning: #ddbc93;
+  --color-warning-soft: #42301b;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    color-scheme: dark;
+    --color-canvas: #1c1d1f;
+    --color-surface: #2d2f31;
+    --color-line: #555759;
+    --color-line-strong: #888a8b;
+    --color-ink: #f7f9fa;
+    --color-ink-muted: #a6a8aa;
+    --color-accent: #c47cf5;
+    --color-accent-hover: #d29af8;
+    --color-accent-soft: #453057;
+    --color-on-accent: #1c1d1f;
+    --color-focus: #f7f9fa;
+    --color-danger: #f4a39b;
+    --color-danger-hover: #f8c4be;
+    --color-danger-soft: #421e1d;
+    --color-success: #8fd4b8;
+    --color-success-soft: #1c342e;
+    --color-warning: #ddbc93;
+    --color-warning-soft: #42301b;
+  }
 }
 
 @layer base {
-  html { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); }
+  html { background: var(--color-canvas); color: var(--color-ink); line-height: 1.5; font-variant-numeric: tabular-nums; }
   body { -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { line-height: 1.25; }
+  /* Page titles: 32 px bold (spec 3.2). A size utility on an h1 (entry cards: text-2xl) overrides the size only. */
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 2px; }
+  dialog::backdrop { background: rgb(28 29 31 / 0.6); }  /* charcoal scrim, both modes */
 }
 
-/* Table recipe lives here once; <Table> applies class "ui-table". */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
+@media (pointer: coarse) {
+  button, select, input:not([type='checkbox']):not([type='file']), nav a { min-height: 2.75rem; }
+}
+
+/* The two recipes. <Table> applies ui-table; <Loading> applies ui-skeleton. */
 @layer components {
-  .ui-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-  .ui-table th { background: var(--color-canvas); color: var(--color-ink-muted); font-size: 0.75rem; font-weight: 600;
-                 text-transform: uppercase; letter-spacing: 0.04em; padding: 0.625rem 1rem; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
-  .ui-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+  .ui-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+  .ui-table th { height: 3rem; padding: 0 1rem; background: var(--color-canvas); color: var(--color-ink);
+                 font-size: 0.875rem; font-weight: 700; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
+  .ui-table td { height: 3rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--color-line); vertical-align: middle; }
   .ui-table tbody tr:last-child td { border-bottom: 0; }
-  .ui-table tbody tr:hover td { background: #fafaf8; }
-  .ui-table td.actions, .ui-table th.actions { text-align: right; white-space: nowrap; }
+  .ui-table tbody tr:hover td { background: var(--color-canvas); transition: background-color 150ms; }
+  .ui-skeleton { display: block; height: 1rem; border-radius: 4px;
+                 background: color-mix(in srgb, var(--color-ink-muted) 20%, transparent); }
 }

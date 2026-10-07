@@ -1,9 +1,9 @@
-export function PageHeader(props: { title: string; description?: string; action?: React.ReactNode }) {
+export function PageHeader(props: { title: string; description?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex items-end justify-between gap-4 border-b border-line pb-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-ink">{props.title}</h1>
-        {props.description && <p className="mt-1 text-sm text-ink-muted">{props.description}</p>}
+        <h1 className="text-ink">{props.title}</h1>
+        {props.description && <p className="mt-2 text-base text-ink-muted">{props.description}</p>}
       </div>
       {props.action}
     </div>
