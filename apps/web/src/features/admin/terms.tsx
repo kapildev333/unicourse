@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
+import { CalendarRange, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
@@ -86,14 +87,14 @@ function TermForm(props: { slug: string; term: Term | null; onDone: (notice?: st
       <FormField label="Ends on" name="endsOn" error={fields.endsOn}>
         <input type="date" className={inputClass} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
       </FormField>
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={m.isPending}>
           {m.isPending ? 'Saving…' : term ? 'Save changes' : 'Create term'}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   )
 }
@@ -116,14 +117,14 @@ function DeleteForm(props: { slug: string; term: Term; onDone: (notice?: string)
   return (
     <div className="flex flex-col gap-4">
       {m.error != null && <ErrorBanner title="">{errorMessage(m.error, deleteCopy)}</ErrorBanner>}
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button variant="danger" disabled={m.isPending} onClick={() => m.mutate()}>
           {m.isPending ? 'Deleting…' : 'Delete'}
         </Button>
-      </div>
+      </DialogFooter>
     </div>
   )
 }
@@ -146,6 +147,7 @@ export function TermsPage({ slug }: { slug: string }) {
   }
   const create = (
     <Button disabled={list.isPending} onClick={() => setEditing('new')}>
+      <Plus size={16} />
       New term
     </Button>
   )
@@ -157,6 +159,7 @@ export function TermsPage({ slug }: { slug: string }) {
   else if (list.items.length === 0)
     body = (
       <EmptyState
+        icon={CalendarRange}
         title="No terms yet"
         body="Add a term such as “Fall 2026” before creating sections."
         action={create}
@@ -187,9 +190,8 @@ export function TermsPage({ slug }: { slug: string }) {
                     Edit
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="ghost-danger"
                     size="sm"
-                    className="text-danger hover:bg-danger-soft"
                     aria-label={`Delete ${d.name}`}
                     onClick={() => setDeleting(d)}
                   >

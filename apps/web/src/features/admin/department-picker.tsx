@@ -14,7 +14,7 @@ export function DepartmentPicker(props: {
   return (
     <fieldset aria-describedby={error ? errId : undefined}>
       <legend className="text-sm font-medium">Departments</legend>
-      <div className="mt-1.5 max-h-48 overflow-y-auto rounded-md border border-line-strong p-2">
+      <div className="mt-1.5 max-h-48 overflow-y-auto rounded border border-line-strong p-2">
         {q.isPending ? (
           <p role="status" className="text-sm text-ink-muted">
             Loading departments…

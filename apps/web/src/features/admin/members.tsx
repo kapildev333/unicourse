@@ -1,11 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
+import { Users } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Badge, RoleBadge, roleLabel } from '../../components/badge'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { FormErrors, errorMessage, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
@@ -88,14 +89,14 @@ function RoleForm(props: {
       {role === 'dept_admin' && (
         <DepartmentPicker slug={slug} value={departmentIds} onChange={setDepartmentIds} error={fields.departmentIds} />
       )}
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={m.isPending}>
           {m.isPending ? 'Saving…' : 'Save role'}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   )
 }
@@ -124,14 +125,14 @@ function RemoveForm(props: {
   return (
     <div className="flex flex-col gap-4">
       {m.error != null && <ErrorBanner title="">{errorMessage(m.error, removeCopy)}</ErrorBanner>}
-      <div className="flex justify-end gap-2">
+      <DialogFooter>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
         <Button variant="danger" disabled={m.isPending} onClick={() => m.mutate()}>
           {m.isPending ? 'Removing…' : 'Remove'}
         </Button>
-      </div>
+      </DialogFooter>
     </div>
   )
 }
@@ -160,7 +161,7 @@ export function MembersPage({ slug }: { slug: string }) {
   let body: React.ReactNode
   if (list.isPending) body = <Loading />
   else if (list.error) body = <ErrorBanner onRetry={list.refetch}>{errorMessage(list.error, listCopy)}</ErrorBanner>
-  else if (list.items.length === 0) body = <EmptyState title="No members yet" body="Invite people from Invitations." />
+  else if (list.items.length === 0) body = <EmptyState icon={Users} title="No members yet" body="Invite people from Invitations." />
   else
     body = (
       <>
@@ -206,9 +207,8 @@ export function MembersPage({ slug }: { slug: string }) {
                     Change role
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="ghost-danger"
                     size="sm"
-                    className="text-danger hover:bg-danger-soft"
                     aria-label={`Remove ${x.email}`}
                     onClick={() => setRemoving(x)}
                   >

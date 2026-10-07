@@ -1,11 +1,7 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { ErrorBanner } from '../../components/error-banner'
+import { TabNav, tabLink } from '../../components/tab-nav'
 import { useUniversity } from '../auth/use-me'
-
-const tabBase =
-  '-mb-px border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus'
-const tabActive = { className: 'border-accent text-accent' }
-const tabInactive = { className: 'border-transparent text-ink-muted hover:text-ink' }
 
 export function AdminLayout() {
   const { slug, membership } = useUniversity()
@@ -14,33 +10,27 @@ export function AdminLayout() {
   }
   return (
     <>
-      <nav aria-label="Admin sections" className="mb-6 flex gap-1 border-b border-line">
+      <TabNav label="Admin sections">
         {membership.role === 'admin' && (
           <>
             <Link
               to="/$slug/admin/departments"
               params={{ slug }}
-              className={tabBase}
-              activeProps={tabActive}
-              inactiveProps={tabInactive}
+              {...tabLink}
             >
               Departments
             </Link>
             <Link
               to="/$slug/admin/terms"
               params={{ slug }}
-              className={tabBase}
-              activeProps={tabActive}
-              inactiveProps={tabInactive}
+              {...tabLink}
             >
               Terms
             </Link>
             <Link
               to="/$slug/admin/members"
               params={{ slug }}
-              className={tabBase}
-              activeProps={tabActive}
-              inactiveProps={tabInactive}
+              {...tabLink}
             >
               Members
             </Link>
@@ -49,9 +39,7 @@ export function AdminLayout() {
         <Link
           to="/$slug/admin/invitations"
           params={{ slug }}
-          className={tabBase}
-          activeProps={tabActive}
-          inactiveProps={tabInactive}
+          {...tabLink}
         >
           Invitations
         </Link>
@@ -59,14 +47,12 @@ export function AdminLayout() {
           <Link
             to="/$slug/admin/audit"
             params={{ slug }}
-            className={tabBase}
-            activeProps={tabActive}
-            inactiveProps={tabInactive}
+            {...tabLink}
           >
             Audit log
           </Link>
         )}
-      </nav>
+      </TabNav>
       <Outlet />
     </>
   )
