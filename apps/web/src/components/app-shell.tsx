@@ -4,6 +4,7 @@ import { LogOut, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
+import { AccountMenu } from './account-menu'
 import { Button } from './button'
 import { inputClass } from './form-field'
 import { ThemeSwitch } from './theme-switch'
@@ -156,6 +157,7 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
           <HeaderSearch slug={slug} />
           <div className="order-2 ml-auto flex shrink-0 items-center gap-3 md:order-5 md:ml-0">
             <ThemeSwitch />
+            <AccountMenu user={me.user} />
             <Button
               variant="secondary"
               aria-label="Sign out"
