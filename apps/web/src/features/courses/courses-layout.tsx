@@ -1,13 +1,9 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { ErrorBanner } from '../../components/error-banner'
 import { PageHeader } from '../../components/page-header'
+import { TabNav, tabLink } from '../../components/tab-nav'
 import { useUniversity } from '../auth/use-me'
 import { canManageCourses } from './access'
-
-const tabBase =
-  '-mb-px border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus'
-const tabActive = { className: 'border-accent text-accent' }
-const tabInactive = { className: 'border-transparent text-ink-muted hover:text-ink' }
 
 export function CoursesLayout() {
   const { slug, membership } = useUniversity()
@@ -23,27 +19,14 @@ export function CoursesLayout() {
   }
   return (
     <>
-      <nav aria-label="Courses sections" className="mb-6 flex gap-1 border-b border-line">
-        <Link
-          to="/$slug/courses"
-          params={{ slug }}
-          activeOptions={{ exact: true }}
-          className={tabBase}
-          activeProps={tabActive}
-          inactiveProps={tabInactive}
-        >
+      <TabNav label="Courses sections">
+        <Link to="/$slug/courses" params={{ slug }} activeOptions={{ exact: true }} {...tabLink}>
           Courses
         </Link>
-        <Link
-          to="/$slug/courses/sections"
-          params={{ slug }}
-          className={tabBase}
-          activeProps={tabActive}
-          inactiveProps={tabInactive}
-        >
+        <Link to="/$slug/courses/sections" params={{ slug }} {...tabLink}>
           Sections
         </Link>
-      </nav>
+      </TabNav>
       <Outlet />
     </>
   )

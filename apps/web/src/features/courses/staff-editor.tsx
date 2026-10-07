@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { UserPlus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import { ApiError } from '../../api/errors'
@@ -93,20 +94,19 @@ export function StaffEditor(props: {
     const pending = pendingStaff.filter((s) => s.role === role)
     return (
       <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <ul className="mt-2 flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
-          {rows.length + pending.length === 0 && <li className="px-4 py-3 text-sm text-ink-muted">{empty}</li>}
+        <h3 className="text-sm font-bold">{title}</h3>
+        <ul className="mt-2 flex flex-col divide-y divide-line rounded border border-line bg-surface">
+          {rows.length + pending.length === 0 && <li className="flex min-h-12 items-center px-4 py-1.5 text-sm text-ink-muted">{empty}</li>}
           {rows.map((s) => (
-            <li key={s.userId} className="flex items-center justify-between gap-2 px-4 py-2">
+            <li key={s.userId} className="flex min-h-12 items-center justify-between gap-2 px-4 py-1.5">
               <div>
                 <p className="text-sm font-medium">{personName(s)}</p>
                 {s.displayName && <p className="text-xs text-ink-muted">{s.email}</p>}
               </div>
               {canRemove && (
                 <Button
-                  variant="ghost"
+                  variant="ghost-danger"
                   size="sm"
-                  className="text-danger hover:bg-danger-soft"
                   aria-label={`Remove ${personName(s)} as ${roleName(role)}`}
                   onClick={() => {
                     remove.reset()
@@ -120,7 +120,7 @@ export function StaffEditor(props: {
             </li>
           ))}
           {pending.map((s) => (
-            <li key={s.invitationId} className="flex items-center justify-between gap-2 px-4 py-2">
+            <li key={s.invitationId} className="flex min-h-12 items-center justify-between gap-2 px-4 py-1.5">
               <div>
                 <p className="text-sm font-medium">
                   {s.email} <Badge tone="warning">Invited</Badge>
@@ -129,9 +129,8 @@ export function StaffEditor(props: {
               </div>
               {canRemove && (
                 <Button
-                  variant="ghost"
+                  variant="ghost-danger"
                   size="sm"
-                  className="text-danger hover:bg-danger-soft"
                   disabled={cancel.isPending}
                   aria-label={`Cancel invitation for ${s.email}`}
                   onClick={() => {
@@ -192,11 +191,13 @@ export function StaffEditor(props: {
           </FormField>
           {canManageInstructors && (
             <Button type="submit" variant="secondary" disabled={add.isPending} onClick={() => (roleRef.current = 'instructor')}>
+              <UserPlus />
               Add instructor
             </Button>
           )}
           {canManageTAs && (
             <Button type="submit" variant="secondary" disabled={add.isPending} onClick={() => (roleRef.current = 'ta')}>
+              <UserPlus />
               Add TA
             </Button>
           )}

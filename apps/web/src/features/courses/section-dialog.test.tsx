@@ -161,3 +161,13 @@ it('edit: never fetches /courses', async () => {
   await new Promise((r) => setTimeout(r, 50))
   expect(fetchFn.mock.calls.some((c) => new URL(c[0].url).pathname.endsWith('/courses'))).toBe(false)
 })
+
+it('footer puts Cancel before the submit button; the number input is not monospace', async () => {
+  setup({})
+  await screen.findByRole('option', { name: /CS101/ })
+  const cancel = screen.getByRole('button', { name: 'Cancel' })
+  const submit = screen.getByRole('button', { name: 'Create section' })
+  expect(cancel.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(cancel.parentElement).toBe(submit.parentElement)
+  expect(screen.getByLabelText('Section number')).not.toHaveClass('font-mono')
+})

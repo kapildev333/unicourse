@@ -1,13 +1,14 @@
 import { useMutation } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
 import { commitImport, previewImport, type ImportCounts, type ImportPreview, type ImportTarget } from '../../api/upload'
 import { ActionBadge } from '../../components/badge'
 import { Button } from '../../components/button'
-import { Dialog } from '../../components/dialog'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
-import { FormField } from '../../components/form-field'
+import { FormField, fileInputClass } from '../../components/form-field'
 import { Table } from '../../components/table'
 
 const CEILING = 200
@@ -160,7 +161,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
       <div className="text-sm text-ink-muted">
         <p>
           The first line must be a header with these columns:{' '}
-          <code className="rounded bg-canvas px-1.5 py-0.5 text-ink">{template}</code>
+          <code className="rounded bg-canvas px-1.5 py-0.5 font-sans text-ink">{template}</code>
         </p>
         {hint && <p>{hint}</p>}
         <p>
@@ -168,8 +169,9 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
           <a
             download={`${target.kind}-template.csv`}
             href={'data:text/csv;charset=utf-8,' + encodeURIComponent(template + '\n')}
-            className="text-accent underline"
+            className="inline-flex items-center gap-1 text-accent underline hover:text-accent-hover"
           >
+            <Download />
             Download template
           </a>
         </p>
@@ -179,7 +181,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
           ref={inputRef}
           type="file"
           accept=".csv,text/csv"
-          className="text-sm"
+          className={fileInputClass}
           disabled={commitMut.isPending}
           onClick={(e) => {
             // choosing the same (fixed) file again fires no change event unless the input is cleared
@@ -204,7 +206,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
           ).map(([k, n]) => (
             <div key={k} className="flex gap-1">
               <dt className="text-ink-muted">{k}</dt>
-              <dd className={k === 'Errors' && n > 0 ? 'font-semibold text-danger' : ''}>{n}</dd>
+              <dd className={k === 'Errors' && n > 0 ? 'font-bold text-danger' : ''}>{n}</dd>
             </div>
           ))}
         </dl>
@@ -215,7 +217,9 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
             <Table caption={`Preview of ${file.name}`}>
               <thead>
                 <tr>
-                  <th scope="col">Line</th>
+                  <th scope="col" className="text-right">
+                    Line
+                  </th>
                   <th scope="col">Result</th>
                   <th scope="col">Message</th>
                   {columns.map((c) => (
@@ -230,7 +234,7 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
                   const bad = r.action === 'error' || failed.has(r.line)
                   return (
                     <tr key={r.line} className={bad ? 'bg-danger-soft' : ''}>
-                      <td>{r.line}</td>
+                      <td className="text-right">{r.line}</td>
                       <td>
                         <ActionBadge action={bad ? 'error' : r.action} />
                       </td>
@@ -253,23 +257,21 @@ function Body({ onClose, target, columns, hint, onDone }: Props) {
           )}
         </div>
       )}
-      <div className="mt-2 flex items-center justify-between gap-4">
-        <p id="csv-import-reason" className="text-sm text-ink-muted">
+      <DialogFooter>
+        <p id="csv-import-reason" className="mr-auto text-sm text-ink-muted">
           {canImport ? '' : reason}
         </p>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!canImport}
-            aria-describedby={canImport ? undefined : 'csv-import-reason'}
-            onClick={() => file && preview && commitMut.mutate({ f: file, checksum: preview.checksum })}
-          >
-            {commitMut.isPending ? 'Importing…' : preview ? `Import ${todo} rows` : 'Import'}
-          </Button>
-        </div>
-      </div>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          disabled={!canImport}
+          aria-describedby={canImport ? undefined : 'csv-import-reason'}
+          onClick={() => file && preview && commitMut.mutate({ f: file, checksum: preview.checksum })}
+        >
+          {commitMut.isPending ? 'Importing…' : preview ? `Import ${todo} rows` : 'Import'}
+        </Button>
+      </DialogFooter>
     </div>
   )
 }

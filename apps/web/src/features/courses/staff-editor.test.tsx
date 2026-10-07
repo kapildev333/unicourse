@@ -60,6 +60,9 @@ it('lets an instructor add and remove TAs only', async () => {
   expect(screen.queryByRole('button', { name: 'Add instructor' })).toBeNull()
   expect(screen.getByRole('button', { name: 'Remove Tia Ta as TA' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Remove Ida Ins/ })).toBeNull()
+  // title band instructor line, outside the Staff region
+  const band = screen.getByRole('heading', { name: /CS101/ }).parentElement!.parentElement!
+  expect(within(band).getByText('Ida Ins')).toBeInTheDocument()
 })
 
 it('adds a TA and shows the chip after refetch', async () => {
@@ -149,7 +152,8 @@ it('gives a student a read-only view and never fetches the roster', async () => 
     }),
   })
   renderPage('u-stu')
-  expect(await screen.findByText('Ida Ins')).toBeInTheDocument()
+  await screen.findAllByText('Ida Ins') // the title band and the Staff section both name the instructor
+  expect(within(screen.getByRole('region', { name: 'Staff' })).getByText('Ida Ins')).toBeInTheDocument()
   expect(screen.queryByLabelText('Add by email')).toBeNull()
   expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
   expect(screen.queryByRole('heading', { name: 'Roster' })).toBeNull()
@@ -167,7 +171,8 @@ it('shows the 403 state', async () => {
 it('shows a dept_admin of another department a read-only view with no role badge and no roster', async () => {
   const fn = mockApi({ [S]: () => ({ body: mk([ins, ta]) }), [E]: () => ({ body: { items: [] } }) })
   renderPage('u-da', 'dept_admin', ['d2'])
-  expect(await screen.findByText('Ida Ins')).toBeInTheDocument()
+  await screen.findAllByText('Ida Ins') // the title band and the Staff section both name the instructor
+  expect(within(screen.getByRole('region', { name: 'Staff' })).getByText('Ida Ins')).toBeInTheDocument()
   expect(screen.queryByText('Student')).toBeNull()
   expect(screen.queryByText(/You are:/)).toBeNull()
   expect(screen.queryByLabelText('Add by email')).toBeNull()

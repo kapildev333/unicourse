@@ -6,13 +6,14 @@ export function Dialog(props: {
   title: string
   description?: string
   wide?: boolean
+  size?: 'md' | 'lg'
   children: React.ReactNode
 }) {
   const titleId = useId()
   const descId = useId()
   const ref = useRef<HTMLDialogElement>(null)
   const trigger = useRef<Element | null>(null)
-  const { open, onClose, title, description, wide, children } = props
+  const { open, onClose, title, description, wide, size = 'md', children } = props
 
   useEffect(() => {
     const d = ref.current
@@ -38,7 +39,7 @@ export function Dialog(props: {
       onClose={onClose}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      className={`m-auto w-full ${wide ? 'max-w-4xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
+      className={`m-auto w-full ${wide ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md'} rounded border border-line bg-surface p-6 text-ink shadow-dialog`}
     >
       <h2 id={titleId} className="text-xl font-bold">
         {title}

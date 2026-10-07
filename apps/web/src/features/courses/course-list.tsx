@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { BookOpen, Plus, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
@@ -69,14 +70,21 @@ export function CourseListPage(props: {
   const actions = (
     <div className="flex gap-2">
       <Button variant="secondary" onClick={() => setImporting(true)}>
+        <Upload />
         Import courses
       </Button>
       <Button disabled={list.isPending} onClick={() => setEditing('new')}>
+        <Plus />
         New course
       </Button>
     </div>
   )
-  const newButton = <Button onClick={() => setEditing('new')}>New course</Button>
+  const newButton = (
+    <Button onClick={() => setEditing('new')}>
+      <Plus />
+      New course
+    </Button>
+  )
 
   let body: React.ReactNode
   if (list.isPending) body = <Loading />
@@ -85,6 +93,7 @@ export function CourseListPage(props: {
     body = (
       <EmptyState
         title="No courses yet"
+        icon={BookOpen}
         body={
           departmentId
             ? 'This department has no courses. Create one or import a CSV.'
@@ -120,9 +129,8 @@ export function CourseListPage(props: {
                         Edit
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="ghost-danger"
                         size="sm"
-                        className="text-danger hover:bg-danger-soft"
                         aria-label={`Delete ${c.code}`}
                         onClick={() => {
                           del.reset()
@@ -150,7 +158,7 @@ export function CourseListPage(props: {
   return (
     <>
       <PageHeader title="Courses" description="Catalog courses by department." action={actions} />
-      <div role="search" className="mb-4">
+      <div role="search" className="mb-6">
         <FormField label="Department" name="departmentId">
           <select
             className={`${inputClass} w-64`}

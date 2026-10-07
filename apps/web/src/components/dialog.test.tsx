@@ -24,6 +24,11 @@ it('centres itself: preflight zeroes the margin that centres a modal dialog', ()
   expect(document.querySelector('dialog')).toHaveClass('m-auto')
 })
 
+it('size lg widens the dialog to max-w-2xl', () => {
+  render(<Dialog open={false} onClose={() => {}} title="T" size="lg">a</Dialog>)
+  expect(document.querySelector('dialog')).toHaveClass('max-w-2xl')
+})
+
 it('returns focus to the trigger when closed or unmounted', () => {
   HTMLDialogElement.prototype.showModal ||= function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
