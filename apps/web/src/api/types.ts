@@ -132,6 +132,26 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/upload-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Material upload limits
+         * @description Who: signed in. The largest file a material upload may store (UNICOURSE_MAX_UPLOAD_BYTES, default 104857600) and the allowed file extensions, lowercase and sorted. Uploads enforce both; this route lets clients check before sending.
+         */
+        get: operations["getUploadPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/universities/{slug}/me/sections": {
         parameters: {
             query?: never;
@@ -1027,7 +1047,7 @@ export interface paths {
         put?: never;
         /**
          * Upload material
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than 100 MB", "invalid multipart upload: <reason>"), title, materials when the week already holds 200 files.
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than <limit>" (100 MB by default; see GET /upload-policy), "invalid multipart upload: <reason>"), title, materials when the week already holds 200 files.
          */
         post: operations["uploadMaterial"];
         delete?: never;
@@ -2297,7 +2317,7 @@ export interface components {
         MaterialUpload: {
             /**
              * Format: binary
-             * @description One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv.
+             * @description One file, 1 byte to the upload limit; extension as listed by GET /upload-policy.
              */
             file: string;
             /**
@@ -2320,6 +2340,34 @@ export interface components {
              * @example 1
              */
             position?: number;
+        };
+        UploadPolicy: {
+            /**
+             * Format: int64
+             * @example 104857600
+             */
+            maxBytes: number;
+            /**
+             * @example [
+             *       "csv",
+             *       "doc",
+             *       "docx",
+             *       "gif",
+             *       "jpeg",
+             *       "jpg",
+             *       "md",
+             *       "pdf",
+             *       "png",
+             *       "ppt",
+             *       "pptx",
+             *       "txt",
+             *       "webp",
+             *       "xls",
+             *       "xlsx",
+             *       "zip"
+             *     ]
+             */
+            allowedExtensions: string[];
         };
     };
     responses: {
@@ -2616,6 +2664,28 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getUploadPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadPolicy"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             500: components["responses"]["Internal"];
         };

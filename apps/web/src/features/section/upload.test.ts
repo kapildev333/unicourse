@@ -1,7 +1,8 @@
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/errors'
-import { finalLine, runUploads, uploadReason } from './upload'
+import { finalLine, precheck, runUploads, uploadReason } from './upload'
 
+const policy = { maxBytes: 104857600, allowedExtensions: ['pdf'] }
 const file = (name: string, size = 5) => {
   const f = new File(['x'], name)
   Object.defineProperty(f, 'size', { value: size })
@@ -10,7 +11,7 @@ const file = (name: string, size = 5) => {
 
 it('refuses bad files before sending', async () => {
   const send = vi.fn()
-  const r = await runUploads([file('a.exe'), file('b.pdf', 0), file('c.pdf', 104857601)], send, () => {})
+  const r = await runUploads([file('a.exe'), file('b.pdf', 0), file('c.pdf', 104857601)], policy, send, () => {})
   expect(send).not.toHaveBeenCalled()
   expect(r.failed.map((f) => f.reason)).toEqual([
     "This file type can't be uploaded.",
@@ -32,7 +33,7 @@ it('sends in order and continues after a failure', async () => {
       throw new ApiError(400, 'validation_failed', 'm', [{ field: 'file', message: 'is empty' }])
     }
   }
-  const p = runUploads([file('a.pdf'), file('b.pdf'), file('c.pdf')], send, (l) => lines.push(l))
+  const p = runUploads([file('a.pdf'), file('b.pdf'), file('c.pdf')], policy, send, (l) => lines.push(l))
   await new Promise((r) => setTimeout(r, 10))
   expect(order).toEqual(['start a.pdf', 'start b.pdf'])
   release()
@@ -55,4 +56,17 @@ it('words upload reasons and final lines', () => {
   expect(finalLine({ done: 1, total: 1 }, 'Week 1')).toBe('Uploaded 1 file to Week 1.')
   expect(finalLine({ done: 2, total: 3 }, 'Week 1')).toBe('Uploaded 2 of 3 files to Week 1.')
   expect(finalLine({ done: 0, total: 3 }, 'Week 1')).toBe('No files were uploaded to Week 1.')
+})
+
+it('prechecks against the policy, and not at all without one', () => {
+  const p = { maxBytes: 10, allowedExtensions: ['pdf'] }
+  expect(precheck(file('a.txt'), p)).toBe("This file type can't be uploaded.")
+  expect(precheck(file('a.pdf', 11), p)).toBe('It is larger than 10 B.')
+  expect(precheck(file('a.txt', 11))).toBeUndefined()
+  expect(precheck(file('a.pdf', 0))).toBe('The file is empty.')
+})
+
+it('maps the server size text', () => {
+  const e = new ApiError(400, 'validation_failed', 'm', [{ field: 'file', message: 'is larger than 1 MB' }])
+  expect(uploadReason(e)).toBe('It is larger than 1 MB.')
 })

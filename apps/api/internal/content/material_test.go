@@ -9,16 +9,19 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
@@ -108,6 +111,63 @@ func TestUploadTypes(t *testing.T) {
 }
 
 func TestUploadBoundary(t *testing.T) {
+	const limit = 1 << 20
+	e := newEnvLimit(t, limit)
+	w := e.week("W")
+	st, raw := e.upload(e.Inst, w, "edge.zip", io.LimitReader(zeros{}, limit), "")
+	var m matJSON
+	if st != 201 || json.Unmarshal(raw, &m) != nil || m.SizeBytes != limit {
+		t.Fatalf("1 MiB: %d %s", st, raw)
+	}
+	if fi, err := os.Stat(e.blobPath(m.ID)); err != nil || fi.Size() != limit {
+		t.Fatalf("blob: %v", err)
+	}
+	st, raw = e.upload(e.Inst, w, "over.zip", io.LimitReader(zeros{}, limit+1), "")
+	if code, f := errDetails(raw); st != 400 || code != "validation_failed" || len(f) != 1 || f[0] != "file" || !strings.Contains(string(raw), "is larger than 1 MB") {
+		t.Fatalf("1 MiB + 1: %d %s", st, raw)
+	}
+	if n := e.count(`select count(*) from materials`); n != 1 || len(e.tmpFiles()) != 0 {
+		t.Fatalf("rows %d, tmp %v", n, e.tmpFiles())
+	}
+}
+
+func TestSizeText(t *testing.T) {
+	for n, want := range map[int64]string{104857600: "100 MB", 1048576: "1 MB", 1000: "1000 bytes"} {
+		if got := sizeText(n); got != want {
+			t.Errorf("%d: %q", n, got)
+		}
+	}
+}
+
+func TestUploadPolicy(t *testing.T) {
+	e := newEnvLimit(t, 5<<20)
+	get := func(c *http.Cookie) (int, []byte) {
+		req, _ := http.NewRequest("GET", e.Srv.URL+"/api/v1/upload-policy", nil)
+		if c != nil {
+			req.AddCookie(c)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		raw, _ := io.ReadAll(res.Body)
+		return res.StatusCode, raw
+	}
+	st, raw := get(e.Stud)
+	var p struct {
+		MaxBytes          int64
+		AllowedExtensions []string
+	}
+	if st != 200 || json.Unmarshal(raw, &p) != nil || p.MaxBytes != 5<<20 || !slices.Equal(p.AllowedExtensions, slices.Sorted(maps.Keys(fileTypes))) || len(p.AllowedExtensions) != 16 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if st, raw = get(nil); st != 401 || !strings.Contains(string(raw), "unauthenticated") {
+		t.Fatalf("signed out: %d %s", st, raw)
+	}
+}
+
+func TestUploadBoundary100MB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("streams 100 MB")
 	}
@@ -116,19 +176,19 @@ func TestUploadBoundary(t *testing.T) {
 	var before, after runtime.MemStats
 	runtime.GC()
 	runtime.ReadMemStats(&before)
-	st, raw := e.upload(e.Inst, w, "big.zip", io.LimitReader(zeros{}, maxFile), "")
+	st, raw := e.upload(e.Inst, w, "big.zip", io.LimitReader(zeros{}, blob.DefaultMaxBytes), "")
 	runtime.ReadMemStats(&after)
 	var m matJSON
-	if st != 201 || json.Unmarshal(raw, &m) != nil || m.SizeBytes != maxFile {
+	if st != 201 || json.Unmarshal(raw, &m) != nil || m.SizeBytes != blob.DefaultMaxBytes {
 		t.Fatalf("100 MB: %d %s", st, raw)
 	}
 	if grew := after.TotalAlloc - before.TotalAlloc; grew > 32<<20 {
 		t.Fatalf("upload allocated %d MiB: the file was buffered", grew>>20)
 	}
-	if fi, err := os.Stat(e.blobPath(m.ID)); err != nil || fi.Size() != maxFile {
+	if fi, err := os.Stat(e.blobPath(m.ID)); err != nil || fi.Size() != blob.DefaultMaxBytes {
 		t.Fatalf("blob: %v", err)
 	}
-	st, raw = e.upload(e.Inst, w, "bigger.zip", io.LimitReader(zeros{}, maxFile+1), "")
+	st, raw = e.upload(e.Inst, w, "bigger.zip", io.LimitReader(zeros{}, blob.DefaultMaxBytes+1), "")
 	if code, f := errDetails(raw); st != 400 || code != "validation_failed" || len(f) != 1 || f[0] != "file" || !strings.Contains(string(raw), "is larger than 100 MB") {
 		t.Fatalf("100 MB + 1: %d %s", st, raw)
 	}

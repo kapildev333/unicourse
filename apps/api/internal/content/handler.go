@@ -18,6 +18,7 @@ const base = "/api/v1/universities/{slug}"
 
 // Register mounts the content routes, each through tenant.Wrap.
 func Register(r *httpx.Router, d tenant.Deps) {
+	r.Handle("GET", "/api/v1/upload-policy", uploadPolicy(d))
 	r.Handle("PUT", base+"/sections/{id}/description", tenant.Wrap(d, putDescription))
 	r.Handle("GET", base+"/sections/{id}/announcements", tenant.Wrap(d, listAnnouncements))
 	r.Handle("POST", base+"/sections/{id}/announcements", tenant.Wrap(d, createAnnouncement(d.BaseURL)))

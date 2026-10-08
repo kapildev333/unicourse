@@ -9,6 +9,12 @@ export type Section = S['Section']
 export type Announcement = S['Announcement']
 export type Week = S['Week']
 export type Material = S['Material']
+export type UploadPolicy = S['UploadPolicy']
+
+/** The server's upload limit and allowlist; read once per session. */
+export function useUploadPolicy() {
+  return useQuery({ queryKey: ['upload-policy'], queryFn: () => unwrap(api.GET('/upload-policy')), staleTime: Infinity })
+}
 
 export const sectionKey = (slug: string, id: string) => [slug, 'sections', 'detail', id] as const
 export const announcementsKey = (slug: string, id: string) => [slug, 'sections', id, 'announcements'] as const
