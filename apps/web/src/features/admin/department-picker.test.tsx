@@ -39,3 +39,15 @@ it('searches with q past 200 rows and keeps a filtered-out tick', async () => {
   fireEvent.change(screen.getByLabelText('Search departments'), { target: { value: '' } })
   expect(await screen.findByLabelText(/Computer Science/)).toBeChecked()
 })
+
+it('says nothing matches, not "No departments yet", when a search is empty', async () => {
+  mockApi({
+    [L]: (req) =>
+      new URL(req.url).searchParams.get('q') ? { body: { items: [] } } : { body: { items: [cs, math], nextCursor: 'n' } },
+  })
+  renderWithQuery(<Host />)
+  await screen.findByText('Mathematics')
+  fireEvent.change(screen.getByLabelText('Search departments'), { target: { value: 'zzz' } })
+  expect(await screen.findByText('No departments match.')).toBeInTheDocument()
+  expect(screen.queryByText(/No departments yet/)).not.toBeInTheDocument()
+})

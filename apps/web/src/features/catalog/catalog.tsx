@@ -26,7 +26,7 @@ type Params = { termId?: string; departmentId?: string; q?: string }
 
 export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) => void } & Params) {
   const { slug, termId, departmentId, q, onSearchChange } = props
-  const { query: termsQuery, terms, term, notInSession } = useTermChoice(slug, termId)
+  const { query: termsQuery, terms, term, picked, pick, notInSession } = useTermChoice(slug, termId)
   const isAdmin = useMe().data?.memberships.find((m) => m.university.slug === slug)?.role === 'admin'
   const departments = useAllDepartments(slug).data?.items ?? []
   const list = useCursorList<Section>(
@@ -143,7 +143,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
       {terms.length > 0 && (
         <>
           <div role="search" aria-label="Filters" className="mb-6 grid gap-4 md:flex md:flex-wrap md:items-end">
-            <TermPicker slug={slug} terms={terms} more={!!termsQuery.data?.nextCursor} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
+            <TermPicker slug={slug} terms={terms} more={!!termsQuery.data?.nextCursor} picked={picked} value={term?.id} onChange={(id, t) => { pick(t); onSearchChange({ termId: id }) }} />
             <FormField label="Department" name="departmentId">
               <select
                 className={`${inputClass} w-full md:w-64`}

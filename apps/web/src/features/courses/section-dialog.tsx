@@ -138,7 +138,7 @@ export function SectionDialog(props: {
                 value={courseId}
                 onChange={(e) => {
                   setCourseId(e.target.value)
-                  setPicked([...shown, ...courses].find((c) => c.id === e.target.value))
+                  setPicked(courses.find((c) => c.id === e.target.value))
                 }}
               >
                 <option value="">Choose a course</option>

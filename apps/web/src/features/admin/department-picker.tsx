@@ -14,8 +14,9 @@ export function DepartmentPicker(props: {
   const [search, setSearch] = useState('')
   const deferred = useDeferredValue(search.trim())
   const found = useAllDepartments(slug, deferred, !!deferred)
-  const searching = search !== ''
-  const items = (searching ? found.data?.items : q.data?.items) ?? []
+  const searching = search.trim() !== ''
+  const shownQuery = searching ? found : q
+  const items = shownQuery.data?.items ?? []
   return (
     <fieldset aria-describedby={error ? errId : undefined}>
       <legend className="text-sm font-medium">Departments</legend>
@@ -41,16 +42,18 @@ export function DepartmentPicker(props: {
         </div>
       )}
       <div className="mt-1.5 max-h-48 overflow-y-auto rounded border border-line-strong p-2">
-        {q.isPending ? (
+        {shownQuery.isPending ? (
           <p role="status" className="text-sm text-ink-muted">
             Loading departments…
           </p>
-        ) : q.error ? (
+        ) : shownQuery.error ? (
           <p role="alert" className="text-sm text-danger">
             Couldn't load departments. Close this dialog and try again.
           </p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-ink-muted">No departments yet. Create one under Departments.</p>
+          <p className="text-sm text-ink-muted">
+            {searching ? 'No departments match.' : 'No departments yet. Create one under Departments.'}
+          </p>
         ) : (
           items.map((d) => (
             <label key={d.id} className="flex items-center gap-2 py-1 text-sm">

@@ -327,6 +327,10 @@ func TestDepartmentsRejectWrongCaseKey(t *testing.T) {
 func TestListDepartmentsQ(t *testing.T) {
 	e := newServer(t, regTenant)
 	admin := e.adminCookie()
+	e.tx(e.Fx.UniversityB, func(tx *sql.Tx) error { // another university's match must never appear
+		_, err := tx.Exec(`insert into departments (university_id, name, code) values ($1, 'Mathematics B', 'MATHB')`, e.Fx.UniversityB)
+		return err
+	})
 	for _, d := range [][2]string{{"Mathematics", "MATH"}, {"Math Education", "MEDU"}, {"100% Club", "PCT"}, {"Under_score", "US"}} {
 		if st, raw := e.do(admin, "POST", deptPath, map[string]any{"name": d[0], "code": d[1]}); st != 201 {
 			t.Fatal(st, string(raw))

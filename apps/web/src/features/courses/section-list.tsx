@@ -26,6 +26,7 @@ import { RemoveDialog } from './remove-dialog'
 import { SectionDialog } from './section-dialog'
 
 type Section = components['schemas']['Section']
+type Term = components['schemas']['Term']
 
 const columns = ['Course', 'Section', 'Instructors', 'TAs', '']
 const listCopy = { forbidden: "You don't have permission to view this." }
@@ -70,8 +71,10 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const { membership } = useUniversity()
   const termsQuery = useAllTerms(slug)
   const terms = [...(termsQuery.data?.items ?? [])].sort((a, b) => b.startsOn.localeCompare(a.startsOn))
-  const effectiveId = terms.some((t) => t.id === termId) ? termId : defaultTermId(terms, todayIso())
-  const term = terms.find((t) => t.id === effectiveId)
+  const [picked, setPicked] = useState<Term>() // a term chosen by search may lie beyond the first 200
+  const effectiveId =
+    terms.some((t) => t.id === termId) || (picked && picked.id === termId) ? termId : defaultTermId(terms, todayIso())
+  const term = terms.find((t) => t.id === effectiveId) ?? (picked && picked.id === effectiveId ? picked : undefined)
   const refresh = useRefresh(slug, 'sections')
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Section | null>(null)
@@ -242,8 +245,12 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
             slug={slug}
             terms={terms}
             more={!!termsQuery.data?.nextCursor}
+            picked={picked}
             value={effectiveId}
-            onChange={onTermChange}
+            onChange={(id, t) => {
+              setPicked(t)
+              onTermChange(id)
+            }}
             hint={term ? `${formatDate(term.startsOn)} to ${formatDate(term.endsOn)}` : undefined}
             className="w-full sm:w-72"
           />
