@@ -40,7 +40,7 @@ export async function latestMailLink(email: string, notBefore = 0, path = '/api/
   return found
 }
 
-export const logLines = () => fs.readFileSync(apiLog, 'utf8').split('\n').length
+export const logLines = () => fs.readFileSync(apiLog, 'utf8').split('\n').length - 1
 
 // Signs in by magic link and waits until `${url.pathname}${url.search}` === landing.
 // Navigates to /sign-in only when the page is not already showing its form, so `?next=` and `?email=` survive.
@@ -53,7 +53,7 @@ export async function signIn(page: Page, email: string, slug: string, landing = 
   await field.fill(email)
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   await expect(sent).toBeVisible()
-  await page.goto(await latestMailLink(email, before - 1))
+  await page.goto(await latestMailLink(email, before))
   await page.getByRole('button', { name: 'Continue signing in' }).click()
   await page.waitForURL((u) => `${u.pathname}${u.search}` === landing)
 }
@@ -140,7 +140,8 @@ export async function pageAs(browser: Browser, email: string, slug: string): Pro
 
 export type Mail = { to: string; subject: string; text: string }
 
-// Parsed `"msg":"mail"` lines of the API log from line `notBefore` on; partial lines skipped.
+// Parsed `"msg":"mail"` lines of the API log from line index `notBefore` on; partial lines skipped.
+// `mails(logLines())` taken before an action returns exactly the mails written after it.
 export function mails(notBefore = 0): Mail[] {
   const out: Mail[] = []
   for (const line of fs.readFileSync(apiLog, 'utf8').split('\n').slice(notBefore)) {
@@ -162,6 +163,6 @@ export async function sectionIds(page: Page, slug: string): Promise<Record<strin
 }
 
 export async function expectNoSideScroll(page: Page, what: string): Promise<void> {
-  const w = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, view: window.innerWidth }))
+  const w = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, view: document.documentElement.clientWidth }))
   expect(w.doc, `${what}: page is ${w.doc} px wide at ${w.view} px`).toBeLessThanOrEqual(w.view)
 }

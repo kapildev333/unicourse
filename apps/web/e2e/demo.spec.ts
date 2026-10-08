@@ -74,7 +74,7 @@ test('E-DEMO-05 Sofia is TA on CS101', async ({ page }) => {
   await signIn(page, P.sofia.email, slug)
   await noStaffNav(page, 'TA')
   await expect(list(page).getByRole('listitem'), 'TA, My sections: count').toHaveCount(1)
-  await expect(card(page, 'CS101-001'), 'TA, My sections: CS101 role').toContainText('TA')
+  await expect(card(page, 'CS101-001').getByText('TA', { exact: true }), 'TA, My sections: CS101 role').toBeVisible()
   await expect(card(page, 'CS101-001').getByRole('link', { name: 'Gradebook' }), 'TA, My sections: gradebook').toBeVisible()
 })
 
@@ -104,5 +104,5 @@ test('E-DEMO-14 Ingrid is TA on CS210 at first sign-in', async ({ page }) => {
   await signIn(page, P.ingrid.email, slug)
   await noStaffNav(page, 'invited TA')
   await expect(list(page).getByRole('listitem'), 'invited TA, My sections: count').toHaveCount(1)
-  await expect(card(page, 'CS210-001'), 'invited TA, My sections: CS210 role').toContainText('TA')
+  await expect(card(page, 'CS210-001').getByText('TA', { exact: true }), 'invited TA, My sections: CS210 role').toBeVisible()
 })
