@@ -34,10 +34,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
     (cursor) =>
       unwrap(
         api.GET('/universities/{slug}/sections', {
-          params: {
-            path: { slug },
-            query: { cursor, limit: 50, termId: term!.id, departmentId, q },
-          },
+          params: { path: { slug }, query: { cursor, limit: 50, termId: term!.id, departmentId, q } },
         }),
       ),
     !!term,
@@ -146,13 +143,7 @@ export function CatalogPage(props: { slug: string; onSearchChange: (p: Params) =
       {terms.length > 0 && (
         <>
           <div role="search" aria-label="Filters" className="mb-6 grid gap-4 md:flex md:flex-wrap md:items-end">
-            <TermPicker
-              slug={slug}
-              terms={terms}
-              more={!!termsQuery.data?.nextCursor}
-              value={term?.id}
-              onChange={(id) => onSearchChange({ termId: id })}
-            />
+            <TermPicker slug={slug} terms={terms} more={!!termsQuery.data?.nextCursor} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
             <FormField label="Department" name="departmentId">
               <select
                 className={`${inputClass} w-full md:w-64`}

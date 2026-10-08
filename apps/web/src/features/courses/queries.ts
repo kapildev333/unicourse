@@ -9,12 +9,7 @@ export function useAllCourses(slug: string, departmentId?: string, enabled = tru
     queryKey: [slug, 'courses', 'all', { departmentId, q }],
     queryFn: () =>
       unwrap(
-        api.GET('/universities/{slug}/courses', {
-          params: {
-            path: { slug },
-            query: { limit: 200, departmentId, q: q || undefined },
-          },
-        }),
+        api.GET('/universities/{slug}/courses', { params: { path: { slug }, query: { limit: 200, departmentId, q: q || undefined } } }),
       ),
     staleTime: 60_000,
   })
@@ -26,11 +21,7 @@ export function useAllTerms(slug: string, q = '', enabled = true) {
     enabled,
     queryKey: [slug, 'terms', 'all', q],
     queryFn: () =>
-      unwrap(
-        api.GET('/universities/{slug}/terms', {
-          params: { path: { slug }, query: { limit: 200, q: q || undefined } },
-        }),
-      ),
+      unwrap(api.GET('/universities/{slug}/terms', { params: { path: { slug }, query: { limit: 200, q: q || undefined } } })),
     staleTime: 60_000,
   })
 }

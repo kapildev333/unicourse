@@ -57,7 +57,9 @@ function StaffCell({ section, staffRole }: { section: Section; staffRole: 'instr
   if (total <= 2) return <span className="text-sm">{join(names)}</span>
   return (
     <span className="text-sm" title={fullList}>
-      <span aria-hidden="true">{`${firstName} +${total - 1}`}</span>
+      <span aria-hidden="true">
+        {`${firstName} +${total - 1}`}
+      </span>
       <span className="sr-only">{join(names)}</span>
     </span>
   )
@@ -77,26 +79,17 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
   const [importing, setImporting] = useState(false)
   const [notice, setNotice] = useState('')
 
-  const list = useCursorList<Section>(
-    [slug, 'sections', 'list', { termId: effectiveId }],
-    (cursor) =>
-      unwrap(
-        api.GET('/universities/{slug}/sections', {
-          params: {
-            path: { slug },
-            query: { cursor, limit: 50, termId: effectiveId },
-          },
-        }),
-      ),
+  const list = useCursorList<Section>([slug, 'sections', 'list', { termId: effectiveId }], (cursor) =>
+    unwrap(
+      api.GET('/universities/{slug}/sections', {
+        params: { path: { slug }, query: { cursor, limit: 50, termId: effectiveId } },
+      }),
+    ),
     !!term,
   )
   const del = useMutation({
     mutationFn: (s: Section) =>
-      unwrap(
-        api.DELETE('/universities/{slug}/sections/{id}', {
-          params: { path: { slug, id: s.id } },
-        }),
-      ),
+      unwrap(api.DELETE('/universities/{slug}/sections/{id}', { params: { path: { slug, id: s.id } } })),
     onSuccess: async (_, s) => {
       await refresh([slug, 'my-sections'])
       setDeleting(null)
@@ -113,11 +106,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
           Import sections
         </Button>
       )}
-      <Button
-        disabled={!term}
-        aria-describedby={noTerms ? 'new-section-reason' : undefined}
-        onClick={() => setCreating(true)}
-      >
+      <Button disabled={!term} aria-describedby={noTerms ? 'new-section-reason' : undefined} onClick={() => setCreating(true)}>
         <Plus />
         New section
       </Button>
@@ -199,12 +188,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
                 <td data-label="Instructors">
                   <StaffCell section={s} staffRole="instructor" />
                 </td>
-                <td
-                  data-label="TAs"
-                  data-empty={
-                    (!s.staff.some((x) => x.role === 'ta') && !s.pendingStaff.some((x) => x.role === 'ta')) || undefined
-                  }
-                >
+                <td data-label="TAs" data-empty={!s.staff.some((x) => x.role === 'ta') && !s.pendingStaff.some((x) => x.role === 'ta') || undefined}>
                   <StaffCell section={s} staffRole="ta" />
                 </td>
                 <td className="text-right whitespace-nowrap">

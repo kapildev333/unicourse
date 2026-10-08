@@ -71,12 +71,7 @@ function TermCards({ slug, term, sections }: { slug: string; term: Term; section
 export function useMySections(slug: string) {
   return useQuery({
     queryKey: [slug, 'my-sections'],
-    queryFn: () =>
-      unwrap(
-        api.GET('/universities/{slug}/me/sections', {
-          params: { path: { slug } },
-        }),
-      ),
+    queryFn: () => unwrap(api.GET('/universities/{slug}/me/sections', { params: { path: { slug } } })),
   })
 }
 
@@ -156,13 +151,7 @@ export function MySectionsPage(props: {
       {terms.length > 0 && (
         <>
           <div role="search" aria-label="Filters" className="mb-6 grid gap-4 md:flex md:flex-wrap md:items-end">
-            <TermPicker
-              slug={slug}
-              terms={terms}
-              more={!!termsQuery.data?.nextCursor}
-              value={term?.id}
-              onChange={(id) => onSearchChange({ termId: id })}
-            />
+            <TermPicker slug={slug} terms={terms} more={!!termsQuery.data?.nextCursor} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
             <div>
               <SegmentedControl
                 label="View"
@@ -171,11 +160,7 @@ export function MySectionsPage(props: {
                   { value: 'schedule', label: 'Schedule' },
                 ]}
                 value={view ?? 'list'}
-                onChange={(v) =>
-                  onSearchChange({
-                    view: v === 'schedule' ? 'schedule' : undefined,
-                  })
-                }
+                onChange={(v) => onSearchChange({ view: v === 'schedule' ? 'schedule' : undefined })}
               />
             </div>
           </div>

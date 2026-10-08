@@ -33,8 +33,7 @@ export function SectionDialog(props: {
 }) {
   const { slug, term, section, onClose, onSaved } = props
   const { membership } = useUniversity()
-  const onlyDept =
-    membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
+  const onlyDept = membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
   const [courseId, setCourseId] = useState('')
   const courseData = useAllCourses(slug, onlyDept, !section).data
   const [search, setSearch] = useState('')
