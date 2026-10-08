@@ -25,7 +25,7 @@ func allowed(ctx context.Context, tx *sql.Tx, email string) (ok bool, err error)
 	}
 	err = tx.QueryRowContext(ctx, `select exists (select 1 from universities where $1 = any(allowed_email_domains))
 		or exists (select 1 from invitations where email = $2 and accepted_at is null and expires_at > now())
-		or exists (select 1 from memberships where status = 'active')`, domain, email).Scan(&ok)
+		or exists (select 1 from memberships where status = 'active' and user_id = nullif(current_setting('app.user_id', true), '')::uuid)`, domain, email).Scan(&ok)
 	return ok, err
 }
 
