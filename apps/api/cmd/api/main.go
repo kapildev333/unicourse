@@ -18,6 +18,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
+	"github.com/kapildev333/unicourse/apps/api/internal/quiz"
 )
 
 // newHandler builds the routed, middleware-wrapped handler; ready backs /readyz and api (may be nil)
@@ -103,6 +104,7 @@ func main() {
 	sender := outbox.NewSender(db, mailer, logger)
 	sender.Senders = cfg.OutboxSenders
 	go sender.Run(ctx)
+	go quiz.NewSweeper(db, logger).Run(ctx)
 
 	deps, err := authDeps(ctx, cfg, db, sender.Wake)
 	if err != nil {

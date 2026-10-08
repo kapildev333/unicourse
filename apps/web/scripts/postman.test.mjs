@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCollection } from './postman.mjs'
+import { buildCollection, oneKey } from './postman.mjs'
 
 const spec = (withConsume = true, withRequest = true) => ({
   openapi: '3.1.0',
@@ -108,5 +108,15 @@ describe('buildCollection', () => {
 
   it('rejects when the request route is missing', async () => {
     await expect(buildCollection(JSON.stringify(spec(true, false)))).rejects.toThrow(/not found in the spec/)
+  })
+})
+
+describe('oneKey', () => {
+  it('keeps only key_0 of a generated map, at any depth', () => {
+    const got = oneKey({ answers: { key_0: { a: 1 }, key_1: { a: 1 }, key_2: { a: 1 } }, list: [{ key_0: 1, key_1: 2 }], submit: true })
+    expect(got).toEqual({ answers: { key_0: { a: 1 } }, list: [{ key_0: 1 }], submit: true })
+  })
+  it('leaves ordinary objects alone', () => {
+    expect(oneKey({ key_0: 1, other: 2 })).toEqual({ key_0: 1, other: 2 })
   })
 })

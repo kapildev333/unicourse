@@ -1224,6 +1224,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List quiz questions
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 "not open yet" before opensAt and 409 "closed" after closesAt unless they have submitted an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.
+         */
+        get: operations["listQuestions"];
+        /**
+         * Replace quiz questions
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the whole list (0 to 100 questions) and sets the quiz's maxPoints to the sum of the points (1 when empty). Errors: items ("is required", "must have at most 100 questions", "total points must be at most 10000"), items[<i>].kind, .prompt, .points (0.01 to 1000, 2 decimals), .choices ("must have 2 to 10 choices", "must have at least one correct choice", "only for multiple choice"), .choices[<j>].text, .answers ("must have 1 to 20 accepted answers", "only for fill in the blank"), .answers[<j>]; 409 "questions are locked once a student has started".
+         */
+        put: operations["putQuestions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List quiz attempts
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. One row per attempt of an enrolled student, ordered by display name (email when empty), then email.
+         */
+        get: operations["listAttempts"];
+        put?: never;
+        /**
+         * Start a quiz attempt
+         * @description Who: a student enrolled in the section. Idempotent: 201 when the attempt is created, 200 with the existing attempt. Errors: 409 "not open yet", 409 "closed", 409 "the quiz has no questions".
+         */
+        post: operations["startAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a quiz attempt
+         * @description Who: staff of the section for any student; a student for themselves (me or their id), 403 for another student. 404 "attempt" when the student has none. A student sees grading, score and feedback only when the quiz is published and the attempt is submitted.
+         */
+        get: operations["getAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Review a quiz attempt
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the points and feedback of the named questions, recomputes the score (the sum of the points) and rewrites the gradebook score. Errors: 404 "attempt", 409 "the attempt is not submitted", grading ("must not be null", "must be an object"), grading.<questionId> ("is not a question of this quiz", "invalid value"), grading.<questionId>.<field> ("unknown field"), grading.<questionId>.points ("is required", "must be a number", "must have at most 2 decimals", "must be between 0 and <question points>"), grading.<questionId>.feedback ("must not contain NUL", "must be at most 2000 characters"), feedback ("must not be null", "invalid value", "must not contain NUL", "must be at most 5000 characters"), "no fields to update".
+         */
+        patch: operations["reviewAttempt"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save or submit a quiz attempt
+         * @description Who: a student enrolled in the section, for their own attempt. Replaces the saved answers; submit true also grades and submits. Errors: 404 "attempt" when not started, 409 "already submitted", 409 "closed; your answers as of the closing time were submitted", answers ("is required"), answers.<questionId> ("is not a question of this quiz"), answers.<questionId>.choices ("must be distinct indexes from 0 to <n>", "only for multiple choice"), answers.<questionId>.text ("only for fill in the blank", "must be at most 1000 characters", "must not contain NUL").
+         */
+        put: operations["putAttempt"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2679,6 +2771,233 @@ export interface components {
              * @description One file, 1 byte to the upload limit; extension as listed by GET /upload-policy.
              */
             file: string;
+        };
+        Choice: {
+            /** @example Paris */
+            text: string;
+            /**
+             * @description Staff only, and a student only once the quiz is published and their attempt is submitted.
+             * @example true
+             */
+            correct?: boolean;
+        };
+        Question: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * @example choice
+             * @enum {string}
+             */
+            kind: "choice" | "blank";
+            /** @example Capital of France? */
+            prompt: string;
+            /** @example 2 */
+            points: number;
+            /** @example 1 */
+            position: number;
+            /**
+             * @description Derived: a choice question with more than one correct choice (the web shows checkboxes, otherwise radios). Always present, and does not reveal which choices are correct.
+             * @example false
+             */
+            multiple: boolean;
+            /** @description Empty for fill in the blank. */
+            choices: components["schemas"]["Choice"][];
+            /** @description Accepted answers of a fill in the blank question; staff only, and a student only once the quiz is published and their attempt is submitted. */
+            answers?: string[];
+        };
+        QuestionList: {
+            /** @description Ordered by position. */
+            items: components["schemas"]["Question"][];
+        };
+        ChoiceInput: {
+            /** @example Paris */
+            text: string;
+            /** @example true */
+            correct: boolean;
+        };
+        QuestionInput: {
+            /**
+             * @example choice
+             * @enum {string}
+             */
+            kind: "choice" | "blank";
+            /** @example Capital of France? */
+            prompt: string;
+            /**
+             * @description At most 2 decimals.
+             * @example 2
+             */
+            points: number;
+            /** @description Multiple choice only: 2 to 10, at least one correct. */
+            choices?: components["schemas"]["ChoiceInput"][];
+            /** @description Fill in the blank only: 1 to 20 accepted answers. */
+            answers?: string[];
+        };
+        QuestionsPut: {
+            /** @description The whole list; replaces the questions. */
+            items: components["schemas"]["QuestionInput"][];
+        };
+        Answer: {
+            /** @description Multiple choice: distinct indexes into the question's choices. */
+            choices?: number[];
+            /** @description Fill in the blank. */
+            text?: string;
+        };
+        Mark: {
+            /** @example 2 */
+            points: number;
+            /** @example true */
+            correct: boolean;
+            /** @example  */
+            feedback: string;
+        };
+        Attempt: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-12T13:05:00Z
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @description Omitted until submitted.
+             * @example 2026-10-12T13:40:00Z
+             */
+            submittedAt?: string;
+            /**
+             * @description True when the quiz closed and the saved answers were submitted for the student (submittedAt is then closesAt).
+             * @example false
+             */
+            autoSubmitted: boolean;
+            /**
+             * @description By question id; unanswered questions are absent.
+             * @example {
+             *       "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+             *         "choices": [
+             *           0
+             *         ]
+             *       }
+             *     }
+             */
+            answers: {
+                [key: string]: components["schemas"]["Answer"];
+            };
+            /**
+             * @description By question id. Omitted until submitted; for a student also until the quiz is published.
+             * @example {
+             *       "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+             *         "points": 2,
+             *         "correct": true,
+             *         "feedback": ""
+             *       }
+             *     }
+             */
+            grading?: {
+                [key: string]: components["schemas"]["Mark"];
+            };
+            /**
+             * @description Omitted until submitted; for a student also until the quiz is published.
+             * @example 5.25
+             */
+            score?: number;
+            /** @description Omitted until submitted; for a student also until the quiz is published. */
+            feedback?: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-13T09:00:00Z
+             */
+            reviewedAt?: string;
+        };
+        AttemptRow: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * Format: email
+             * @example stud@a.edu
+             */
+            email: string;
+            /** @example Stu Dent */
+            displayName: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-12T13:05:00Z
+             */
+            startedAt: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-12T13:40:00Z
+             */
+            submittedAt?: string;
+            /** @example false */
+            autoSubmitted: boolean;
+            /**
+             * @description Omitted until submitted.
+             * @example 5.25
+             */
+            score?: number;
+            /**
+             * Format: date-time
+             * @example 2026-10-13T09:00:00Z
+             */
+            reviewedAt?: string;
+        };
+        AttemptList: {
+            /** @description Enrolled students with an attempt, ordered by display name (email when empty), then email. */
+            items: components["schemas"]["AttemptRow"][];
+        };
+        AttemptPut: {
+            /**
+             * @description The whole map; replaces the saved answers. Empty entries are dropped.
+             * @example {
+             *       "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+             *         "choices": [
+             *           0
+             *         ]
+             *       }
+             *     }
+             */
+            answers: {
+                [key: string]: components["schemas"]["Answer"];
+            };
+            /**
+             * @description True grades the quiz and submits the attempt.
+             * @example false
+             */
+            submit?: boolean;
+        };
+        MarkInput: {
+            /**
+             * @description At most 2 decimals, from 0 to the question's points.
+             * @example 1.5
+             */
+            points: number;
+            feedback?: string;
+        };
+        AttemptReview: {
+            /**
+             * @description By question id; replaces the points (and feedback when given) of those questions only. correct becomes true when the points equal the question's points.
+             * @example {
+             *       "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+             *         "points": 1.5,
+             *         "feedback": "Half credit."
+             *       }
+             *     }
+             */
+            grading?: {
+                [key: string]: components["schemas"]["MarkInput"];
+            };
+            /** @description Replaces the attempt feedback; empty clears it. */
+            feedback?: string;
         };
     };
     responses: {
@@ -5335,6 +5654,265 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    putQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionsPut"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAttempts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    startAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The existing attempt. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                /** @description A student's user id; me for the caller. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reviewAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                /** @description A student's user id; me for the caller. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "grading": {
+                 *         "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                 *           "points": 1.5,
+                 *           "feedback": "Half credit."
+                 *         }
+                 *       },
+                 *       "feedback": "Good work."
+                 *     }
+                 */
+                "application/json": components["schemas"]["AttemptReview"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    putAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "answers": {
+                 *         "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                 *           "choices": [
+                 *             0
+                 *           ]
+                 *         }
+                 *       },
+                 *       "submit": false
+                 *     }
+                 */
+                "application/json": components["schemas"]["AttemptPut"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["Internal"];
         };
     };

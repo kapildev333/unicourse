@@ -9,6 +9,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/course"
 	"github.com/kapildev333/unicourse/apps/api/internal/grade"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/quiz"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
 
@@ -31,5 +32,6 @@ func NewRouter(deps Deps) *httpx.Router {
 	grade.Register(r, td)
 	content.Register(r, td)
 	assignment.Register(r, td)
+	quiz.Register(r, td)
 	return r
 }
