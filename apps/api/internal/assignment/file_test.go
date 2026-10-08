@@ -197,7 +197,7 @@ func TestFileDownload(t *testing.T) {
 			t.Errorf("%s: %d", p, res.StatusCode)
 		}
 	}
-	if _, b := e.get(e.Inst, e.subPath(a, "/x/files/"+id+"/download"), nil); !strings.Contains(string(b), `"file"`) {
+	if _, b := e.get(e.Inst, e.subPath(a, "/x/files/"+id+"/download"), nil); !strings.Contains(string(b), "file not found") {
 		t.Errorf("non-uuid user: %s", b)
 	}
 	// a row without a blob is a logged 500, never a 404
