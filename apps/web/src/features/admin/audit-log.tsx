@@ -252,7 +252,7 @@ export function AuditLogPage({ slug }: { slug: string }) {
               <option value="">Anyone</option>
               {members.data?.items.map((m) => (
                 <option key={m.userId} value={m.userId}>
-                  {m.email}
+                  {m.displayName || m.email}
                 </option>
               ))}
             </select>

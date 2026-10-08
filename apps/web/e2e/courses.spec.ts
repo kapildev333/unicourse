@@ -30,7 +30,7 @@ test('E-COURSES-01 course create, edit, delete', async ({ browser }) => {
   await d.getByLabel('Code').fill('CS101')
   await d.getByLabel('Title').fill('Probability')
   await d.getByRole('button', { name: 'Create course' }).click()
-  await expect(d.getByText('A course with this code already exists in this department.'), 'admin, New course dialog: duplicate code (F5 copy as is)').toBeVisible()
+  await expect(d.getByText('A course with this code already exists in this university.'), 'admin, New course dialog: duplicate code').toBeVisible()
   await d.getByLabel('Code').fill('MATH310')
   await d.getByRole('button', { name: 'Create course' }).click()
   await expect(status(page, 'Course “MATH310” created.'), 'admin, Courses: created notice').toBeVisible()

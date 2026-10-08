@@ -170,7 +170,7 @@ test('E-ADMIN-07 invitations list, validation, send, revoke', async ({ browser }
   await expect(dlg.getByText('Enter a valid email address.'), 'admin, Invitations dialog: email field error').toBeVisible()
   await dlg.getByLabel('Email').fill(P.amara.email)
   await dlg.getByRole('button', { name: 'Send invitation' }).click()
-  await expect(dlg.getByText('This person already has a pending invitation or is already a member.'), 'admin, Invitations dialog: duplicate').toBeVisible()
+  await expect(dlg.getByText('This email already has access or a pending invitation.'), 'admin, Invitations dialog: duplicate').toBeVisible()
   await dlg.getByLabel('Email').fill(hire)
   await dlg.getByLabel('Role').selectOption({ label: 'Department admin' })
   await dlg.getByRole('button', { name: 'Send invitation' }).click()

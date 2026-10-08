@@ -27,7 +27,7 @@ type Role = Invitation['role']
 const formCopy = {
   'validation_failed:email': 'Enter a valid email address.',
   'validation_failed:departmentIds': 'Choose at least one department for a department admin.',
-  'conflict:email': 'This person already has a pending invitation or is already a member.',
+  'conflict:email': 'This email already has access or a pending invitation.',
   forbidden: 'You can only invite members.',
   not_found: 'That department no longer exists. Reload and try again.',
 }
