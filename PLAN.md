@@ -8,6 +8,7 @@ Spec 5: `docs/specs/2026-10-07-ui-ux-benchmark.md` · plan `docs/plans/2026-10-0
 Spec 6: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-06-section-content.md` (Phase 10, done 2026-10-07)
 Spec 7: `docs/specs/2026-10-07-demo-seed-and-readme.md` · plan `docs/plans/2026-10-07-demo-seed-and-readme.md` (Phase 11, done 2026-10-07)
 Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-10-07-postman-collection.md` (Phase 12, done 2026-10-07)
+Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e2e-coverage.md` (Phase 16, started 2026-10-07)
 
 ## Decisions
 | # | Decision | Status |
@@ -129,6 +130,11 @@ Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-1
 | D119 | Dependabot: #32 (web dev dependencies) is rebased and merged when `ci` is green. #25 and #26 (React 19) are merged only if `ci` and a local e2e run pass on the rebased branches, which then amends D1's React 18 pin to React 19; otherwise they are closed with the reason recorded ("merge everything") | Outcome 2026-10-07: #25, #26 and #32 could not pass alone (React and its types must move together; the dev-tools group failed `npm ci`); P14-L5 (#128) bumped them together with gates between groups, ci and e2e green, D1 amended; ESLint stays 9 until `eslint-plugin-jsx-a11y` supports 10; the three Dependabot PRs closed in its favour |
 | D120 | Branch protection with required checks `api` and `web` cannot be enabled on a private repository on the free plan; it stays process-enforced until the owner makes the repository public or upgrades the plan | Needs the owner |
 | D121 | OpenSpec (design P12-L2 on `chore/design-p12-postman-openspec`) is not a backlog item and is not built in Phase 14; the owner says "openspec" to schedule it (B1 describe-only recommended) | Needs the owner |
+| D122 | Owner's "Playwright AI automation test cases" read as: the designer lane derives the case catalogue from Spec 1 to Spec 8, the README persona table and the UI; the cases are plain `@playwright/test` with role and label selectors; no Playwright MCP, no LLM-in-the-loop runner, no runtime dependency (Spec 9 §9) | Orchestrator 2026-10-07, owner to confirm |
+| D123 | Phase 16 structure: P16-L1 catalogue, P16-L2 harness (`UNICOURSE_E2E_PORT`, shared `api`/`upload`/`seedDemo` helpers, `demo.spec.ts`, CI timeout) lands first; P16-L3 to L8 one spec file per area in parallel; P16-L9 accessibility last. Existing spec files unchanged (D60, D80); `screens.ts` only switches imports | Orchestrator 2026-10-07, owner to confirm |
+| D124 | New e2e spec files may seed through `unicourse-admin seed-demo --slug e2e-<run>` or through the HTTP API with `page.request`; UI-driven seeding only where the UI flow is the assertion. Amends D108 for the e2e suite only; the capture script keeps its seeding | Orchestrator 2026-10-07, owner to confirm |
+| D125 | `@axe-core/playwright` as one pinned dev dependency for an accessibility sweep (`a11y.spec.ts`, serious and critical violations fail), every page per role in light and dark. P16-L9 is dropped if declined | Orchestrator 2026-10-07, owner to confirm |
+| D126 | CI `e2e` job timeout 30 minutes; Playwright `workers` stays 1 until the suite exceeds 10 minutes on CI, then 2 (every file seeds its own university, so files are independent) | Orchestrator 2026-10-07, owner to confirm |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -344,6 +350,20 @@ Owner: "I confirm all, please fix all the backlogs and merge everything" (D117-D
 | P14-L4 - Web sections and courses: Participants tab (staff editor and roster out of Home, `SectionBand` merged back into the Home band, P10-L2 decisions 1 and 3), one primary "New section" on an empty term, upload progress bar, e2e updated for the tab, e2e `year` by local date, Materials capture in `screens.ts` (W) | Sonnet 5.5 | `apps/web/src/features/{section,courses,catalog,my-sections}/**`, `apps/web/src/routes/$slug/sections*.tsx`, `apps/web/src/routes/$slug/courses/**`, `apps/web/src/routes/$slug/catalog.tsx`, `apps/web/e2e/**` | **done** - [#124](https://github.com/kapildev333/unicourse/pull/124). Review approve; ruling: the tab strip renders for every member (Spec 6 §8). Upload progress bar not built (no upload progress from `fetch`; backlog). Evidence: web gates green, e2e 3 passed; browser: Home without roster, Participants with staff and roster for the instructor and staff only for the student |
 | P15-L1 - Hotfix: the magic-link confirm page's CSP `form-action` lists the web origin when it differs from the API origin, so sign-in from the README dev setup (API 8080, web 5173) lands in the app; README step 6 says where you land (W) | Sonnet 5.5 | `apps/api/internal/auth/**`, `README.md` step 6 | **done** - [#130](https://github.com/kapildev333/unicourse/pull/130). Owner report "I follow steps in readme but I can't sign in"; reproduced in headless Chromium (CSP violation on the confirm POST's 302), fixed test-first, review approve with one README correction. Evidence: patched API on 18080 with web origin 5174 sends `form-action 'self' http://localhost:5174`, the browser lands on `/northfield/me` signed in. Patch release v0.14.1 |
 | P14-L5 - Dependencies: React 19, Vite 8, Vitest 5, jsdom 30, @types/node 26, Node floor 22.22.2 (W; replaces Dependabot #25, #26, #32) | Sonnet 5.5 | `apps/web/package.json`, lock, three one-line source edits, both READMEs | **done** - [#128](https://github.com/kapildev333/unicourse/pull/128). Review: changes (Node floor was 22.12; jsdom 30 needs 22.22.2), fixed. Evidence: gates green under Node 22.23 (424 tests), Postman and types unchanged, e2e 3 passed, CI green on Linux. Dependabot #25, #26, #32 closed |
+## Phase 16 - End-to-end coverage (Spec 9, started 2026-10-07)
+Owner (loop prompt): "Design playwright AI automation test cases for our code base and do all e2e test cases." Unattended run; D122-D126 ruled by the orchestrator, owner to confirm. Catalogue by the designer, one spec file per area, each on its own port while lanes run in parallel.
+
+| Lane | Model | Scope | Status |
+|---|---|---|---|
+| P16-L1 - Test-case catalogue and harness design (Task 1, D) | Opus 5.5 | `docs/design/P16-L1.md` | launched 2026-10-07 |
+| P16-L2 - Harness: `UNICOURSE_E2E_PORT`, shared `api`/`upload`/`seedDemo`, `demo.spec.ts` persona smoke, CI timeout (Task 2, W) | Sonnet 5.5 | `apps/web/e2e/{env,helpers,global-setup,global-teardown,demo.spec}.ts`, `screens.ts` imports, `playwright.config.ts`, `ci.yml` e2e timeout | pending L1 |
+| P16-L3 - `auth.spec.ts` (Task 3, W) | Sonnet 5.5 | `apps/web/e2e/auth.spec.ts` | pending L2 |
+| P16-L4 - `admin.spec.ts` (Task 4, W) | Sonnet 5.5 | `apps/web/e2e/admin.spec.ts` | pending L2 |
+| P16-L5 - `courses.spec.ts` (Task 5, W) | Sonnet 5.5 | `apps/web/e2e/courses.spec.ts`, `fixtures/courses-*` | pending L2 |
+| P16-L6 - `grades.spec.ts` (Task 6, W) | Sonnet 5.5 | `apps/web/e2e/grades.spec.ts`, `fixtures/grades-*` | pending L2 |
+| P16-L7 - `catalog.spec.ts` (Task 7, W) | Sonnet 5.5 | `apps/web/e2e/catalog.spec.ts` | pending L2 |
+| P16-L8 - `content-edit.spec.ts` (Task 8, W) | Sonnet 5.5 | `apps/web/e2e/content-edit.spec.ts`, `fixtures/content-*` | pending L2 |
+| P16-L9 - `a11y.spec.ts` with axe (Task 9, W, D125) | Sonnet 5.5 | `apps/web/e2e/a11y.spec.ts`, `package.json`, lock | pending L3-L8 and D125 |
 
 ## Backlog
 Phase 14 (2026-10-07) sweeps every defect and bounded improvement that was listed here; what remains is gated on a trigger (D118):
@@ -414,3 +434,4 @@ Phase 14 (2026-10-07) sweeps every defect and bounded improvement that was liste
 - 2026-10-07: Owner: "I confirm all, please fix all the backlogs and merge everything". 68 decisions confirmed (D117); backlog triaged (D118), Dependabot plan (D119), two items need the owner (D120 branch protection, D121 OpenSpec). Phase 14 cut into six worker lanes on disjoint scopes, all launched; Dependabot rebases requested. The `.claude/agents` briefs gain the Docker rule.
 - 2026-10-07: Phase 14 complete: seven lanes landed (#122 to #128) after reviews, fix rounds and the orchestrator's suites, real-HTTP, e2e and browser passes; Dependabot #25, #26, #32 closed in favour of #128; D1 amended to React 19 and Node 22.22.2. Release v0.14.0 cut after this PR. The 10-minute loop stopped here. Open for the owner: D120 (branch protection), D121 (OpenSpec), P4-L4 credentials, the Postman app import check, a local Node upgrade.
 - 2026-10-07: Owner could not sign in following the README: the confirm page's `form-action 'self'` blocked the redirect to the dev server origin. P15-L1 (#130) fixed it; v0.14.1 patch release.
+- 2026-10-07: Owner started `/loop 10m /orchestrate` for Playwright coverage. Spec 9 and its plan written by the orchestrator (unattended, D122-D126 owner to confirm); Phase 16 cut into a catalogue lane, a harness lane and six area lanes plus an accessibility sweep. P16-L1 (designer) launched from the chore branch.
