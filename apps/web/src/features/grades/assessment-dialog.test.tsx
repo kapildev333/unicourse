@@ -11,7 +11,9 @@ const A = '/universities/a/sections/s1/assessments'
 const mid: Assessment = {
   id: 'a1',
   sectionId: 's1',
+  kind: 'manual',
   name: 'Midterm',
+  description: '',
   maxPoints: 40,
   weight: 40,
   published: false,

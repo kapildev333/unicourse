@@ -2641,7 +2641,7 @@
                       "request": {
                         "name": "List assessments",
                         "description": {
-                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published assessments only.",
+                          "content": "Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published manual assessments, and every quiz and assignment.",
                           "type": "text/plain"
                         },
                         "url": {
@@ -2692,7 +2692,7 @@
                       "request": {
                         "name": "Create assessment",
                         "description": {
-                          "content": "Who: admin, dept_admin (own departments), instructor of the section. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.",
+                          "content": "Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Errors: kind, name, description, maxPoints, weight, dueOn, opensAt, closesAt, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.",
                           "type": "text/plain"
                         },
                         "url": {
@@ -2737,7 +2737,7 @@
                         "method": "POST",
                         "body": {
                           "mode": "raw",
-                          "raw": "{\n  \"name\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<date>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                          "raw": "{\n  \"name\": \"<string>\",\n  \"weight\": \"<number>\",\n  \"kind\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"dueOn\": \"<date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
                           "options": {
                             "raw": {
                               "language": "json"
@@ -2759,7 +2759,7 @@
                           "request": {
                             "name": "Update assessment",
                             "description": {
-                              "content": "Who: admin, dept_admin (own departments), instructor of the section. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.",
+                              "content": "Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Sets published, position (reorder), dueOn (null clears). Errors: kind (unknown field: a kind cannot change), name, description, maxPoints, weight, dueOn, opensAt, closesAt, position. Changing maxPoints does not re-check existing scores.",
                               "type": "text/plain"
                             },
                             "url": {
@@ -2812,7 +2812,7 @@
                             "method": "PATCH",
                             "body": {
                               "mode": "raw",
-                              "raw": "{\n  \"name\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<string,null-date>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                              "raw": "{\n  \"name\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<string,null-date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
                               "options": {
                                 "raw": {
                                   "language": "json"
@@ -2831,7 +2831,7 @@
                           "request": {
                             "name": "Delete assessment",
                             "description": {
-                              "content": "Who: admin, dept_admin (own departments), instructor of the section. Deletes its scores too; final grades do not change.",
+                              "content": "Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Deletes its scores too; final grades do not change.",
                               "type": "text/plain"
                             },
                             "url": {

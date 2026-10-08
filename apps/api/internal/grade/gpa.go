@@ -29,6 +29,7 @@ type runningGrade struct {
 type myAssessment struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
+	Kind      string      `json:"kind"`
 	Weight    json.Number `json:"weight"`
 	MaxPoints json.Number `json:"maxPoints"`
 	DueOn     string      `json:"dueOn,omitempty"`
@@ -130,7 +131,7 @@ func getMyGrades(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	rows, err = tx.QueryContext(ctx, `select a.section_id::text, a.id, a.name, a.weight::text, a.max_points::text, coalesce(to_char(a.due_on, 'YYYY-MM-DD'), ''), a.published, sc.points::text
+	rows, err = tx.QueryContext(ctx, `select a.section_id::text, a.id, a.name, a.kind, a.weight::text, a.max_points::text, coalesce(to_char(a.due_on, 'YYYY-MM-DD'), ''), a.published, sc.points::text
 		from assessments a left join scores sc on sc.assessment_id = a.id and sc.user_id = $1
 		where a.section_id = any($2::uuid[]) order by a.section_id, a.position, a.created_at, a.id`, s.UserID, secIDs)
 	if err != nil {
@@ -142,7 +143,7 @@ func getMyGrades(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 		var a myAssessment
 		var published bool
 		var pts sql.NullString
-		if err := rows.Scan(&sec, &a.ID, &a.Name, &a.Weight, &a.MaxPoints, &a.DueOn, &published, &pts); err != nil {
+		if err := rows.Scan(&sec, &a.ID, &a.Name, &a.Kind, &a.Weight, &a.MaxPoints, &a.DueOn, &published, &pts); err != nil {
 			rows.Close()
 			return 0, nil, err
 		}

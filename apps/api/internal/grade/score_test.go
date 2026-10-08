@@ -1,12 +1,14 @@
 package grade
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func (e *env) sPath(a string) string { return e.aPath(a) + "/scores" }
@@ -236,5 +238,49 @@ func TestScoresAudit(t *testing.T) {
 	b, af = rows()
 	if !b.Valid || !strings.Contains(b.String, "80.00") || strings.Contains(b.String, "90.00") || !strings.Contains(af.String, "85.00") {
 		t.Errorf("second: %v %v", b, af)
+	}
+}
+
+func TestUpsertScore(t *testing.T) {
+	e := newEnv(t)
+	a := e.assessment("Q", "10", "10")
+	stud, inst := e.UserID["stud@a.edu"], e.UserID["inst@a.edu"]
+	read := func() (pts, by string, at time.Time) {
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			return tx.QueryRow(`select points::text, graded_by::text, graded_at from scores where assessment_id = $1 and user_id = $2`, a, stud).Scan(&pts, &by, &at)
+		})
+		return
+	}
+	up := func(pts, by string) {
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			return UpsertScore(context.Background(), tx, e.Fx.UniversityA, a, stud, pts, by)
+		})
+	}
+	up("7.50", stud)
+	pts, by, at := read()
+	if pts != "7.50" || by != stud {
+		t.Fatalf("insert: %s %s", pts, by)
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update scores set graded_at = now() - interval '1 day'`)
+		return err
+	})
+	up("9.00", inst)
+	pts, by, at2 := read()
+	if pts != "9.00" || by != inst || at2.Before(at) {
+		t.Fatalf("update: %s %s", pts, by)
+	}
+	var n int
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select count(*) from scores where assessment_id = $1`, a).Scan(&n)
+	})
+	if n != 1 {
+		t.Fatalf("%d rows", n)
+	}
+	if time.Since(at2) > time.Minute {
+		t.Fatalf("graded_at not refreshed: %v", at2)
+	}
+	if n, _, _ := e.audit("score.set", a); n != 0 {
+		t.Fatalf("UpsertScore wrote %d score.set audit rows", n)
 	}
 }
