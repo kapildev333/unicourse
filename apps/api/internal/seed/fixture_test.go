@@ -122,6 +122,12 @@ func TestSchemaMatchesLoad(t *testing.T) {
 				walk(path, node, v)
 			}
 		case map[string]any:
+			req, _ := node["required"].([]any)
+			for _, r := range req {
+				if _, ok := d[r.(string)]; !ok {
+					t.Errorf("demo.json object at %s lacks required key %q", path, r)
+				}
+			}
 			props, _ := node["properties"].(map[string]any)
 			for k, v := range d {
 				p, ok := props[k].(map[string]any)

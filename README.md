@@ -23,7 +23,7 @@ One command, from the repository root:
 make dev
 ```
 
-It starts Postgres, applies the migrations, replaces the demo university (`seed-demo --reset`), then runs the API on :8080 and the web app on :5173 until you press Ctrl-C (that stops both; Postgres keeps running, stop it with `docker compose -p unicourse -f apps/api/docker-compose.yml down`). Then go to step 6 below. `make test` runs the API and web gates and `make e2e` the Playwright suite.
+It starts Postgres, applies the migrations, replaces the demo university (`seed-demo --reset`), then (installing the web dependencies first on a fresh clone) runs the API on :8080 and the web app on :5173 until you press Ctrl-C (that stops both; Postgres keeps running, stop it with `docker compose -f apps/api/docker-compose.yml down`). Then continue at step 6 below (it is the only step you need after `make dev`). `make test` runs the API and web gates and `make e2e` the Playwright suite.
 
 To do the same by hand, run the API steps from `apps/api`:
 
