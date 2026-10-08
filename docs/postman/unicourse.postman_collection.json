@@ -3126,6 +3126,537 @@
                             }
                           ],
                           "event": []
+                        },
+                        {
+                          "name": "submissions",
+                          "item": [
+                            {
+                              "name": "List submissions",
+                              "request": {
+                                "name": "List submissions",
+                                "description": {
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. The assessment must be an assignment, else 404.",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "submissions"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "GET"
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            },
+                            {
+                              "name": "{userId}",
+                              "item": [
+                                {
+                                  "name": "Get a submission",
+                                  "request": {
+                                    "name": "Get a submission",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section for any enrolled or former student; an enrolled student only with me or their own id (else 403). 404 when there is no submission. For a student score, feedback and gradedAt are omitted until the assignment is published.",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "submissions",
+                                        ":userId"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "userId",
+                                          "description": "(Required) A user id, or me for the caller."
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "GET"
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                },
+                                {
+                                  "name": "Grade a submission",
+                                  "request": {
+                                    "name": "Grade a submission",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller) and audits submission.grade. Errors: score (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <2 x maxPoints>\"), feedback (\"must not be null\", \"must not contain NUL\", \"must be at most 5000 characters\"). userId must be a uuid, else 404.",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "submissions",
+                                        ":userId"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "userId",
+                                          "description": "(Required) A user id, or me for the caller."
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                      },
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "PATCH",
+                                    "body": {
+                                      "mode": "raw",
+                                      "raw": "{\n  \"score\": \"<number>\",\n  \"feedback\": \"<string>\"\n}",
+                                      "options": {
+                                        "raw": {
+                                          "language": "json"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                },
+                                {
+                                  "name": "Download a submission file",
+                                  "request": {
+                                    "name": "Download a submission file",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section; the owning student as me or their own id. Works after closesAt. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag \"<sha256>\", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "submissions",
+                                        ":userId",
+                                        "files",
+                                        ":fileId",
+                                        "download"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "userId",
+                                          "description": "(Required) A user id, or me for the caller."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "fileId",
+                                          "description": "(Required) "
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/octet-stream"
+                                      }
+                                    ],
+                                    "method": "GET"
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                }
+                              ],
+                              "event": []
+                            },
+                            {
+                              "name": "me",
+                              "item": [
+                                {
+                                  "name": "Write own submission",
+                                  "request": {
+                                    "name": "Write own submission",
+                                    "description": {
+                                      "content": "Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors: body (\"is required\", \"must not contain NUL\", \"must be at most 20000 characters\", \"a submission needs text or a file\"). Audits submission.update.",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "submissions",
+                                        "me"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                      },
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "PUT",
+                                    "body": {
+                                      "mode": "raw",
+                                      "raw": "{\n  \"body\": \"<string>\"\n}",
+                                      "options": {
+                                        "raw": {
+                                          "language": "json"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                },
+                                {
+                                  "name": "files",
+                                  "item": [
+                                    {
+                                      "name": "Attach a file to own submission",
+                                      "request": {
+                                        "name": "Attach a file to own submission",
+                                        "description": {
+                                          "content": "Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (see GET /upload-policy), \"invalid multipart upload: <reason>\", \"a submission holds at most 10 files\"). Audits submission.update.",
+                                          "type": "text/plain"
+                                        },
+                                        "url": {
+                                          "path": [
+                                            "universities",
+                                            ":slug",
+                                            "sections",
+                                            ":id",
+                                            "assessments",
+                                            ":assessmentId",
+                                            "submissions",
+                                            "me",
+                                            "files"
+                                          ],
+                                          "host": [
+                                            "{{baseUrl}}"
+                                          ],
+                                          "query": [],
+                                          "variable": [
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "{{slug}}",
+                                              "key": "slug",
+                                              "description": "(Required) University slug."
+                                            },
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "",
+                                              "key": "id",
+                                              "description": "(Required) "
+                                            },
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "",
+                                              "key": "assessmentId",
+                                              "description": "(Required) "
+                                            }
+                                          ]
+                                        },
+                                        "header": [
+                                          {
+                                            "key": "Content-Type",
+                                            "value": "multipart/form-data"
+                                          },
+                                          {
+                                            "key": "Accept",
+                                            "value": "application/json"
+                                          }
+                                        ],
+                                        "method": "POST",
+                                        "body": {
+                                          "mode": "formdata",
+                                          "formdata": [
+                                            {
+                                              "key": "file",
+                                              "type": "file",
+                                              "description": "(Required) One file, 1 byte to the upload limit; extension as listed by GET /upload-policy."
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "response": [],
+                                      "event": [],
+                                      "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                      }
+                                    },
+                                    {
+                                      "name": "Remove a file from own submission",
+                                      "request": {
+                                        "name": "Remove a file from own submission",
+                                        "description": {
+                                          "content": "Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Audits submission.update.",
+                                          "type": "text/plain"
+                                        },
+                                        "url": {
+                                          "path": [
+                                            "universities",
+                                            ":slug",
+                                            "sections",
+                                            ":id",
+                                            "assessments",
+                                            ":assessmentId",
+                                            "submissions",
+                                            "me",
+                                            "files",
+                                            ":fileId"
+                                          ],
+                                          "host": [
+                                            "{{baseUrl}}"
+                                          ],
+                                          "query": [],
+                                          "variable": [
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "{{slug}}",
+                                              "key": "slug",
+                                              "description": "(Required) University slug."
+                                            },
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "",
+                                              "key": "id",
+                                              "description": "(Required) "
+                                            },
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "",
+                                              "key": "assessmentId",
+                                              "description": "(Required) "
+                                            },
+                                            {
+                                              "disabled": false,
+                                              "type": "any",
+                                              "value": "",
+                                              "key": "fileId",
+                                              "description": "(Required) "
+                                            }
+                                          ]
+                                        },
+                                        "header": [
+                                          {
+                                            "key": "Accept",
+                                            "value": "application/json"
+                                          }
+                                        ],
+                                        "method": "DELETE"
+                                      },
+                                      "response": [],
+                                      "event": [],
+                                      "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                      }
+                                    }
+                                  ],
+                                  "event": []
+                                }
+                              ],
+                              "event": []
+                            }
+                          ],
+                          "event": []
                         }
                       ],
                       "event": []

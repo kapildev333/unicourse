@@ -1100,6 +1100,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List submissions
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. The assessment must be an assignment, else 404.
+         */
+        get: operations["listSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a submission
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section for any enrolled or former student; an enrolled student only with me or their own id (else 403). 404 when there is no submission. For a student score, feedback and gradedAt are omitted until the assignment is published.
+         */
+        get: operations["getSubmission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Grade a submission
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller) and audits submission.grade. Errors: score ("is required", "must be a number", "must have at most 2 decimals", "must be between 0 and <2 x maxPoints>"), feedback ("must not be null", "must not contain NUL", "must be at most 5000 characters"). userId must be a uuid, else 404.
+         */
+        patch: operations["gradeSubmission"];
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Write own submission
+         * @description Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Errors: body ("is required", "must not contain NUL", "must be at most 20000 characters", "a submission needs text or a file"). Audits submission.update.
+         */
+        put: operations["putSubmission"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach a file to own submission
+         * @description Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than <limit>" (see GET /upload-policy), "invalid multipart upload: <reason>", "a submission holds at most 10 files"). Audits submission.update.
+         */
+        post: operations["uploadSubmissionFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a file from own submission
+         * @description Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Audits submission.update.
+         */
+        delete: operations["deleteSubmissionFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/{userId}/files/{fileId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a submission file
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section; the owning student as me or their own id. Works after closesAt. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag "<sha256>", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.
+         */
+        get: operations["downloadSubmissionFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2444,6 +2568,118 @@ export interface components {
              */
             allowedExtensions: string[];
         };
+        SubmissionFile: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /** @example essay.pdf */
+            fileName: string;
+            /** @example application/pdf */
+            contentType: string;
+            /**
+             * Format: int64
+             * @example 48213
+             */
+            sizeBytes: number;
+            /** @example 1 */
+            position: number;
+            /**
+             * Format: date-time
+             * @example 2026-10-21T03:30:00Z
+             */
+            uploadedAt: string;
+        };
+        Submission: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /** @example My essay text. */
+            body: string;
+            /**
+             * Format: date-time
+             * @description The student's last write (text or file).
+             * @example 2026-10-21T03:30:00Z
+             */
+            submittedAt: string;
+            /** @description By position; [] when there are none. */
+            files: components["schemas"]["SubmissionFile"][];
+            /**
+             * @description Omitted until graded; for a student also omitted until the assignment is published.
+             * @example 87.5
+             */
+            score?: number;
+            /** @description Staff always get it ("" until graded); a student only once the assignment is published. */
+            feedback?: string;
+            /**
+             * Format: date-time
+             * @description Omitted until graded; for a student also omitted until published.
+             * @example 2026-10-21T03:30:00Z
+             */
+            gradedAt?: string;
+        };
+        SubmissionRow: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            userId: string;
+            /**
+             * Format: email
+             * @example stud@example.edu
+             */
+            email: string;
+            /** @example Sam Student */
+            displayName: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-21T03:30:00Z
+             */
+            submittedAt: string;
+            /** @example 2 */
+            fileCount: number;
+            /**
+             * @description Omitted until graded.
+             * @example 87.5
+             */
+            score?: number;
+            /**
+             * Format: date-time
+             * @description Omitted until graded.
+             * @example 2026-10-21T03:30:00Z
+             */
+            gradedAt?: string;
+        };
+        SubmissionList: {
+            /** @description Submissions of students still enrolled, ordered by display name (email when blank), then email. */
+            items: components["schemas"]["SubmissionRow"][];
+        };
+        SubmissionUpdate: {
+            /**
+             * @description Trimmed; may be empty when the submission holds a file.
+             * @example My essay text.
+             */
+            body: string;
+        };
+        SubmissionGrade: {
+            /**
+             * @description 0 to 2 x the assignment's maxPoints, at most 2 decimals.
+             * @example 87.5
+             */
+            score: number;
+            /** @description Omitted keeps the stored text; null is rejected. */
+            feedback?: string;
+        };
+        SubmissionFileUpload: {
+            /**
+             * Format: binary
+             * @description One file, 1 byte to the upload limit; extension as listed by GET /upload-policy.
+             */
+            file: string;
+        };
     };
     responses: {
         /** @description validation_failed */
@@ -2540,6 +2776,9 @@ export interface components {
         announcementId: string;
         weekId: string;
         materialId: string;
+        /** @description A user id, or me for the caller. */
+        submissionUserId: string;
+        fileId: string;
     };
     requestBodies: never;
     headers: never;
@@ -4820,6 +5059,249 @@ export interface operations {
                 slug: components["parameters"]["slug"];
                 id: components["parameters"]["id"];
                 materialId: components["parameters"]["materialId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Part of the file (Range request). */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Not modified (If-None-Match matched the ETag). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listSubmissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getSubmission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                /** @description A user id, or me for the caller. */
+                userId: components["parameters"]["submissionUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    gradeSubmission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                /** @description A user id, or me for the caller. */
+                userId: components["parameters"]["submissionUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmissionGrade"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    putSubmission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmissionUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    uploadSubmissionFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["SubmissionFileUpload"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteSubmissionFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                fileId: components["parameters"]["fileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    downloadSubmissionFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+                assessmentId: components["parameters"]["assessmentId"];
+                /** @description A user id, or me for the caller. */
+                userId: components["parameters"]["submissionUserId"];
+                fileId: components["parameters"]["fileId"];
             };
             cookie?: never;
         };

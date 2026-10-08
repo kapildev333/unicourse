@@ -31,7 +31,7 @@ const usage = `usage: unicourse-admin <command> [flags]
 commands:
   migrate               apply database migrations
   create-university     create a university and an admin invitation (see create-university -h)
-  prune-files [--delete]  list (or remove) files no material references, and materials whose file is missing
+  prune-files [--delete]  list (or remove) files no material or submission file references, and materials whose file is missing
   seed-demo [--slug s] [--reset] [--fixture f]  load the demo university (see seed-demo -h)
 
 environment: UNICOURSE_OWNER_DATABASE_URL (the owner role; migrate, prune-files, seed-demo, and create-university when the next is unset), UNICOURSE_PLATFORM_DATABASE_URL (create-university only; the unicourse_platform role), UNICOURSE_BASE_URL (create-university, seed-demo), UNICOURSE_FILES_DIR (prune-files, seed-demo)
@@ -364,7 +364,7 @@ func pruneFiles(ctx context.Context, args []string, env func(string) string, ope
 			break
 		}
 		err = pg.WithTx(ctx, db, uni, func(tx *sql.Tx) error {
-			r, err := tx.QueryContext(ctx, `select id::text from materials`)
+			r, err := tx.QueryContext(ctx, `select id::text from materials union all select id::text from submission_files`)
 			if err != nil {
 				return err
 			}

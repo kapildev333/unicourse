@@ -12,6 +12,7 @@ import (
 
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
+	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
@@ -376,23 +377,47 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	return http.StatusOK, after, nil
 }
 
-func deleteAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
-	secID := r.PathValue("id")
-	if err := sectionExists(r, tx, secID); err != nil {
-		return 0, nil, err
+func deleteAssessment(files blob.Dir) tenant.Handler {
+	return func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
+		secID := r.PathValue("id")
+		if err := sectionExists(r, tx, secID); err != nil {
+			return 0, nil, err
+		}
+		before, err := loadAssessment(r, tx, secID, r.PathValue("assessmentId"), true)
+		if err != nil {
+			return 0, nil, err
+		}
+		if err := editor(r, tx, s, secID, before.Kind); err != nil {
+			return 0, nil, err
+		}
+		// the cascade removes the submission file rows; their blobs go after the commit
+		ids := []string{}
+		rows, err := tx.QueryContext(r.Context(), `select f.id::text from submission_files f join submissions s on s.id = f.submission_id where s.assessment_id = $1`, before.ID)
+		if err != nil {
+			return 0, nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return 0, nil, err
+			}
+			ids = append(ids, id)
+		}
+		if err := rows.Err(); err != nil {
+			return 0, nil, err
+		}
+		rows.Close()
+		if _, err := tx.ExecContext(r.Context(), `delete from assessments where id = $1`, before.ID); err != nil {
+			return 0, nil, err
+		}
+		if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "assessment.delete", EntityType: "assessment", EntityID: before.ID, Before: before}); err != nil {
+			return 0, nil, err
+		}
+		return http.StatusNoContent, tenant.After(func(w http.ResponseWriter, _ *http.Request) error {
+			files.Discard(s.UniversityID, ids...)
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		}), nil
 	}
-	before, err := loadAssessment(r, tx, secID, r.PathValue("assessmentId"), true)
-	if err != nil {
-		return 0, nil, err
-	}
-	if err := editor(r, tx, s, secID, before.Kind); err != nil {
-		return 0, nil, err
-	}
-	if _, err := tx.ExecContext(r.Context(), `delete from assessments where id = $1`, before.ID); err != nil {
-		return 0, nil, err
-	}
-	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "assessment.delete", EntityType: "assessment", EntityID: before.ID, Before: before}); err != nil {
-		return 0, nil, err
-	}
-	return http.StatusNoContent, nil, nil
 }

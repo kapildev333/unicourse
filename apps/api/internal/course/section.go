@@ -309,9 +309,11 @@ func deleteSection(files blob.Dir) tenant.Handler {
 		if !authz.CanManageDepartment(s, dept) {
 			return 0, nil, httpx.Forbidden()
 		}
-		// the cascade removes the material rows; their files go after the commit
+		// the cascade removes the material and submission file rows; their files go after the commit
 		ids := []string{}
-		rows, err := tx.QueryContext(r.Context(), `select id::text from materials where section_id = $1`, before.ID)
+		rows, err := tx.QueryContext(r.Context(), `select id::text from materials where section_id = $1
+			union all select f.id::text from submission_files f join submissions s on s.id = f.submission_id
+			join assessments a on a.id = s.assessment_id where a.section_id = $1`, before.ID)
 		if err != nil {
 			return 0, nil, err
 		}
