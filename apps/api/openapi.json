@@ -3346,6 +3346,369 @@
           }
         }
       }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions": {
+      "get": {
+        "operationId": "listSubmissions",
+        "summary": "List submissions",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. The assessment must be an assignment, else 404.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/{userId}": {
+      "get": {
+        "operationId": "getSubmission",
+        "summary": "Get a submission",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section for any enrolled or former student; an enrolled student only with me or their own id (else 403). 404 when there is no submission. For a student score, feedback and gradedAt are omitted until the assignment is published.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "$ref": "#/components/parameters/submissionUserId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "gradeSubmission",
+        "summary": "Grade a submission",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller) and audits submission.grade. Errors: score (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <2 x maxPoints>\"), feedback (\"must not be null\", \"must not contain NUL\", \"must be at most 5000 characters\"). userId must be a uuid, else 404.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "$ref": "#/components/parameters/submissionUserId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionGrade"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me": {
+      "put": {
+        "operationId": "putSubmission",
+        "summary": "Write own submission",
+        "description": "Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors: body (\"is required\", \"must not contain NUL\", \"must be at most 20000 characters\", \"a submission needs text or a file\"). Audits submission.update.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me/files": {
+      "post": {
+        "operationId": "uploadSubmissionFile",
+        "summary": "Attach a file to own submission",
+        "description": "Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (see GET /upload-policy), \"invalid multipart upload: <reason>\", \"a submission holds at most 10 files\"). Audits submission.update.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionFileUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/me/files/{fileId}": {
+      "delete": {
+        "operationId": "deleteSubmissionFile",
+        "summary": "Remove a file from own submission",
+        "description": "Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Audits submission.update.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "$ref": "#/components/parameters/fileId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/submissions/{userId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "downloadSubmissionFile",
+        "summary": "Download a submission file",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section; the owning student as me or their own id. Works after closesAt. Always an attachment (Content-Disposition attachment; filename*=UTF-8''...), Content-Type from the file type list, ETag \"<sha256>\", Cache-Control private, no-store, X-Content-Type-Options nosniff, Content-Security-Policy sandbox. Range and If-None-Match are honoured. A file missing on disk is 500.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "$ref": "#/components/parameters/submissionUserId"
+          },
+          {
+            "$ref": "#/components/parameters/fileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Part of the file (Range request).",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified (If-None-Match matched the ETag)."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6147,6 +6510,214 @@
           "allowedExtensions"
         ],
         "additionalProperties": false
+      },
+      "SubmissionFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "essay.pdf"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "application/pdf"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "example": 48213
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T03:30:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "position",
+          "uploadedAt"
+        ]
+      },
+      "Submission": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 20000,
+            "example": "My essay text."
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T03:30:00Z",
+            "description": "The student's last write (text or file)."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubmissionFile"
+            },
+            "maxItems": 10,
+            "description": "By position; [] when there are none."
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "example": 87.5,
+            "description": "Omitted until graded; for a student also omitted until the assignment is published."
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Staff always get it (\"\" until graded); a student only once the assignment is published."
+          },
+          "gradedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T03:30:00Z",
+            "description": "Omitted until graded; for a student also omitted until published."
+          }
+        },
+        "required": [
+          "userId",
+          "body",
+          "submittedAt",
+          "files"
+        ]
+      },
+      "SubmissionRow": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "stud@example.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Sam Student"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T03:30:00Z"
+          },
+          "fileCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "example": 2
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "example": 87.5,
+            "description": "Omitted until graded."
+          },
+          "gradedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-21T03:30:00Z",
+            "description": "Omitted until graded."
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "submittedAt",
+          "fileCount"
+        ]
+      },
+      "SubmissionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubmissionRow"
+            },
+            "description": "Submissions of students still enrolled, ordered by display name (email when blank), then email."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SubmissionUpdate": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 20000,
+            "example": "My essay text.",
+            "description": "Trimmed; may be empty when the submission holds a file."
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "SubmissionGrade": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "example": 87.5,
+            "description": "0 to 2 x the assignment's maxPoints, at most 2 decimals."
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Omitted keeps the stored text; null is rejected."
+          }
+        },
+        "required": [
+          "score"
+        ],
+        "additionalProperties": false
+      },
+      "SubmissionFileUpload": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "One file, 1 byte to the upload limit; extension as listed by GET /upload-policy."
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {
@@ -6356,6 +6927,24 @@
       },
       "materialId": {
         "name": "materialId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "submissionUserId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "A user id, or me for the caller."
+      },
+      "fileId": {
+        "name": "fileId",
         "in": "path",
         "required": true,
         "schema": {

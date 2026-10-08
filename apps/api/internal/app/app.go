@@ -2,6 +2,7 @@
 package app
 
 import (
+	"github.com/kapildev333/unicourse/apps/api/internal/assignment"
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/content"
@@ -29,5 +30,6 @@ func NewRouter(deps Deps) *httpx.Router {
 	course.Register(r, td)
 	grade.Register(r, td)
 	content.Register(r, td)
+	assignment.Register(r, td)
 	return r
 }
