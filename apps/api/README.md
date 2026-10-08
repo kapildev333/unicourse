@@ -57,7 +57,7 @@ Environment only. A missing required variable fails startup with the list of wha
 | Variable | Required | Meaning |
 |---|---|---|
 | `UNICOURSE_DATABASE_URL` | yes | Postgres connection string for the API role `unicourse` (not the owner) |
-| `UNICOURSE_OWNER_DATABASE_URL` | CLI | Postgres connection string for the owner role `unicourse_owner`; used by `unicourse-admin` (all commands), never set it for the API process |
+| `UNICOURSE_OWNER_DATABASE_URL` | CLI | Postgres connection string for the owner role `unicourse_owner`; used by `unicourse-admin` (all commands except create-university when the platform URL is set), never set it for the API process |
 | `UNICOURSE_BASE_URL` | yes | public URL of the API (OAuth redirects, magic links) |
 | `UNICOURSE_SESSION_SECRET` | yes | secret for session and token signing, at least 32 bytes |
 | `UNICOURSE_FILES_DIR` | yes | existing writable directory for uploaded material files, laid out `<university_id>/<material_id>` (temp uploads in `<university_id>/.tmp/`); every API process must mount the same directory; back it up together with the database. Locally `apps/api/data/files` (gitignored) |
@@ -71,17 +71,21 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_OUTBOX_SENDERS` | no | mail sender goroutines per API process, 1 to 10, default 1; each holds a database connection while it talks to SMTP |
 | `UNICOURSE_MAX_UPLOAD_BYTES` | no | largest material file in bytes, default 104857600 (100 MB); the web reads it from GET /api/v1/upload-policy |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests, as the API role |
+| `UNICOURSE_PLATFORM_DATABASE_URL` | CLI | connection string for role `unicourse_platform`; `unicourse-admin create-university` uses it when set (else the owner URL). The role cannot migrate or read tenant data outside the university being created |
+| `UNICOURSE_TEST_PLATFORM_DATABASE_URL` | tests | the platform role on the test database; default: the test owner URL with user and password `unicourse_platform` |
 | `UNICOURSE_TEST_OWNER_DATABASE_URL` | tests | the same database as the owner role (migrates and truncates) |
 
 ## Database roles and migrations
 
 - Migrations run as `unicourse_owner` (`unicourse-admin migrate`). Tables and sequences a migration creates are granted to the API role automatically (default privileges set in `0004_role_split.sql`); anything else the API needs (a new schema, a function with revoked EXECUTE) is granted in that migration.
+- Three roles: `unicourse_owner` runs `migrate`, `prune-files`, `seed-demo` (and `create-university` when no platform URL is set); `unicourse_platform` runs `create-university` only (grants in `0009_platform_role.sql`); `unicourse` is the API process. `0009` stops with the statement to run when `unicourse_platform` is missing.
 - Deploy order: migrate first, then roll the binaries. Every migration must work with the previous binary (expand, then contract in a later migration). A binary refuses to start, and `/readyz` fails, only when an embedded migration is missing from the database; a database ahead of the binary is fine.
 - Production, once, as the database administrator:
 
 ```sql
 create role unicourse_owner login password '<secret>' nosuperuser nobypassrls nocreatedb;
 create role unicourse login password '<secret>' nosuperuser nobypassrls nocreatedb;
+create role unicourse_platform login password '<secret>' nosuperuser nobypassrls nocreatedb;
 create database unicourse owner unicourse_owner;
 ```
 
@@ -90,6 +94,7 @@ create database unicourse owner unicourse_owner;
 
 ```sql
 create role unicourse_owner login password 'unicourse_owner' nosuperuser nobypassrls nocreatedb; -- skip this line if the role already exists
+create role unicourse_platform login password 'unicourse_platform' nosuperuser nobypassrls nocreatedb; -- skip this line if the role already exists
 \c unicourse
 reassign owned by unicourse to unicourse_owner;
 \c unicourse_test
