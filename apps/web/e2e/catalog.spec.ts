@@ -62,7 +62,7 @@ test('E-CATALOG-03 no match for a search', async ({ browser }) => {
 test('E-CATALOG-04 the viewer\'s own sections are badged', async ({ browser }) => {
   let page = await pageAs(browser, P.amara.email, slug)
   await page.goto(`/${slug}/catalog`)
-  await expect(showing(page, 5)).toBeVisible()
+  await expect(showing(page, 5), 'student, Catalog: Showing 5 sections').toBeVisible()
   for (const code of ['CS101-001', 'CS210-001', 'MATH201-001'])
     await expect(card(page, demoTerm, code), `student, Catalog: ${code} Enrolled`).toContainText('Enrolled')
   for (const code of ['ECON110-001', 'BIO150-001'])
