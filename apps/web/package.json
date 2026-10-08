@@ -12,6 +12,7 @@
     "test": "vitest --exclude \"e2e/**\" --exclude \"node_modules/**\" --exclude \"dist/**\"",
     "generate": "openapi-typescript ../api/openapi.json -o src/api/types.ts",
     "postman": "node scripts/postman.mjs ../api/openapi.json ../../docs/postman/unicourse.postman_collection.json",
+    "two-origin-check": "node scripts/two-origin-check.mjs",
     "e2e": "playwright test --project=chromium",
     "screens": "playwright test --project=screens"
   },

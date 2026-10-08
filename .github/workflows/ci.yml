@@ -94,3 +94,65 @@ jobs:
             apps/web/test-results
             apps/web/e2e/.tmp/api.log
           if-no-files-found: ignore
+  dev-setup:
+    needs: [api, web]
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      UNICOURSE_DATABASE_URL: postgres://unicourse:unicourse@localhost:5432/unicourse_e2e?sslmode=disable
+      UNICOURSE_OWNER_DATABASE_URL: postgres://unicourse_owner:unicourse_owner@localhost:5432/unicourse_e2e?sslmode=disable
+      UNICOURSE_BASE_URL: http://localhost:8080
+      UNICOURSE_WEB_ORIGIN: http://localhost:5173
+      UNICOURSE_SESSION_SECRET: ci-session-secret-at-least-32-bytes-long
+      UNICOURSE_SMTP_URL: ''
+    steps:
+      - uses: actions/checkout@v7
+      - id: present
+        run: test -f apps/api/go.mod && test -f apps/web/scripts/two-origin-check.mjs && echo present=true >> "$GITHUB_OUTPUT" || echo "two-origin check not present yet"
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-go@v7
+        with: { go-version-file: apps/api/go.mod, cache-dependency-path: apps/api/go.sum }
+      - if: steps.present.outputs.present == 'true'
+        uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - if: steps.present.outputs.present == 'true'
+        name: create roles and databases
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f apps/api/docker/initdb.sql
+      - if: steps.present.outputs.present == 'true'
+        name: build, migrate, start the API and the Vite dev server
+        run: |
+          mkdir -p "$RUNNER_TEMP/files"
+          export UNICOURSE_FILES_DIR="$RUNNER_TEMP/files"
+          (cd apps/api && go build -o "$RUNNER_TEMP/api" ./cmd/api && go build -o "$RUNNER_TEMP/admin" ./cmd/unicourse-admin)
+          "$RUNNER_TEMP/admin" migrate
+          nohup "$RUNNER_TEMP/api" > "$RUNNER_TEMP/api.log" 2>&1 &
+          (cd apps/web && npm ci && nohup npm run dev > "$RUNNER_TEMP/vite.log" 2>&1 &)
+          for i in $(seq 60); do
+            curl -s -o /dev/null http://localhost:8080/ && curl -s -o /dev/null http://localhost:5173/ && exit 0
+            sleep 1
+          done
+          echo "API or Vite dev server did not come up" >&2
+          exit 1
+      - if: steps.present.outputs.present == 'true'
+        name: two-origin sign-in check
+        working-directory: apps/web
+        env:
+          API_LOG: ${{ runner.temp }}/api.log
+          ADMIN_BIN: ${{ runner.temp }}/admin
+        run: npm run two-origin-check
+      - if: always() && steps.present.outputs.present == 'true'
+        run: pkill -f "$RUNNER_TEMP/api" || true; pkill -f vite || true
+      - if: failure() && steps.present.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-setup-failure
+          path: |
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/vite.log
+          if-no-files-found: ignore
