@@ -739,7 +739,7 @@ export interface paths {
         put?: never;
         /**
          * Create assessment
-         * @description Who: admin, dept_admin (own departments), instructor of the section. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.
+         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.
          */
         post: operations["createAssessment"];
         delete?: never;
@@ -760,14 +760,14 @@ export interface paths {
         post?: never;
         /**
          * Delete assessment
-         * @description Who: admin, dept_admin (own departments), instructor of the section. Deletes its scores too; final grades do not change.
+         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Deletes its scores too; final grades do not change.
          */
         delete: operations["deleteAssessment"];
         options?: never;
         head?: never;
         /**
          * Update assessment
-         * @description Who: admin, dept_admin (own departments), instructor of the section. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.
+         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.
          */
         patch: operations["updateAssessment"];
         trace?: never;

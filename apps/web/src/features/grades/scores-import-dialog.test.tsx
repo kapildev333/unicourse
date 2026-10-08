@@ -6,7 +6,7 @@ import { ScoresImportDialog } from './scores-import-dialog'
 afterEach(() => vi.unstubAllGlobals())
 
 const base = '/universities/a/sections/s1/assessments'
-const asm = (id: string, name: string) => ({ id, sectionId: 's1', name, maxPoints: 40, weight: 40, published: false, position: 1 })
+const asm = (id: string, name: string) => ({ id, sectionId: 's1', kind: 'manual' as const, name, description: '', maxPoints: 40, weight: 40, published: false, position: 1 })
 const counts = (add: number, update: number, error: number) => ({ add, update, exists: 0, error })
 const row = (line: number, action: string, extra: object = {}) => ({
   line,
