@@ -13,3 +13,4 @@ create table rate_buckets (
   primary key (bucket, client_key)
 );
 create index on rate_buckets (expires_at);
+create trigger rate_buckets_set_updated_at before update on rate_buckets for each row execute function set_updated_at();

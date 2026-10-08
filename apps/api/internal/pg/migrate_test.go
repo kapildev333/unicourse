@@ -37,8 +37,8 @@ func TestMigrate(t *testing.T) {
 	}
 	var tables int
 	db.QueryRow(`select count(*) from pg_tables where schemaname = 'public' and tablename <> 'schema_migrations'`).Scan(&tables)
-	if tables != 25 {
-		t.Fatalf("%d tables, want 25", tables)
+	if tables != 26 {
+		t.Fatalf("%d tables, want 26", tables)
 	}
 	rows, err := db.Query(`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'university_id' and table_name <> 'universities'`)
 	if err != nil {
