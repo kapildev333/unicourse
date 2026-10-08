@@ -1,9 +1,12 @@
 package quiz
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 	"testing"
+
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 // submitted starts and submits stud's attempt with both answers right (5.25) and returns the quiz and question ids.
@@ -73,7 +76,7 @@ func TestReviewRecompute(t *testing.T) {
 	// the published student sees the new points and feedback
 	st, b = e.call(e.Stud, "GET", e.review(id, "stud"), nil)
 	m = jmap(t, b)
-	if st != 200 || m["score"].(float64) != 5.25 || m["feedback"] != "Good work\nkeep going" || !strings.Contains(b, "half") {
+	if st != 200 || m["score"].(float64) != 5.25 || m["feedback"] != "Good work\nkeep going" || !strings.Contains(string(b), "half") {
 		t.Fatalf("student %d %s", st, b)
 	}
 	// feedback alone, and clearing it
@@ -100,7 +103,7 @@ func TestReviewBounds(t *testing.T) {
 			t.Errorf("%s: fields %v", field, f)
 		}
 	}
-	if st, b := e.raw(e.Inst, "PATCH", p, map[string]any{"grading": map[string]any{qs[0]: map[string]any{"points": json3()}}}); st != 400 {
+	if st, b := e.raw(e.Inst, "PATCH", p, map[string]any{"grading": map[string]any{qs[0]: map[string]any{"points": 1.005}}}); st != 400 {
 		t.Errorf("3 decimals %d %s", st, b)
 	}
 	if st, b := e.raw(e.Inst, "PATCH", p, map[string]any{}); st != 400 || !strings.Contains(b, "no fields to update") {
@@ -117,9 +120,6 @@ func TestReviewBounds(t *testing.T) {
 		t.Fatalf("changed by a rejected review: %s", score)
 	}
 }
-
-// json3 is a number with three decimals (the body encoder would print 1.005 as is).
-func json3() float64 { return 1.005 }
 
 func TestReviewUnsubmitted(t *testing.T) {
 	e := newEnv(t)
@@ -166,8 +166,12 @@ func TestAttemptsList(t *testing.T) {
 	}
 	e.submitFor("stud2", id, qs)
 	e.call(e.Stud, "POST", e.apath(id), nil)
-	// a started attempt of a student who left the section is not listed
-	e.call(e.Other, "POST", e.apath(id), nil)
+	// an attempt of a user who is not enrolled (left the section) is not listed
+	e.attempt(id, "other@a.edu", false)
+	pg.WithPlatformTx(context.Background(), e.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update users set display_name = case email when 'stud@a.edu' then 'Zed' else 'Amy' end where email in ('stud@a.edu', 'stud2@a.edu')`)
+		return err
+	})
 	st, b := e.call(e.TA, "GET", e.apath(id), nil)
 	if st != 200 {
 		t.Fatalf("%d %s", st, b)
@@ -176,12 +180,8 @@ func TestAttemptsList(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("rows %s", b)
 	}
-	// "N stud2@a.edu" sorts after "N stud@a.edu"? ' ' < '@' ... compare as the query does
 	first, second := items[0].(map[string]any), items[1].(map[string]any)
-	if first["email"] != "stud2@a.edu" && first["email"] != "stud@a.edu" || first["displayName"] == nil || first["startedAt"] == nil {
-		t.Fatalf("row %v", first)
-	}
-	if first["displayName"].(string) > second["displayName"].(string) {
+	if first["email"] != "stud2@a.edu" || second["email"] != "stud@a.edu" || first["displayName"] != "Amy" || first["startedAt"] == nil {
 		t.Fatalf("order %s", b)
 	}
 	byEmail := map[string]map[string]any{first["email"].(string): first, second["email"].(string): second}

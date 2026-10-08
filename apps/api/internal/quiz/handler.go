@@ -20,6 +20,8 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("POST", base+"/sections/{id}/assessments/{assessmentId}/attempts", tenant.Wrap(d, startAttempt))
 	r.Handle("GET", base+"/sections/{id}/assessments/{assessmentId}/attempts/{userId}", tenant.Wrap(d, getAttempt))
 	r.Handle("PUT", base+"/sections/{id}/assessments/{assessmentId}/attempts/me", tenant.Wrap(d, putAttempt))
+	r.Handle("GET", base+"/sections/{id}/assessments/{assessmentId}/attempts", tenant.Wrap(d, listAttempts))
+	r.Handle("PATCH", base+"/sections/{id}/assessments/{assessmentId}/attempts/{userId}", tenant.Wrap(d, reviewAttempt))
 }
 
 // sectionExists is the 404 of the check order (RLS hides other universities' sections).
