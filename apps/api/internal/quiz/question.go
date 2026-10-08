@@ -254,7 +254,7 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		TotalPoints   string `json:"totalPoints"`
 	}
 	var before summary
-	if err := tx.QueryRowContext(r.Context(), `select count(*), coalesce(sum(points), 0)::text from questions where assessment_id = $1`, w.ID).Scan(&before.QuestionCount, &before.TotalPoints); err != nil {
+	if err := tx.QueryRowContext(r.Context(), `select count(*), coalesce(sum(points), 0.00)::text from questions where assessment_id = $1`, w.ID).Scan(&before.QuestionCount, &before.TotalPoints); err != nil {
 		return 0, nil, err
 	}
 	if _, err := tx.ExecContext(r.Context(), `delete from questions where assessment_id = $1`, w.ID); err != nil {

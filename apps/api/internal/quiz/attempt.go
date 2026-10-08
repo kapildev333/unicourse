@@ -77,7 +77,7 @@ func startAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err := sectionExists(r, tx, secID); err != nil {
 		return 0, nil, err
 	}
-	w, err := loadWork(r, tx, secID, r.PathValue("assessmentId"), "quiz", "")
+	w, err := loadWork(r, tx, secID, r.PathValue("assessmentId"), "quiz", "for share")
 	if err != nil {
 		return 0, nil, err
 	}

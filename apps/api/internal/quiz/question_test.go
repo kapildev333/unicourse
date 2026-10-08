@@ -312,9 +312,9 @@ func TestQuestionsStudentWindow(t *testing.T) {
 		t.Errorf("submitted, published %d %s", st, b)
 	}
 	// an unsubmitted attempt on a closed quiz is still 409 until the sweeper submits it
-	e.attempt(up, "stud2@a.edu", false)
-	if st, _ := e.raw(e.Stud2, "GET", e.qpath(up), nil); st != 409 {
-		t.Errorf("unsubmitted %d", st)
+	e.attempt(closed, "stud2@a.edu", false)
+	if st, b := e.raw(e.Stud2, "GET", e.qpath(closed), nil); st != 409 || !strings.Contains(b, "closed") {
+		t.Errorf("unsubmitted %d %s", st, b)
 	}
 }
 
