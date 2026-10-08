@@ -219,3 +219,13 @@ func listScores(ctx context.Context, tx *sql.Tx, a Assessment) ([]Score, error) 
 	}
 	return out, rows.Err()
 }
+
+// UpsertScore sets the scores row of (assessmentID, userID) to points, a canonical 2-decimal string,
+// with graded_by and graded_at = now(). It writes no audit row: callers audit their own action
+// (attempt.submit, attempt.review, submission.grade). It never deletes.
+func UpsertScore(ctx context.Context, tx *sql.Tx, universityID, assessmentID, userID, points, gradedBy string) error {
+	_, err := tx.ExecContext(ctx, `insert into scores (university_id, assessment_id, user_id, points, graded_by) values ($1, $2, $3, $4::numeric, $5)
+		on conflict (university_id, assessment_id, user_id) do update set points = excluded.points, graded_by = excluded.graded_by, graded_at = now()`,
+		universityID, assessmentID, userID, points, gradedBy)
+	return err
+}
