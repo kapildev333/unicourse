@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
-import { api, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
+import { H, api, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
 
 const slug = `e2e-cnt-${runId}`
 const P = personas(slug)
@@ -67,6 +67,7 @@ test('E-CONTENT-03 announcement validation, posting without email', async ({ bro
   await dlg.getByLabel('Also email everyone in this section').uncheck()
   await dlg.getByRole('button', { name: 'Post announcement' }).click()
   await expect(status(page, 'Announcement posted. No email was sent.'), 'instructor, Announcements: no-email notice').toBeVisible()
+  await expect(article(page, 'Quiz moved'), 'instructor, Announcements: new announcement shown').toBeVisible()
   await expect(article(page, 'Quiz moved').getByText('Emailed'), 'instructor, Announcements: no Emailed marker').toHaveCount(0)
   await page.context().close()
 })
@@ -91,7 +92,7 @@ test('E-CONTENT-05 week rename, reorder, delete', async ({ browser }) => {
   const w2 = await api(page, 'post', W, { title: 'Week 2: Trees' })
   await api(page, 'post', W, { title: 'Week 3: Graphs' })
   const up = await page.request.post(`${W}/${w2.id}/materials`, {
-    headers: { 'Sec-Fetch-Site': 'same-origin' },
+    headers: H,
     multipart: { file: { name: 'syllabus.pdf', mimeType: 'application/pdf', buffer: fs.readFileSync(pdf) } },
   })
   expect(up.status(), 'instructor, upload to Week 2').toBe(201)
@@ -168,9 +169,9 @@ test('E-CONTENT-07 a disallowed file type is refused, the rest uploads', async (
   await expect(page.getByRole('link', { name: 'Download syllabus.pdf' }), 'instructor, Materials: uploaded file').toBeVisible()
 
   const weeks = await api(page, 'get', `${A}/sections/${ids['CS210-001']}/weeks`)
-  const w1 = (weeks.items ?? weeks).find((w: { title: string }) => w.title === 'Week 1: Arrays and linked lists')
+  const w1 = weeks.items.find((w: { title: string }) => w.title === 'Week 1: Arrays and linked lists')
   const res = await page.request.post(`${A}/sections/${ids['CS210-001']}/weeks/${w1.id}/materials`, {
-    headers: { 'Sec-Fetch-Site': 'same-origin' },
+    headers: H,
     multipart: { file: { name: 'diagram.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') } },
   })
   expect(res.status(), 'instructor, API: svg refused').toBe(400)
@@ -192,7 +193,7 @@ test('E-CONTENT-08 description limit; department admin edits own department only
   await expect(page.getByText('Updated by the department.'), 'department admin, Home: new description').toBeVisible()
 
   await at(page, 'ECON110-001')
-  await expect(page.getByRole('heading', { level: 1 }), 'department admin, ECON110 Home: loaded').toBeVisible()
+  await expect(page.getByRole('heading', { name: 'About this section' }), 'department admin, ECON110 Home: loaded').toBeVisible()
   await expect(page.getByRole('button', { name: 'Edit description' }), 'department admin, ECON110 Home: no edit').toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Add description' }), 'department admin, ECON110 Home: no add').toHaveCount(0)
   await page.context().close()
@@ -202,8 +203,7 @@ test('E-CONTENT-09 a student cannot write content', async ({ browser }) => {
   const page = await pageAs(browser, P.amara.email, slug)
   const S = `${A}/sections/${ids['CS101-001']}`
   const list = await api(page, 'get', `${S}/announcements`)
-  const office = (list.items ?? list).find((a: { title: string }) => a.title === 'TA office hours')
-  const H = { 'Sec-Fetch-Site': 'same-origin' }
+  const office = list.items.find((a: { title: string }) => a.title === 'TA office hours')
   const patch = await page.request.patch(`${S}/announcements/${office.id}`, { headers: H, data: { title: 'x' } })
   expect(patch.status(), 'student, API: edit announcement').toBe(403)
   const post = await page.request.post(`${S}/weeks`, { headers: H, data: { title: 'x' } })
