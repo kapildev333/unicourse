@@ -49,7 +49,7 @@ Rules that span these files:
 - One directory has one owner at a time, and only one integration suite runs at a time (orchestrator included).
 - The orchestrator verifies every landing itself (re-run suites, then exercise the real database/HTTP/browser) and records the evidence in the lane's status cell. A lane's own report is never verification.
 - The orchestrator does not write features itself while a lane could.
-- Nothing lands on `main` except through a pull request with green `ci`. GitHub does not enforce this server-side yet (branch protection and rulesets need GitHub Pro or a public repo), so the rule is process-enforced by the orchestrator; enable protection with required checks `api` and `web`, linear history and admins included as soon as the plan allows.
+- Nothing lands on `main` except through a pull request with green `ci`. While PLAN.md D146 holds (GitHub billing blocks Actions, 2026-10-08) the `ci` workflow is disabled and the orchestrator's local gates (Go suite, web gates, e2e) replace it, pasted on each PR; re-enable with `gh workflow enable ci.yml` when billing is fixed. GitHub does not enforce this server-side yet (branch protection and rulesets need GitHub Pro or a public repo), so the rule is process-enforced by the orchestrator; enable protection with required checks `api` and `web`, linear history and admins included as soon as the plan allows.
 
 ## Git and GitHub
 
