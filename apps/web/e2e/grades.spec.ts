@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
+import { demoTerm, expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
 
 const slug = `e2e-grd-${runId}`
 const P = personas(slug)
@@ -13,7 +13,7 @@ test.beforeAll(() => {
 async function gradebook(page: Page, code: string) {
   if (!ids[code]) ids = await sectionIds(page, slug)
   await page.goto(`/${slug}/sections/${ids[code]}/grades`)
-  await expect(page.getByRole('heading', { name: 'Gradebook' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Gradebook' }), 'gradebook page: heading').toBeVisible()
 }
 
 const row = (page: Page, name: string) => page.getByRole('row', { name: new RegExp(name) })
@@ -49,18 +49,18 @@ test('E-GRADES-01 assessment create, edit, delete; weights block Finalize', asyn
   const res = await page.request.post(`${A}/sections/${ids['CS210-001']}/final-grades`, { data: {} })
   expect(res.status(), 'elena, CS210 API: finalize with weights 110').toBe(400)
   const body = await res.json()
-  expect(body.error.code).toBe('validation_failed')
+  expect(body.error.code, 'elena, CS210 API: error code').toBe('validation_failed')
   expect(body.error.details.some((d: { field: string }) => d.field === 'weights'), 'elena, CS210 API: weights detail').toBeTruthy()
 
   await page.getByRole('button', { name: 'Edit Quiz 1' }).click()
-  const edit = page.getByRole('dialog')
+  const edit = page.getByRole('dialog', { name: 'Edit Quiz 1' })
   await edit.getByLabel('Weight').fill('0')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(status(page, 'Quiz 1 saved.'), 'elena, CS210 gradebook: saved notice').toBeVisible()
   await expect(page.getByRole('button', { name: 'Finalize grades' }), 'elena, CS210 gradebook: Finalize enabled').toBeEnabled()
 
   await page.getByRole('button', { name: 'Edit Quiz 1' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete assessment' }).click()
+  await page.getByRole('dialog', { name: 'Edit Quiz 1' }).getByRole('button', { name: 'Delete assessment' }).click()
   const del = page.getByRole('dialog', { name: 'Delete Quiz 1?' })
   await expect(del.getByText("Delete Quiz 1? Its 0 scores are deleted too. This can't be undone."), 'elena, CS210 Delete dialog: copy').toBeVisible()
   await del.getByRole('button', { name: 'Delete', exact: true }).click()
@@ -77,7 +77,7 @@ test('E-GRADES-02 score cell validation, bonus, blank', async ({ browser }) => {
   await mid.fill('abc')
   await mid.blur()
   await expect(mei.getByText('Enter a number like 42 or 42.5.'), 'david, ECON110 gradebook: non-number').toBeVisible()
-  await expect(mid).toHaveAttribute('aria-invalid', 'true')
+  await expect(mid, 'david, ECON110 gradebook: cell invalid').toHaveAttribute('aria-invalid', 'true')
 
   await mid.fill('250')
   await mid.blur()
@@ -104,7 +104,7 @@ test('E-GRADES-03 scores CSV preview errors and commit', async ({ browser }) => 
   const dlg = page.getByRole('dialog', { name: 'Import scores' })
   await dlg.getByLabel('Assessment').selectOption({ label: 'Final Exam' })
   const csv = (rows: string[]) => ({ name: 'scores.csv', mimeType: 'text/csv', buffer: Buffer.from(['email,points', ...rows].join('\n') + '\n') })
-  await dlg.locator('input[type=file]').setInputFiles(csv([`nobody@nowhere-${runId}.test,10`, `${P.jonas.email},10`, `${P.priya.email},abc`]))
+  await dlg.getByLabel('CSV file').setInputFiles(csv([`nobody@nowhere-${runId}.test,10`, `${P.jonas.email},10`, `${P.priya.email},abc`]))
 
   await expect(dlg.getByText('3 rows checked: 0 to add, 0 to update, 0 unchanged, 3 with errors.'), 'david, BIO150 Import scores: summary').toBeVisible()
   await expect(dlg.getByRole('cell', { name: 'unknown email' }), 'david, BIO150 Import scores: unknown email').toBeVisible()
@@ -113,7 +113,7 @@ test('E-GRADES-03 scores CSV preview errors and commit', async ({ browser }) => 
   await expect(dlg.getByRole('button', { name: 'Import 0 scores' }), 'david, BIO150 Import scores: disabled').toBeDisabled()
   await expect(dlg.getByText('Fix the 3 rows with errors and choose the file again.'), 'david, BIO150 Import scores: hint').toBeVisible()
 
-  await dlg.locator('input[type=file]').setInputFiles(csv([`${P.priya.email},99.5`, `${P.daniel.email},12.25`]))
+  await dlg.getByLabel('CSV file').setInputFiles(csv([`${P.priya.email},99.5`, `${P.daniel.email},12.25`]))
   await dlg.getByRole('button', { name: 'Import 2 scores' }).click()
   await expect(status(page, 'Scores imported for Final Exam: 0 added, 2 updated.'), 'david, BIO150 gradebook: import notice').toBeVisible()
   await expect(cell(page, 'Priya Raman', 'Final Exam'), 'david, BIO150 gradebook: imported value').toHaveValue('99.5')
@@ -126,7 +126,7 @@ test('E-GRADES-04 publish and unpublish, what the student sees', async ({ browse
   await gradebook(david, 'BIO150-001')
   const box = david.getByRole('checkbox', { name: 'Published Lab Practical' })
   await box.click()
-  await expect(box).not.toBeChecked()
+  await expect(box, 'david, BIO150 gradebook: Lab Practical unchecked').not.toBeChecked()
   await expect(status(david, 'Lab Practical unpublished. Students no longer see its scores.'), 'david, BIO150 gradebook: unpublished').toBeVisible()
 
   await priya.goto(`/${slug}/grades`)
@@ -191,7 +191,7 @@ test('E-GRADES-05 finalize with an override, change a final grade, reopen', asyn
 test('E-GRADES-06 My grades with an Incomplete and no GPA yet', async ({ browser }) => {
   const page = await pageAs(browser, P.lucas.email, slug)
   await page.goto(`/${slug}/grades`)
-  await expect(page.getByRole('heading', { name: 'My grades' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My grades' }), 'lucas, My grades: heading').toBeVisible()
   await expect(page.getByText('Your GPA appears once a section has a final grade.'), 'lucas, My grades: GPA hint').toBeVisible()
   await expect(page.getByText('Counts finalized sections only. 7.0 credits in progress.'), 'lucas, My grades: credits').toBeVisible()
   await expect(page.getByText('No term GPA yet'), 'lucas, My grades: term GPA').toBeVisible()
@@ -214,8 +214,8 @@ test('E-GRADES-07 what a TA may do', async ({ browser }) => {
   }
   await expect(page.getByRole('checkbox', { name: /^Published/ }), 'sofia, CS101 gradebook: no publish checkbox').toHaveCount(0)
   await expect(page.getByText('Published').first(), 'sofia, CS101 gradebook: Published badge').toBeVisible()
-  await expect(page.getByRole('button', { name: 'Import scores' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Export CSV' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Import scores' }), 'sofia, CS101 gradebook: Import scores').toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export CSV' }), 'sofia, CS101 gradebook: Export CSV').toBeVisible()
   await expect(page.getByText('Final grades are recorded. Score changes do not change them until an instructor reopens grades.'), 'sofia, CS101 gradebook: finalized note').toBeVisible()
 
   const c = cell(page, 'Amara Okafor', 'Final Exam')
@@ -224,7 +224,7 @@ test('E-GRADES-07 what a TA may do', async ({ browser }) => {
   await expect(row(page, 'Amara Okafor').getByText('Saved'), 'sofia, CS101 gradebook: score saved').toBeVisible()
 
   const [d] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export CSV' }).click()])
-  expect(d.suggestedFilename()).toBe('CS101-001-gradebook.csv')
+  expect(d.suggestedFilename(), 'sofia, CS101 gradebook: export file name').toBe('CS101-001-gradebook.csv')
 
   const a = await page.request.post(`${A}/sections/${ids['CS101-001']}/assessments`, { data: { name: 'X', maxPoints: 10, weight: 0 } })
   expect(a.status(), 'sofia, CS101 API: create assessment').toBe(403)
@@ -239,8 +239,9 @@ test('E-GRADES-08 a student never reaches the gradebook', async ({ browser }) =>
   await page.goto(`/${slug}/sections/${ids['CS101-001']}`)
   await expect(page.getByRole('navigation', { name: 'Section pages' }).getByRole('link'), 'amara, CS101 section: tabs').toHaveText(['Home', 'Announcements', 'Materials', 'Participants'])
   await page.goto(`/${slug}/me`)
-  const list = page.getByRole('list', { name: `My sections in ${new Date().getFullYear() ? `Academic Year ${new Date().getFullYear()}` : ''}` })
-  await expect(list.getByRole('listitem').filter({ hasText: 'CS101-001' }).getByRole('link', { name: 'Gradebook' }), 'amara, My sections: no Gradebook link').toHaveCount(0)
+  const card = page.getByRole('list', { name: `My sections in ${demoTerm}` }).getByRole('listitem').filter({ hasText: 'CS101-001' })
+  await expect(card, 'amara, My sections: CS101-001 card').toBeVisible()
+  await expect(card.getByRole('link', { name: 'Gradebook' }), 'amara, My sections: no Gradebook link').toHaveCount(0)
   await page.context().close()
 })
 
@@ -270,9 +271,8 @@ test('E-GRADES-12 gradebook at phone width', async ({ browser }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await gradebook(page, 'CS101-001')
   await expectNoSideScroll(page, 'elena, CS101 gradebook')
-  // the cell sits below the 844 px fold; scrolling the page down must bring it fully into view horizontally too
-  await cell(page, 'Amara Okafor', 'Midterm Exam').scrollIntoViewIfNeeded()
-  await expect(cell(page, 'Amara Okafor', 'Midterm Exam'), 'elena, CS101 gradebook: first score cell in view').toBeInViewport()
+  const b = await cell(page, 'Amara Okafor', 'Midterm Exam').boundingBox()
+  expect(b!.x + b!.width, 'elena, CS101 gradebook: first score cell fits at 390').toBeLessThanOrEqual(390)
   await page.context().close()
 })
 
@@ -280,7 +280,7 @@ test('E-GRADES-12 gradebook at phone width', async ({ browser }) => {
 test('E-GRADES-10 grade scale editor: validation, preset, save, snapshot', async ({ browser }) => {
   const page = await pageAs(browser, P.admin.email, slug)
   await page.goto(`/${slug}/grade-scale`)
-  await expect(page.getByRole('heading', { name: 'Grade scale' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Grade scale' }), 'admin, Grade scale: heading').toBeVisible()
   await page.getByRole('button', { name: 'Add row' }).click()
   await expect(page.getByText('Unsaved changes'), 'admin, Grade scale: unsaved').toBeVisible()
   await page.getByRole('button', { name: 'Save scale' }).click()
@@ -299,12 +299,12 @@ test('E-GRADES-10 grade scale editor: validation, preset, save, snapshot', async
   await page.getByRole('button', { name: 'Discard changes' }).click()
 
   await page.getByRole('button', { name: 'Load Canadian preset' }).click()
-  await expect(page.getByRole('textbox', { name: 'Letter, row 1', exact: true })).toHaveValue('A+')
+  await expect(page.getByRole('textbox', { name: 'Letter, row 1', exact: true }), 'admin, Grade scale: Canadian row 1').toHaveValue('A+')
   await page.getByRole('button', { name: 'Save scale' }).click()
   await expect(status(page, 'Grade scale saved. Final grades already recorded keep their letters.'), 'admin, Grade scale: saved').toBeVisible()
 
   await gradebook(page, 'CS101-001')
-  await expect(row(page, 'Amara Okafor'), 'admin, CS101 gradebook: snapshot letter').toContainText(/\bB\b/)
+  await expect(row(page, 'Amara Okafor').getByText('B', { exact: true }), 'admin, CS101 gradebook: snapshot letter').toBeVisible()
 
   await page.goto(`/${slug}/grade-scale`)
   await page.getByRole('button', { name: 'Load US preset' }).click()
