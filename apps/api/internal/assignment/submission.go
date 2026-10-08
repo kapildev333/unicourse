@@ -216,18 +216,18 @@ func putSubmission(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if utf8.RuneCountInString(body) > maxBody {
 		return 0, nil, bad("must be at most 20000 characters")
 	}
-	var files int
-	if err := tx.QueryRowContext(ctx, `select count(*) from submission_files f join submissions s on s.id = f.submission_id
-		where s.assessment_id = $1 and s.user_id = $2`, w.ID, s.UserID).Scan(&files); err != nil {
-		return 0, nil, err
-	}
-	if body == "" && files == 0 {
-		return 0, nil, bad("a submission needs text or a file")
-	}
+	// upsert first: it locks the row, so the file count below cannot race a file delete; the 400 rolls it back
 	if _, err := tx.ExecContext(ctx, `insert into submissions (university_id, assessment_id, user_id, body) values ($1, $2, $3, $4)
 		on conflict (university_id, assessment_id, user_id) do update set body = excluded.body, submitted_at = now()`,
 		s.UniversityID, w.ID, s.UserID, body); err != nil {
 		return 0, nil, err
+	}
+	files, err := fileCount(r, tx, w.ID, s.UserID)
+	if err != nil {
+		return 0, nil, err
+	}
+	if body == "" && files == 0 {
+		return 0, nil, bad("a submission needs text or a file")
 	}
 	if err := auditUpdate(ctx, tx, s, w.ID); err != nil {
 		return 0, nil, err

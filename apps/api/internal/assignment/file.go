@@ -181,7 +181,7 @@ func downloadFile(d tenant.Deps) tenant.Handler {
 		}
 		userID, _, err := target(r, tx, s, secID)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, fileErr(err)
 		}
 		sub, err := loadSubmission(r.Context(), tx, w.ID, userID, "")
 		if err != nil {

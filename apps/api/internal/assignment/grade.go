@@ -39,6 +39,12 @@ func gradeSubmission(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, erro
 	if !tenant.IsUUID(userID) {
 		return 0, nil, httpx.NotFound("submission")
 	}
+	// like the gradebook, only enrolled students are graded
+	if ok, err := enrolled(ctx, tx, secID, userID); err != nil {
+		return 0, nil, err
+	} else if !ok {
+		return 0, nil, httpx.NotFound("submission")
+	}
 	before, err := loadSubmission(ctx, tx, w.ID, userID, "for update")
 	if err != nil {
 		return 0, nil, err

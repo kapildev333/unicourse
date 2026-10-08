@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFileUpload(t *testing.T) {
@@ -196,6 +197,9 @@ func TestFileDownload(t *testing.T) {
 			t.Errorf("%s: %d", p, res.StatusCode)
 		}
 	}
+	if _, b := e.get(e.Inst, e.subPath(a, "/x/files/"+id+"/download"), nil); !strings.Contains(string(b), `"file"`) {
+		t.Errorf("non-uuid user: %s", b)
+	}
 	// a row without a blob is a logged 500, never a 404
 	os.Remove(e.blobPath(id))
 	if res, _ = e.get(e.Inst, path, nil); res.StatusCode != 500 {
@@ -272,5 +276,31 @@ func TestSubmissionAudit(t *testing.T) {
 	})
 	if actor != e.UserID["stud@a.edu"] {
 		t.Fatalf("actor %s", actor)
+	}
+}
+
+// TestFileUploadPhaseTwoFailure closes the window while the file streams (after phase 1 passed): the
+// second transaction answers 409 and leaves no temp file, blob or row.
+func TestFileUploadPhaseTwoFailure(t *testing.T) {
+	e := newEnv(t)
+	a := e.open()
+	st, raw := e.uploadParts(e.Stud, e.subPath(a, "/me/files"), func(mw *multipart.Writer) {
+		w, err := mw.CreateFormFile("file", "a.txt")
+		if err != nil {
+			return
+		}
+		w.Write([]byte("first chunk"))
+		time.Sleep(500 * time.Millisecond) // phase 1 has long passed
+		e.setWindow(a, "-2 hours", "-1 hour")
+		w.Write([]byte("second chunk"))
+	})
+	if st != 409 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if tmp, _ := os.ReadDir(e.D.Files.Root + "/" + e.Fx.UniversityA + "/.tmp"); len(tmp) != 0 {
+		t.Fatalf("temp files left: %d", len(tmp))
+	}
+	if e.count(`select count(*) from submissions`) != 0 || e.count(`select count(*) from submission_files`) != 0 {
+		t.Fatal("rows written")
 	}
 }

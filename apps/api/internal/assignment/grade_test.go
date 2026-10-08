@@ -118,3 +118,19 @@ func TestGradeAudit(t *testing.T) {
 		t.Fatalf("n %d before %s after %s actor %s", n, before, after, actor)
 	}
 }
+
+func TestGradeUnenrolled(t *testing.T) {
+	e := newEnv(t)
+	a := e.open()
+	e.put(e.Stud, a, "work")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`delete from enrollments where user_id = $1`, e.UserID["stud@a.edu"])
+		return err
+	})
+	if st, raw := e.call(e.Inst, "PATCH", e.subPath(a, "/"+e.UserID["stud@a.edu"]), map[string]any{"score": 5}); st != 404 || !strings.Contains(string(raw), "submission") {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if e.count(`select count(*) from scores`) != 0 {
+		t.Fatal("scores row written")
+	}
+}
