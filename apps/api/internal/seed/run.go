@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -85,6 +86,7 @@ type writer struct {
 	depts  map[string]string // code -> id
 	terms  map[string]string // name -> id
 	names  map[string]string // email -> display name
+	files  fs.FS
 }
 
 // call makes one request as the persona with that email (session minted on first use) and decodes a 2xx
@@ -190,10 +192,13 @@ func Run(ctx context.Context, db *sql.DB, f Fixture, o Options) (rep Report, err
 	rep.UniversityID = uni
 	rep.personas(f)
 
+	if f.files == nil {
+		f.files, _ = fs.Sub(files, "files")
+	}
 	store := &auth.SessionStore{DB: db}
 	w := &writer{ctx: ctx, slug: slug, store: store,
 		h:     httpx.RequestIDMiddleware(httpx.Recover(app.NewRouter(app.Deps{Auth: auth.Deps{DB: db, Sessions: store}, BaseURL: o.BaseURL, Files: o.Files}))),
-		users: map[string]string{}, tokens: map[string]string{}, depts: map[string]string{}, terms: map[string]string{}, names: map[string]string{}}
+		users: map[string]string{}, tokens: map[string]string{}, depts: map[string]string{}, terms: map[string]string{}, names: map[string]string{}, files: f.files}
 	defer func() {
 		for _, tok := range w.tokens {
 			if rerr := store.Revoke(context.WithoutCancel(ctx), tok); rerr != nil {
@@ -552,7 +557,7 @@ func (w *writer) content(s Section, label, base, cActor string) error {
 			return err
 		}
 		for _, m := range wk.Materials {
-			data, err := files.ReadFile("files/" + m.File)
+			data, err := fs.ReadFile(w.files, m.File)
 			if err != nil {
 				return err
 			}

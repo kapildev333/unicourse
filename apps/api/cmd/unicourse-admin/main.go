@@ -32,7 +32,7 @@ commands:
   migrate               apply database migrations
   create-university     create a university and an admin invitation (see create-university -h)
   prune-files [--delete]  list (or remove) files no material references, and materials whose file is missing
-  seed-demo [--slug s] [--reset]  load the demo university (see seed-demo -h)
+  seed-demo [--slug s] [--reset] [--fixture f]  load the demo university (see seed-demo -h)
 
 environment: UNICOURSE_OWNER_DATABASE_URL (all commands; the owner role, not the API role), UNICOURSE_BASE_URL (create-university, seed-demo), UNICOURSE_FILES_DIR (prune-files, seed-demo)
 `
@@ -52,6 +52,8 @@ and the operator forwards it to the admin. Invalid input (including a duplicate 
 const seedHelp = `seed-demo flags:
   --slug    url slug of the demo university (default northfield); emails use <slug>.edu
   --reset   first delete the university with this slug and its files (only that one)
+  --fixture path to a fixture JSON file instead of the embedded demo (format: docs/seed/fixture.schema.json);
+            material files resolve relative to that file's directory
 
 Loads the embedded Northfield University dataset (internal/seed/demo.json) through the API's own
 handlers: departments, terms, courses, sections, staff, rosters, grades and section content.
@@ -237,6 +239,7 @@ func seedDemo(ctx context.Context, args []string, env func(string) string, open 
 	fs.Usage = func() { fmt.Fprint(stderr, seedHelp) }
 	slug := fs.String("slug", "", "")
 	reset := fs.Bool("reset", false, "")
+	fixture := fs.String("fixture", "", "")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -244,7 +247,13 @@ func seedDemo(ctx context.Context, args []string, env func(string) string, open 
 		fmt.Fprintf(stderr, "seed-demo: unexpected argument %q\n", fs.Arg(0))
 		return 2
 	}
-	f, err := seed.Load(seed.Demo, *slug, time.Now().Year())
+	var f seed.Fixture
+	var err error
+	if *fixture != "" {
+		f, err = seed.LoadFile(*fixture, *slug, time.Now().Year())
+	} else {
+		f, err = seed.Load(seed.Demo, *slug, time.Now().Year())
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "seed-demo:", err)
 		return 2

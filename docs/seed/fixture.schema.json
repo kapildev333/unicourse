@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicourse.dev/seed/fixture.schema.json",
+  "title": "UniCourse seed fixture",
+  "description": "The format of `unicourse-admin seed-demo --fixture <path>` (and of apps/api/internal/seed/demo.json). Strings may use the placeholders <year>, <year+1> and <domain> (the slug plus .edu). Cross references (department codes, term names, people emails, rosters) are checked by seed.Load; value rules (lengths, weights, formats) are the API's and are reported while writing. Material files are bare file names read from the fixture's own directory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["university", "people"],
+  "properties": {
+    "university": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "slug", "timezone", "locale"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "slug": {"type": "string", "minLength": 1, "description": "Lowercase letters, digits, hyphens; overridden by --slug."},
+        "timezone": {"type": "string", "minLength": 1, "description": "IANA timezone."},
+        "locale": {"type": "string", "minLength": 1, "description": "BCP 47 locale."}
+      }
+    },
+    "departments": {"type": "array", "items": {"$ref": "#/$defs/department"}},
+    "terms": {"type": "array", "items": {"$ref": "#/$defs/term"}},
+    "people": {
+      "type": "array",
+      "description": "Exactly one admin who is not invited. Emails are unique.",
+      "items": {"$ref": "#/$defs/person"}
+    },
+    "courses": {"type": "array", "items": {"$ref": "#/$defs/course"}}
+  },
+  "$defs": {
+    "department": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "code"],
+      "properties": {"name": {"type": "string"}, "code": {"type": "string", "description": "Unique in the fixture."}}
+    },
+    "term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "startsOn", "endsOn"],
+      "properties": {
+        "name": {"type": "string", "description": "Unique in the fixture."},
+        "startsOn": {"type": "string", "description": "YYYY-MM-DD"},
+        "endsOn": {"type": "string", "description": "YYYY-MM-DD"}
+      }
+    },
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "displayName", "role"],
+      "properties": {
+        "email": {"type": "string"},
+        "displayName": {"type": "string", "minLength": 1},
+        "role": {"enum": ["admin", "dept_admin", "member"]},
+        "departments": {"type": "array", "items": {"type": "string"}, "description": "Department codes; required for dept_admin, forbidden otherwise."},
+        "invited": {"type": "boolean", "description": "A pending invitation: cannot act or be enrolled, may be listed as staff."}
+      }
+    },
+    "course": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["departmentCode", "code", "title"],
+      "properties": {
+        "as": {"type": "string", "description": "Email of the active person who creates the course (audit actor); default the admin."},
+        "departmentCode": {"type": "string"},
+        "code": {"type": "string", "description": "Unique in the fixture."},
+        "title": {"type": "string"},
+        "credits": {"type": "number"},
+        "sections": {"type": "array", "items": {"$ref": "#/$defs/section"}}
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term", "number"],
+      "properties": {
+        "term": {"type": "string", "description": "A term name."},
+        "number": {"type": "string"},
+        "meetings": {"type": "array", "items": {"$ref": "#/$defs/meeting"}},
+        "staff": {"type": "array", "items": {"$ref": "#/$defs/staff"}},
+        "roster": {"type": "array", "items": {"type": "string"}, "description": "Emails of active people."},
+        "description": {"type": "string"},
+        "assessments": {"type": "array", "items": {"$ref": "#/$defs/assessment"}, "description": "Needs an active instructor in staff."},
+        "finalize": {"$ref": "#/$defs/finalize"},
+        "announcements": {"type": "array", "items": {"$ref": "#/$defs/announcement"}},
+        "weeks": {"type": "array", "items": {"$ref": "#/$defs/week"}}
+      }
+    },
+    "meeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weekday", "startsAt", "endsAt", "location"],
+      "properties": {
+        "weekday": {"type": "integer", "minimum": 1, "maximum": 7, "description": "ISO weekday, 1 = Monday."},
+        "startsAt": {"type": "string", "description": "HH:MM"},
+        "endsAt": {"type": "string", "description": "HH:MM"},
+        "location": {"type": "string"}
+      }
+    },
+    "staff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "role"],
+      "properties": {"email": {"type": "string"}, "role": {"enum": ["instructor", "ta"]}}
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "maxPoints", "weight", "published"],
+      "properties": {
+        "name": {"type": "string"},
+        "maxPoints": {"type": "number"},
+        "weight": {"type": "number", "description": "Percent; the weights of a finalized section total 100."},
+        "published": {"type": "boolean"},
+        "scores": {"type": "array", "items": {"$ref": "#/$defs/score"}}
+      }
+    },
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["student", "points"],
+      "properties": {"student": {"type": "string", "description": "Email of a rostered student."}, "points": {"type": "number"}}
+    },
+    "finalize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overrides"],
+      "properties": {"overrides": {"type": "array", "items": {"$ref": "#/$defs/override"}}}
+    },
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["student", "reason"],
+      "properties": {
+        "student": {"type": "string"},
+        "status": {"enum": ["graded", "incomplete", "withdrawn"]},
+        "letter": {"type": "string"},
+        "reason": {"type": "string"}
+      }
+    },
+    "announcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "body"],
+      "properties": {
+        "as": {"type": "string", "description": "Email of the author; default the course's creator."},
+        "title": {"type": "string"},
+        "body": {"type": "string"}
+      }
+    },
+    "week": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "notes"],
+      "properties": {
+        "title": {"type": "string"},
+        "notes": {"type": "string"},
+        "materials": {"type": "array", "items": {"$ref": "#/$defs/material"}}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": {"type": "string", "pattern": "^[^/]+$", "description": "Bare file name in the fixture's directory (the embedded demo: internal/seed/files)."},
+        "title": {"type": "string"}
+      }
+    }
+  }
+}
