@@ -59,7 +59,7 @@ Every tenant-scoped table has an RLS policy `university_id = current_setting('ap
 
 ### Sign-in
 
-1. **OIDC** with Google and Microsoft. The sign-in page asks for the university slug or email; the API picks the university by `allowed_email_domains` and redirects to the provider. On callback, the API verifies the ID token (`go-oidc`), lowercases the email, and requires that the email domain is in the university's `allowed_email_domains` or that a pending invitation exists for that exact email.
+1. **OIDC** with Google and Microsoft. The sign-in page asks for the university slug or email; the API picks the university by `allowed_email_domains` and redirects to the provider. On callback, the API verifies the ID token (`go-oidc`), lowercases the email, and requires that the email domain is in the university's `allowed_email_domains`, that a pending invitation exists for that exact email, or that the email already has an active membership in a university (an accepted outside-domain invitee; D128, 2026-10-08).
 2. **Magic link** by email for users whose campus does not use Google or Microsoft. Same domain/invitation rule. Email sending is behind a `Mailer` interface with an SMTP implementation and a log-to-stdout implementation for development.
 3. On first successful sign-in, the user row is created if absent, pending invitations for that email are accepted (membership becomes `active`, department admin rows are created), and a session cookie is set: `HttpOnly`, `Secure`, `SameSite=Lax`.
 
