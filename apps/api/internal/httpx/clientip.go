@@ -60,7 +60,9 @@ func forwardedFor(lines []string) []string {
 				}
 				val = val[1 : len(val)-1]
 			}
-			v = val
+			if val != "" {
+				v = val
+			}
 			break
 		}
 		out = append(out, v)
@@ -98,7 +100,8 @@ func present(lines []string) bool {
 // X-Forwarded-For or Forwarded (for=) that is not itself trusted (a client can only prepend entries,
 // so it cannot choose that hop). All hops trusted: the leftmost hop. Malformed hop reached during the
 // walk: the connection address. Both headers present: their walks must agree, else the connection
-// address (a proxy chain sets one; the other is the client's). Never fails.
+// address, except that a walk ending on a trusted address (every hop trusted, or malformed) defers to the
+// other: a client can only push a walk toward trusted, never pick the key. Never fails.
 func clientIP(remoteAddr string, xff, fwd []string, trusted []netip.Prefix) string {
 	remote, ok := parseIP(remoteAddr)
 	if !ok {
@@ -112,8 +115,11 @@ func clientIP(remoteAddr string, xff, fwd []string, trusted []netip.Prefix) stri
 		return byXFF.String()
 	}
 	byFwd := walk(remote, forwardedFor(fwd), trusted)
-	if !present(xff) || byXFF == byFwd {
+	switch {
+	case !present(xff) || byXFF == byFwd || trustedAddr(byXFF, trusted):
 		return byFwd.String()
+	case trustedAddr(byFwd, trusted):
+		return byXFF.String()
 	}
 	return remote.String()
 }

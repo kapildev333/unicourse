@@ -93,7 +93,15 @@ func webOrigin(s string) (string, error) {
 		u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || (u.Path != "" && u.Path != "/") {
 		return "", fmt.Errorf("UNICOURSE_WEB_ORIGIN must be scheme://host[:port] with no path, e.g. http://localhost:5173, got %q", s)
 	}
+	if port := u.Port(); strings.HasSuffix(u.Host, ":") || (port != "" && !validPort(port)) {
+		return "", fmt.Errorf("UNICOURSE_WEB_ORIGIN must be scheme://host[:port] with no path, e.g. http://localhost:5173, got %q", s)
+	}
 	return u.Scheme + "://" + strings.ToLower(u.Host), nil
+}
+
+func validPort(p string) bool {
+	n, err := strconv.Atoi(p)
+	return err == nil && n >= 1 && n <= 65535
 }
 
 func parseProxies(s string) ([]netip.Prefix, error) {

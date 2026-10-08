@@ -155,7 +155,7 @@ func TestLoadWebOrigin(t *testing.T) {
 			t.Errorf("%q: %q %v", in, c.WebOrigin, err)
 		}
 	}
-	for _, bad := range []string{"localhost:5173", "http://localhost:5173/app", "ftp://x", "http://", "http://u:p@x", "http://x?y=1", "http://x#f", " http://x", "http://x//"} {
+	for _, bad := range []string{"localhost:5173", "http://localhost:5173/app", "ftp://x", "http://", "http://u:p@x", "http://x?y=1", "http://x#f", " http://x", "http://x//", "http://x:", "http://x:0", "http://x:99999", "http://x:+80"} {
 		_, err := loadWith(map[string]string{"WEB_ORIGIN": bad})
 		if want := `UNICOURSE_WEB_ORIGIN must be scheme://host[:port] with no path, e.g. http://localhost:5173, got "` + bad + `"`; err == nil || err.Error() != want {
 			t.Errorf("%q: %v", bad, err)

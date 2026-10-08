@@ -100,6 +100,8 @@ func (s *Sender) Drain(ctx context.Context) error {
 
 // drainAll runs Senders Drains at once and waits for all; each claims its own rows (FOR UPDATE SKIP LOCKED).
 func (s *Sender) drainAll(ctx context.Context) error {
+	// ponytail: a wake during a round is buffered and starts the next round only after every goroutine of this one
+	// finished, so one slow SMTP send can delay new mail. Long-lived workers on a broadcast wake if that matters.
 	n := max(s.Senders, 1)
 	errs := make([]error, n)
 	var wg sync.WaitGroup
