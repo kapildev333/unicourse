@@ -30,4 +30,7 @@ export const e2eEnv = {
   UNICOURSE_FILES_DIR: filesDir,
   UNICOURSE_WEB_DIR: webDir,
   UNICOURSE_SMTP_URL: '',
+  // Rate buckets live in the database and the e2e database is never reset (D33), so repeated local runs
+  // would otherwise hit the default 300 per hour per client address.
+  UNICOURSE_SIGNIN_IP_LIMIT: '100000',
 }

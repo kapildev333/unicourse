@@ -52,7 +52,7 @@ func authDeps(ctx context.Context, cfg config.Config, db *sql.DB, wake func()) (
 		DB: db, Sessions: &auth.SessionStore{DB: db},
 		Magic:     &auth.MagicLinks{DB: db, Wake: wake, BaseURL: cfg.BaseURL},
 		Providers: providers, Secret: []byte(cfg.SessionSecret), WebBase: web,
-		EmailLimit: auth.NewLimiter(5, time.Hour), IPLimit: auth.NewLimiter(300, time.Hour),
+		EmailLimit: auth.NewLimiter(5, time.Hour), IPLimit: auth.NewLimiter(cfg.SignInIPLimit, time.Hour),
 	}, nil
 }
 

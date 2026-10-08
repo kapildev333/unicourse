@@ -17,6 +17,7 @@ type Config struct {
 	TrustedProxies []netip.Prefix
 	OutboxSenders  int   // mail sender goroutines per process, 1 to 10
 	MaxUploadBytes int64 // largest material file, 1 to 10 GiB
+	SignInIPLimit  int   // sign-in link requests per client address per hour, 1 to 1000000
 }
 
 // Load reads configuration through getenv; the error lists every missing required variable.
@@ -62,6 +63,11 @@ func Load(getenv func(string) string) (Config, error) {
 	if c.MaxUploadBytes, err = wholeInRange(opt("MAX_UPLOAD_BYTES"), 100<<20, 1, 10<<30, "UNICOURSE_MAX_UPLOAD_BYTES must be a whole number of bytes from 1 to 10737418240"); err != nil {
 		return Config{}, err
 	}
+	var ipLimit int64
+	if ipLimit, err = wholeInRange(opt("SIGNIN_IP_LIMIT"), 300, 1, 1000000, "UNICOURSE_SIGNIN_IP_LIMIT must be a whole number from 1 to 1000000"); err != nil {
+		return Config{}, err
+	}
+	c.SignInIPLimit = int(ipLimit)
 	if c.WebOrigin, err = webOrigin(c.WebOrigin); err != nil {
 		return Config{}, err
 	}
