@@ -5,31 +5,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { tmpDir } from './env'
-import { createUniversity, runId, signIn } from './helpers'
+import { api, createUniversity, H, runId, signIn, upload } from './helpers'
 
 const slug = `northfield-${runId}`
 const dom = `northfield-${runId}.edu`
 const A = `/api/v1/universities/${slug}`
-const H = { 'Sec-Fetch-Site': 'same-origin' }
 const year = new Date().getFullYear()
 const out = path.join(tmpDir, 'screens')
 const index: string[] = []
-
-async function api(page: Page, method: 'get' | 'post' | 'put' | 'patch', url: string, data?: unknown) {
-  const res = await page.request[method](url, { headers: H, data })
-  expect(res.ok(), `${method} ${url}: ${res.status()} ${await res.text()}`).toBeTruthy()
-  return res.status() === 204 ? null : res.json()
-}
-
-async function upload(page: Page, url: string, csv: string, commit = true) {
-  const file = { name: 'upload.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) }
-  const pv = await page.request.post(`${url}/import/preview`, { headers: H, multipart: { file } })
-  expect(pv.ok(), await pv.text()).toBeTruthy()
-  if (!commit) return
-  const { checksum } = await pv.json()
-  const res = await page.request.post(`${url}/import`, { headers: H, multipart: { file, checksum } })
-  expect(res.ok(), await res.text()).toBeTruthy()
-}
 
 async function settle(page: Page) {
   await expect(page.locator('h1').first()).toBeVisible()

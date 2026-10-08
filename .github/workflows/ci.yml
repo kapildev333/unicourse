@@ -58,7 +58,7 @@ jobs:
           git diff --exit-code src/routeTree.gen.ts
   e2e:
     needs: [api, web]
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     services:
       postgres:

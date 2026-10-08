@@ -1,10 +1,10 @@
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
-import { adminBin, apiBin, apiDir, apiLog, e2eEnv, filesDir, tmpDir, webRoot } from './env'
+import { adminBin, baseURL, apiBin, apiDir, apiLog, e2eEnv, filesDir, tmpDir, webRoot } from './env'
 
 // Builds the web app and both Go binaries, migrates, and starts the API serving the built web app.
 export default async function globalSetup() {
-  const base = 'http://localhost:18180'
+  const base = baseURL
   const taken = await fetch(base).then(() => true, () => false)
   if (taken) throw new Error(`something already answers on ${base}; stop it before running e2e`)
   fs.rmSync(tmpDir, { recursive: true, force: true })

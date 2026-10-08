@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { baseURL } from './e2e/env'
 
 export default defineConfig({
   testDir: 'e2e',
@@ -10,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   outputDir: 'test-results',
-  use: { baseURL: 'http://localhost:18180', trace: 'retain-on-failure' },
+  use: { baseURL, trace: 'retain-on-failure' },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
     { name: 'screens', testMatch: 'screens.ts', use: { browserName: 'chromium', actionTimeout: 15_000 } },
