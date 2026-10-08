@@ -9,6 +9,7 @@ Spec 6: `docs/specs/2026-10-06-section-content.md` · plan `docs/plans/2026-10-0
 Spec 7: `docs/specs/2026-10-07-demo-seed-and-readme.md` · plan `docs/plans/2026-10-07-demo-seed-and-readme.md` (Phase 11, done 2026-10-07)
 Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-10-07-postman-collection.md` (Phase 12, done 2026-10-07)
 Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e2e-coverage.md` (Phase 16, done 2026-10-08)
+Spec 10: `docs/specs/2026-10-08-backlog-completion.md` · plan `docs/plans/2026-10-08-backlog-completion.md` (Phase 17, started 2026-10-08)
 
 ## Decisions
 | # | Decision | Status |
@@ -138,6 +139,11 @@ Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e
 | D127 | Spec 6 §8 amended (P16-L1 finding F2): the Participants tab shows to every member who can open the section, as P14-L4 shipped it and as `content.spec.ts` and `staffing.spec.ts` assert; the "neither staff nor enrolled" exclusion applies to the roster's controls, not the tab | Orchestrator 2026-10-07, owner to confirm |
 | D128 | Spec 1 §5 amended (text updated 2026-10-08): an email may sign in when its domain is allowed, a pending invitation exists, or it has an active membership. P16-L1 finding F1 is a defect: an invitee whose email domain belongs to no university cannot sign in again after the invitation is accepted (`auth.allowed` checks domains and pending invitations only). Fix lane P16-F1 after the test lanes: `allowed` also accepts an email with an active membership; E-AUTH-11 turns from `fixme` into a passing case in the same PR | Orchestrator 2026-10-07, owner to confirm |
 | D129 | D93 amended (P16-L1 finding F9): below 768 px the header has no Sign out control; Sign out lives in the "Your account" dialog (P14-L2, #126). A phone sign-out e2e case follows this placement | Orchestrator 2026-10-07, owner to confirm |
+| D130 | Owner's "Please complete the backlog" (2026-10-08) is the trigger for every bounded backlog item (Spec 10 §2, B1-B13); owner-gated items stay (branch protection D120, OpenSpec D121, release artifacts D115, the owner's Node version) | Orchestrator 2026-10-08, owner to confirm |
+| D131 | Meeting rows in one section may not overlap on the same day (P16-L1 finding F3): API 400 field error on `meetings`, editor message | Orchestrator 2026-10-08, owner to confirm |
+| D132 | Invitation 409 copy is one generic message; the upload policy is a contract route `GET /api/v1/upload-policy`; the upload limit is `UNICOURSE_MAX_UPLOAD_BYTES` (default 100 MB) so CI runs the boundary test; outbox parallelism is `UNICOURSE_OUTBOX_SENDERS` (default 1) | Orchestrator 2026-10-08, owner to confirm |
+| D133 | A `unicourse_platform` database role runs `create-university` (not `migrate`); the CLI uses `UNICOURSE_PLATFORM_DATABASE_URL` when set, else the owner URL as today (D48 amended) | Orchestrator 2026-10-08, owner to confirm |
+| D134 | Phase 17 hot-spot owners: migration `0008` rate buckets (P17-L2), `0009` platform role (P17-L7); `routes.go` and `openapi.json` P17-L6 then P17-L4; `ci.yml` P17-L4 then P17-L10; `cmd/api/main.go` P17-L3; `package.json` P17-L9 | Orchestrator 2026-10-08, owner to confirm |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -375,8 +381,24 @@ Phase 16 outcome on main (a90a8b2): `npm run e2e` 89 passed in 1.9 min test time
 
 Phase 16 practicalities (for the next phase): parallel e2e runs on one machine need their own port (`UNICOURSE_E2E_PORT`), their own database (`unicourse_e2e_01` to `_20` exist locally; every API process drains the outbox of the database it points at, so two runs on one database swallow each other's sign-in mail) and their own worktree (`e2e/.tmp` holds the binaries, log and pid). Every reviewer found at least one assertion that could pass against a broken page (a negative check before the page loaded, a regex matching B+ and B-, a scroll defeating a layout check), so e2e files always get a reviewer. `npm test` could not run locally (Node 22.11 below the 22.22.2 floor); CI ran it on every PR.
 
+## Phase 17 - Backlog completion (Spec 10, started 2026-10-08)
+Owner (loop prompt): "Please complete the backlog". Unattended run; D130-D134 ruled by the orchestrator, owner to confirm. One designer for the API shapes, then nine worker lanes on disjoint scopes (plan Tasks 2-10).
+
+| Lane | Model | Scope | Status |
+|---|---|---|---|
+| P17-L1 - API shapes design (Task 1, D) | Opus 5.5 | `docs/design/P17-L1.md` | launched 2026-10-08 |
+| P17-L2 - Per-IP and per-email limits in Postgres, migration 0008 (Task 2, W) | Sonnet 5.5 | `internal/auth/limiter*`, `migrations/0008` | pending L1 |
+| P17-L3 - Outbox senders, `Forwarded`, IPv4-mapped prefixes, `WEB_ORIGIN` validation (Task 3, W) | Sonnet 5.5 | `internal/outbox`, `internal/httpx/clientip*`, `internal/config`, `cmd/api/main.go` | pending L1 |
+| P17-L4 - Upload limit env, CI boundary test, upload policy route, web reads it (Task 4, W, after L6) | Sonnet 5.5 | `internal/content/material*`, `internal/blob`, `routes.go`, `openapi.json`, `material-dialogs.tsx`, `ci.yml` api flags | pending L1, L6 |
+| P17-L5 - Overlapping meetings rule, generic invitation 409, F4, F5, F6, F10 (Task 5, W) | Sonnet 5.5 | `internal/course/meeting*`, `internal/tenant/invitation*`, named web files, named e2e selectors | pending L1 |
+| P17-L6 - `q` on departments, terms, courses; picker search (Task 6, W) | Sonnet 5.5 | three list handlers, `openapi.json` params, pickers | pending L1 |
+| P17-L7 - Platform CLI role, migration 0009 (Task 7, W) | Sonnet 5.5 | `migrations/0009`, `docker/initdb.sql`, `cmd/unicourse-admin` create-university, README | pending L1 |
+| P17-L8 - Seed `--fixture`, fixture schema, `make dev`, screens via seed-demo (Task 8, W) | Sonnet 5.5 | `internal/seed`, `cmd/unicourse-admin` seed-demo flag, `docs/seed/`, `Makefile`, `e2e/screens.ts`, README | pending L1 |
+| P17-L9 - Code-split routes, XHR upload progress (Task 9, W, after L4) | Sonnet 5.5 | `routes/**` lazy, `vite.config.ts`, `lib/upload.ts`, `material-dialogs.tsx` upload path | pending L4 |
+| P17-L10 - CI two-origin dev check (Task 10, W, after L4) | Sonnet 5.5 | `ci.yml` one step, `scripts/two-origin-check.mjs` | pending L4 |
+
 ## Backlog
-Phase 14 (2026-10-07) sweeps every defect and bounded improvement that was listed here; what remains is gated on a trigger (D118):
+Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 maps them to B1-B13); what remains afterwards is owner-gated (Spec 10 §3). The list as it stood on 2026-10-08:
 - Per-IP limits (magic link and OIDC start) are in memory and per process; move to Postgres when more than one API process runs (P1-L1, P4-L3).
 - Outbox delivery is one mail at a time per process (about 1-2/s with real SMTP); add sender goroutines when delivery rate matters (P4-L1).
 - Department picker, term select and course picker read one page of 200; add search when a university exceeds that (P1-L4, P2-L3).
@@ -449,3 +471,4 @@ Phase 14 (2026-10-07) sweeps every defect and bounded improvement that was liste
 - 2026-10-07: P16-L1 catalogue landed (#133): 86 cases, 8 files. D127-D129 ruled on its findings (owner to confirm); F3-F6, F10 to the backlog. P16-L2 harness worker launched from the design head; the six area lanes follow once the helpers exist.
 - 2026-10-08: Phase 16 test lanes landed: harness #135, then six area files in parallel (#136-#141), each verified by the orchestrator on its own port and database and reviewed by Opus; 72 new cases on main plus 14 in the demo smoke. P16-F1 (D128 fix) and P16-L9 (axe sweep, D125) built, approved and landing. The shared-outbox race between parallel API processes found by P16-L4 is recorded above.
 - 2026-10-08: Phase 16 complete: P16-F1 (#142) and P16-L9 (#144) landed after review and the orchestrator's gates; full suite on main 89 passed in 117 s wall clock; `workers` stays 1 (D126). Release v0.16.0 cut after this PR. Owner to confirm D122-D129 (all ruled under the unattended-run delegation).
+- 2026-10-08: Owner started `/loop 30m /orchestrate Please complete the backlog`. Spec 10 and its plan written (unattended, D130-D134 owner to confirm): 13 backlog items (B1-B13) across nine worker lanes after one API-shapes design; owner-gated items stay. P17-L1 designer launched.
