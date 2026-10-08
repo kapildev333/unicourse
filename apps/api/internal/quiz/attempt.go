@@ -239,6 +239,14 @@ func putAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
+	// The body may have taken a while: the close is authoritative against the live clock, not the transaction's now().
+	var late bool
+	if err := tx.QueryRowContext(r.Context(), `select clock_timestamp() >= closes_at from assessments where id = $1`, w.ID).Scan(&late); err != nil {
+		return 0, nil, err
+	}
+	if late {
+		return 0, nil, httpx.Conflict("closed; your answers as of the closing time were submitted")
+	}
 	if in.Answers == nil {
 		return 0, nil, httpx.Validation(httpx.FieldError{Field: "answers", Message: "is required"})
 	}

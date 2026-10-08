@@ -2,6 +2,8 @@ package quiz
 
 import (
 	"database/sql"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -247,5 +249,56 @@ func TestAttemptReadHidesResults(t *testing.T) {
 	}
 	if st, _ := e.call(e.Other, "GET", e.apath(id)+"/me", nil); st != 403 {
 		t.Fatalf("other %d", st)
+	}
+}
+
+// A body that is still arriving when the quiz closes is late: the close is re-checked after the body is read.
+func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.openQuiz()
+	e.call(e.Stud, "POST", e.apath(id), nil)
+	pr, pw := io.Pipe()
+	req, _ := http.NewRequest("PUT", e.Srv.URL+root+e.apath(id)+"/me", pr)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(e.Stud)
+	type result struct {
+		st  int
+		b   string
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			done <- result{err: err}
+			return
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		done <- result{res.StatusCode, string(b), nil}
+	}()
+	pw.Write([]byte(`{"submit": true, "answers": {"` + qs[1] + `": `))
+	// the handler holds the attempt row lock while it reads the rest of the body
+	for locked := false; !locked; {
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			var n int
+			err := tx.QueryRow(`select count(*) from (select 1 from attempts where assessment_id = $1 for update skip locked) x`, id).Scan(&n)
+			locked = n == 0
+			return err
+		})
+	}
+	e.closeQuiz(id)
+	pw.Write([]byte(`{"text": "Rome"}}}`))
+	pw.Close()
+	r := <-done
+	if r.err != nil || r.st != 409 || !strings.Contains(r.b, "closed; your answers as of the closing time were submitted") {
+		t.Fatalf("%v %d %s", r.err, r.st, r.b)
+	}
+	var answers string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select answers::text from attempts where assessment_id = $1`, id).Scan(&answers)
+	})
+	if strings.Contains(answers, "Rome") {
+		t.Fatalf("changed: %s", answers)
 	}
 }
