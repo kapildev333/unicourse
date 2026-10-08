@@ -7339,14 +7339,28 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/Answer"
             },
-            "description": "By question id; unanswered questions are absent."
+            "description": "By question id; unanswered questions are absent.",
+            "example": {
+              "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                "choices": [
+                  0
+                ]
+              }
+            }
           },
           "grading": {
             "type": "object",
             "additionalProperties": {
               "$ref": "#/components/schemas/Mark"
             },
-            "description": "By question id. Omitted until submitted; for a student also until the quiz is published."
+            "description": "By question id. Omitted until submitted; for a student also until the quiz is published.",
+            "example": {
+              "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                "points": 2,
+                "correct": true,
+                "feedback": ""
+              }
+            }
           },
           "score": {
             "type": "number",
@@ -7446,7 +7460,14 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/Answer"
             },
-            "description": "The whole map; replaces the saved answers. Empty entries are dropped."
+            "description": "The whole map; replaces the saved answers. Empty entries are dropped.",
+            "example": {
+              "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                "choices": [
+                  0
+                ]
+              }
+            }
           },
           "submit": {
             "type": "boolean",
@@ -7484,7 +7505,13 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/MarkInput"
             },
-            "description": "By question id; replaces the points (and feedback when given) of those questions only. correct becomes true when the points equal the question's points."
+            "description": "By question id; replaces the points (and feedback when given) of those questions only. correct becomes true when the points equal the question's points.",
+            "example": {
+              "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                "points": 1.5,
+                "feedback": "Half credit."
+              }
+            }
           },
           "feedback": {
             "type": "string",

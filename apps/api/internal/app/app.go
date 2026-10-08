@@ -31,10 +31,7 @@ func NewRouter(deps Deps) *httpx.Router {
 	course.Register(r, td)
 	grade.Register(r, td)
 	content.Register(r, td)
-<<<<<<< HEAD
 	assignment.Register(r, td)
-=======
 	quiz.Register(r, td)
->>>>>>> d115901 (Add quiz contract, wire quiz.Register, regenerate types and Postman)
 	return r
 }
