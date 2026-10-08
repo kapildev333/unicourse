@@ -70,3 +70,18 @@ it('maps the server size text', () => {
   const e = new ApiError(400, 'validation_failed', 'm', [{ field: 'file', message: 'is larger than 1 MB' }])
   expect(uploadReason(e)).toBe('It is larger than 1 MB.')
 })
+
+it('reports whole-percent progress per file, leaving the line unchanged', async () => {
+  const calls: unknown[][] = []
+  await runUploads([file('a.pdf')], policy, async (_f, pct) => [0, 0, 45, 45, 100].forEach((p) => pct(p)), (...a) => calls.push(a))
+  expect(calls).toEqual([
+    ['Uploading 1 of 1: a.pdf'],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 0 }],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 45 }],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 100 }],
+  ])
+})
+
+it('words a 413 from a proxy', () => {
+  expect(uploadReason(new ApiError(413, 'internal', 'm', []))).toBe('It is larger than the server accepts.')
+})

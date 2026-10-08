@@ -1,8 +1,9 @@
 import { ApiError } from '../../api/errors'
 import { errorMessage } from '../../components/form-errors'
 import { sentence } from '../grades/grade'
+import { sendWithProgress } from '../../lib/upload'
 import { extension, formatSize } from './files'
-import type { UploadPolicy } from './queries'
+import type { Material, UploadPolicy } from './queries'
 
 export type Failed = { name: string; reason: string }
 
@@ -17,8 +18,8 @@ export function precheck(f: File, policy?: UploadPolicy): string | undefined {
 export async function runUploads(
   files: File[],
   policy: UploadPolicy | undefined,
-  send: (f: File) => Promise<unknown>,
-  onProgress: (line: string) => void,
+  send: (f: File, onPercent: (pct: number) => void) => Promise<unknown>,
+  onProgress: (line: string, file?: { name: string; pct: number }) => void,
 ): Promise<{ done: number; total: number; failed: Failed[] }> {
   const failed: Failed[] = []
   const ok: File[] = []
@@ -29,9 +30,15 @@ export async function runUploads(
   }
   let done = 0
   for (const [i, f] of ok.entries()) {
-    onProgress(`Uploading ${i + 1} of ${ok.length}: ${f.name}`)
+    const head = `Uploading ${i + 1} of ${ok.length}: ${f.name}`
+    onProgress(head)
+    let last = -1
     try {
-      await send(f)
+      await send(f, (pct) => {
+        if (pct === last) return // fewer renders: whole percents only
+        last = pct
+        onProgress(head, { name: f.name, pct })
+      })
       done++
     } catch (e) {
       failed.push({ name: f.name, reason: uploadReason(e) })
@@ -41,6 +48,7 @@ export async function runUploads(
 }
 
 export function uploadReason(e: unknown): string {
+  if (e instanceof ApiError && e.status === 413) return 'It is larger than the server accepts.' // a proxy refused the body
   if (!(e instanceof ApiError)) return 'The upload was interrupted. Check your connection and try again.'
   const d = e.details[0]
   if (e.code === 'validation_failed' && d) {
@@ -59,4 +67,12 @@ export function finalLine(r: { done: number; total: number }, week: string): str
   if (r.done === r.total) return `Uploaded ${r.done} ${r.done === 1 ? 'file' : 'files'} to ${week}.`
   if (r.done === 0) return `No files were uploaded to ${week}.`
   return `Uploaded ${r.done} of ${r.total} files to ${week}.`
+}
+
+/** Uploads one material with byte progress as a whole percent; errors match the fetch client's. */
+export function sendMaterial(slug: string, sectionId: string, weekId: string, file: File, onPercent: (pct: number) => void) {
+  const form = new FormData()
+  form.append('file', file)
+  const url = `${window.location.origin}/api/v1/universities/${encodeURIComponent(slug)}/sections/${encodeURIComponent(sectionId)}/weeks/${encodeURIComponent(weekId)}/materials`
+  return sendWithProgress<Material>(url, form, (sent, total) => onPercent(Math.floor((sent / total) * 100)))
 }
