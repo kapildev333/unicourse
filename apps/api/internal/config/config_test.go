@@ -162,3 +162,18 @@ func TestLoadWebOrigin(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSignInIPLimit(t *testing.T) {
+	for in, want := range map[string]int{"": 300, "1": 1, "100000": 100000, "1000000": 1000000} {
+		c, err := loadWith(map[string]string{"SIGNIN_IP_LIMIT": in})
+		if err != nil || c.SignInIPLimit != want {
+			t.Errorf("%q: %d %v", in, c.SignInIPLimit, err)
+		}
+	}
+	for _, bad := range []string{"0", "1000001", "x", "-1", "2.5"} {
+		_, err := loadWith(map[string]string{"SIGNIN_IP_LIMIT": bad})
+		if want := `UNICOURSE_SIGNIN_IP_LIMIT must be a whole number from 1 to 1000000, got "` + bad + `"`; err == nil || err.Error() != want {
+			t.Errorf("%q: %v", bad, err)
+		}
+	}
+}

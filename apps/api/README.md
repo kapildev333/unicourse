@@ -70,6 +70,7 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_WEB_DIR` | no | built web app (`apps/web/dist`) to serve at `/`; empty means API only |
 | `UNICOURSE_TRUSTED_PROXIES` | no | comma-separated CIDRs or IPs of the reverse proxies in front of the API; X-Forwarded-For and Forwarded (`for=`) are read only on connections from these (rightmost untrusted hop); a request carrying both is keyed on the proxy address unless they agree. `::ffff:` prefixes of /96 or longer are read as IPv4. Empty trusts none and keys rate limits on the connection address. List proxy addresses only, never client networks |
 | `UNICOURSE_OUTBOX_SENDERS` | no | mail sender goroutines per API process, 1 to 10, default 1; each holds a database connection while it talks to SMTP |
+| `UNICOURSE_SIGNIN_IP_LIMIT` | no | sign-in link requests allowed per client address per hour, 1 to 1000000, default 300; the e2e suite raises it because its database is never reset |
 | `UNICOURSE_MAX_UPLOAD_BYTES` | no | largest material file in bytes, default 104857600 (100 MB); the web reads it from GET /api/v1/upload-policy |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests, as the API role |
 | `UNICOURSE_TEST_OWNER_DATABASE_URL` | tests | the same database as the owner role (migrates and truncates) |
