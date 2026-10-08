@@ -19,6 +19,13 @@ export function SectionTabs({ slug, section }: { slug: string; section: Section 
           <Link to="/$slug/sections/$id/materials" params={params} {...tabLink}>
             Materials
           </Link>
+          <Link to="/$slug/sections/$id/quizzes" params={params} {...tabLink}>
+            Quizzes
+          </Link>
+          {/* ponytail: cast until P18-L7 adds the assignments route file; then drop `as never` */}
+          <Link to={'/$slug/sections/$id/assignments' as never} params={params} {...tabLink}>
+            Assignments
+          </Link>
         </>
       )}
       <Link to="/$slug/sections/$id/participants" params={params} {...tabLink}>

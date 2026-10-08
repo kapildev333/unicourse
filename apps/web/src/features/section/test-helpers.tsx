@@ -41,7 +41,11 @@ export function renderSection(opts: {
   const root = createRootRoute()
   const slug = createRoute({ getParentRoute: () => root, path: '$slug' })
   const at = (p: string) =>
-    createRoute({ getParentRoute: () => slug, path: p, component: () => (path === `/a/${p.replace('$id', 's1')}` ? ui : null) })
+    createRoute({
+      getParentRoute: () => slug,
+      path: p,
+      component: () => (path.split('?')[0] === `/a/${p.replace('$id', 's1').replace('$assessmentId', 'q1')}` ? ui : null),
+    })
   const router = createRouter({
     routeTree: root.addChildren([
       slug.addChildren([
@@ -50,6 +54,13 @@ export function renderSection(opts: {
         at('sections/$id'),
         at('sections/$id/announcements'),
         at('sections/$id/materials'),
+        at('sections/$id/quizzes'),
+        at('sections/$id/quizzes/$assessmentId'),
+        at('sections/$id/quizzes/$assessmentId/questions'),
+        at('sections/$id/quizzes/$assessmentId/attempts'),
+        at('sections/$id/assignments'),
+        at('sections/$id/assignments/$assessmentId'),
+        at('sections/$id/assignments/$assessmentId/submissions'),
         at('sections/$id/participants'),
         at('sections/$id/grades'),
       ]),
