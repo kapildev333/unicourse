@@ -14,9 +14,9 @@ import { authorName } from './access'
 import { accept, fileIcon, formatSize } from './files'
 import { MoveDialog, RenameDialog } from './material-dialogs'
 import { PlainText } from './plain-text'
-import { uploadMaterial, useContentRefresh, useUploadPolicy, useWeeks, weeksKey, type Material, type Section, type Week } from './queries'
+import { useContentRefresh, useUploadPolicy, useWeeks, weeksKey, type Material, type Section, type Week } from './queries'
 import { SectionFrame } from './section-frame'
-import { finalLine, runUploads, type Failed } from './upload'
+import { finalLine, runUploads, sendMaterial, type Failed } from './upload'
 import { WeekDialog, materialsForbidden } from './week-dialog'
 
 export const downloadHref = (slug: string, sectionId: string, id: string) =>
@@ -133,7 +133,7 @@ function Materials({ slug, section, canEdit }: { slug: string; section: Section;
     const r = await runUploads(
       files,
       policy,
-      (f) => uploadMaterial(slug, section.id, week.id, f),
+      (f, pct) => sendMaterial(slug, section.id, week.id, f, pct),
       (line) => setUpload((u) => u && { ...u, line }),
     )
     await refresh(weeksKey(slug, section.id))

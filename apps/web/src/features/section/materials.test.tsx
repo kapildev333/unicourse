@@ -155,22 +155,47 @@ it('names the file count when deleting a week', async () => {
   await waitFor(() => expect(statusText()).toContain('Week 1 deleted.'))
 })
 
+// Uploads go through XHR for byte progress; each send() answers via reply(n, form) after an optional gate.
+function stubXhr(reply: (n: number, form: FormData) => { status: number; body: unknown }, gate?: Promise<void>) {
+  const posts: FormData[] = []
+  class Xhr {
+    upload: { onprogress?: (e: unknown) => void } = {}
+    status = 0
+    statusText = ''
+    responseText = ''
+    onload?: () => void
+    open() {}
+    setRequestHeader() {}
+    getResponseHeader() {
+      return null
+    }
+    send(form: FormData) {
+      posts.push(form)
+      this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 2 })
+      void (gate ?? Promise.resolve()).then(() => {
+        const r = reply(posts.length, form)
+        this.status = r.status
+        this.responseText = JSON.stringify(r.body)
+        this.onload?.()
+      })
+    }
+  }
+  vi.stubGlobal('XMLHttpRequest', Xhr)
+  return posts
+}
+
 it('uploads valid files and lists refused ones', async () => {
   let release!: () => void
   const gate = new Promise<void>((r) => (release = r))
-  const fn = setup({
-    'POST /universities/a/sections/s1/weeks/w1/materials': async () => {
-      await gate
-      return { status: 201, body: mat('m9', 'w1') }
-    },
-  })
+  setup({})
+  const posts = stubXhr(() => ({ status: 201, body: mat('m9', 'w1') }), gate)
   await screen.findByText('Week 1')
   const pdf = new File(['x'], 'a.pdf', { type: 'application/pdf' })
   const exe = new File(['x'], 'b.exe')
   fireEvent.change(screen.getByLabelText('Files for Week 1'), {
     target: { files: [pdf, exe] },
   })
-  await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Uploading 1 of 1: a.pdf'))
+  await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Uploading 1 of 1: a.pdf (50%)'))
   expect(screen.getByRole('button', { name: 'Upload files to Week 2' })).toBeDisabled()
   release()
   await waitFor(() =>
@@ -179,19 +204,17 @@ it('uploads valid files and lists refused ones', async () => {
   const alert = screen.getByRole('alert')
   expect(alert).toHaveTextContent('1 file not uploaded')
   expect(alert).toHaveTextContent("b.exe: This file type can't be uploaded.")
-  const posts = fn.mock.calls.filter(([r]) => r.method === 'POST')
   expect(posts).toHaveLength(1)
-  expect(await posts[0][0].text()).toContain('name="file"') // the stub's FormData reports filename="blob"; the browser sends the real name
+  expect(posts[0].get('file')).toBeInstanceOf(File)
 })
 
 it('continues after a per-file server error', async () => {
-  let n = 0
-  const fn = setup({
-    'POST /universities/a/sections/s1/weeks/w1/materials': () =>
-      ++n === 1
-        ? err(400, 'validation_failed', [{ field: 'file', message: 'is larger than 100 MB' }])
-        : { status: 201, body: mat('m9', 'w1') },
-  })
+  setup({})
+  const posts = stubXhr((n) =>
+    n === 1
+      ? { status: 400, body: { error: { code: 'validation_failed', message: 'm', details: [{ field: 'file', message: 'is larger than 100 MB' }] } } }
+      : { status: 201, body: mat('m9', 'w1') },
+  )
   await screen.findByText('Week 1')
   const files = [new File(['x'], 'a.pdf'), new File(['x'], 'b.pdf')]
   fireEvent.change(screen.getByLabelText('Files for Week 1'), {
@@ -199,7 +222,7 @@ it('continues after a per-file server error', async () => {
   })
   const alert = await screen.findByRole('alert')
   expect(alert).toHaveTextContent('a.pdf: It is larger than 100 MB.')
-  expect(fn.mock.calls.filter(([r]) => r.method === 'POST')).toHaveLength(2)
+  expect(posts).toHaveLength(2)
 })
 
 it('reads the upload policy for the helper line and accept', async () => {

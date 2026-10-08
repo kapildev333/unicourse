@@ -70,3 +70,14 @@ it('maps the server size text', () => {
   const e = new ApiError(400, 'validation_failed', 'm', [{ field: 'file', message: 'is larger than 1 MB' }])
   expect(uploadReason(e)).toBe('It is larger than 1 MB.')
 })
+
+it('shows whole-percent progress once per change', async () => {
+  const lines: string[] = []
+  await runUploads([file('a.pdf')], policy, async (_f, pct) => [0, 0, 45, 45, 100].forEach(pct), (l) => lines.push(l))
+  expect(lines).toEqual([
+    'Uploading 1 of 1: a.pdf',
+    'Uploading 1 of 1: a.pdf (0%)',
+    'Uploading 1 of 1: a.pdf (45%)',
+    'Uploading 1 of 1: a.pdf (100%)',
+  ])
+})
