@@ -12,8 +12,8 @@
     "test": "vitest --exclude \"e2e/**\" --exclude \"node_modules/**\" --exclude \"dist/**\"",
     "generate": "openapi-typescript ../api/openapi.json -o src/api/types.ts",
     "postman": "node scripts/postman.mjs ../api/openapi.json ../../docs/postman/unicourse.postman_collection.json",
-    "e2e": "playwright test --project chromium",
-    "screens": "playwright test --project screens"
+    "e2e": "playwright test --project=chromium",
+    "screens": "playwright test --project=screens"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
