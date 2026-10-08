@@ -3959,7 +3959,7 @@
       "patch": {
         "operationId": "reviewAttempt",
         "summary": "Review a quiz attempt",
-        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the points and feedback of the named questions, recomputes the score (the sum of the points) and rewrites the gradebook score. Errors: 404 \"attempt\", 409 \"the attempt is not submitted\", grading.<questionId> (\"is not a question of this quiz\"), grading.<questionId>.points (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <question points>\"), grading.<questionId>.feedback (at most 2000 characters), feedback (at most 5000 characters), \"no fields to update\".",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the points and feedback of the named questions, recomputes the score (the sum of the points) and rewrites the gradebook score. Errors: 404 \"attempt\", 409 \"the attempt is not submitted\", grading (\"must not be null\", \"must be an object\"), grading.<questionId> (\"is not a question of this quiz\", \"invalid value\"), grading.<questionId>.<field> (\"unknown field\"), grading.<questionId>.points (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <question points>\"), grading.<questionId>.feedback (\"must not contain NUL\", \"must be at most 2000 characters\"), feedback (\"must not be null\", \"invalid value\", \"must not contain NUL\", \"must be at most 5000 characters\"), \"no fields to update\".",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -7154,8 +7154,8 @@
           },
           "position": {
             "type": "integer",
-            "minimum": 0,
-            "example": 0
+            "minimum": 1,
+            "example": 1
           },
           "multiple": {
             "type": "boolean",
@@ -7486,9 +7486,7 @@
                   0
                 ]
               }
-            },
-            "minProperties": 1,
-            "maxProperties": 1
+            }
           },
           "submit": {
             "type": "boolean",
@@ -7532,9 +7530,7 @@
                 "points": 1.5,
                 "feedback": "Half credit."
               }
-            },
-            "minProperties": 1,
-            "maxProperties": 1
+            }
           },
           "feedback": {
             "type": "string",
