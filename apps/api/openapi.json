@@ -3986,6 +3986,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AttemptReview"
+              },
+              "example": {
+                "grading": {
+                  "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                    "points": 1.5,
+                    "feedback": "Half credit."
+                  }
+                },
+                "feedback": "Good work."
               }
             }
           }
@@ -4044,6 +4053,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AttemptPut"
+              },
+              "example": {
+                "answers": {
+                  "3e342386-bd02-4acf-b8f8-4a40e7a86b03": {
+                    "choices": [
+                      0
+                    ]
+                  }
+                },
+                "submit": false
               }
             }
           }
