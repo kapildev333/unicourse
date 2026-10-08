@@ -1,6 +1,7 @@
 package quiz
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"math/big"
@@ -118,8 +119,8 @@ func reviewAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, httpx.Conflict("the attempt is not submitted")
 	}
 	var in struct {
-		Grading  tenant.Opt[map[string]markIn] `json:"grading"`
-		Feedback tenant.Opt[string]            `json:"feedback"`
+		Grading  tenant.Opt[json.RawMessage] `json:"grading"`
+		Feedback tenant.Opt[json.RawMessage] `json:"feedback"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
@@ -140,13 +141,31 @@ func reviewAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if in.Grading.Null {
 		d = append(d, httpx.FieldError{Field: "grading", Message: "must not be null"})
 	}
-	ids := make([]string, 0, len(in.Grading.V))
-	for id := range in.Grading.V {
+	// Entries are decoded here, not by DecodeJSON, so unknown nested fields are rejected with their path.
+	var entries map[string]json.RawMessage
+	if in.Grading.Set && !in.Grading.Null {
+		if err := json.Unmarshal(in.Grading.V, &entries); err != nil || entries == nil {
+			d = append(d, httpx.FieldError{Field: "grading", Message: "must be an object"})
+		}
+	}
+	ids := make([]string, 0, len(entries))
+	for id := range entries {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
-		m, p := in.Grading.V[id], "grading."+id
+		p := "grading." + id
+		var m markIn
+		dec := json.NewDecoder(bytes.NewReader(entries[id]))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&m); err != nil {
+			if rest, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+				d = append(d, httpx.FieldError{Field: p + "." + strings.Trim(rest, `"`), Message: "unknown field"})
+			} else {
+				d = append(d, httpx.FieldError{Field: p, Message: "invalid value"})
+			}
+			continue
+		}
 		q, ok := byID[id]
 		if !ok {
 			d = append(d, httpx.FieldError{Field: p, Message: "is not a question of this quiz"})
@@ -174,11 +193,14 @@ func reviewAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 	if in.Feedback.Null {
 		d = append(d, httpx.FieldError{Field: "feedback", Message: "must not be null"})
 	} else if in.Feedback.Set {
-		f, fe := optText("feedback", in.Feedback.V, 5000)
-		if fe != nil {
+		var v string
+		if err := json.Unmarshal(in.Feedback.V, &v); err != nil {
+			d = append(d, httpx.FieldError{Field: "feedback", Message: "invalid value"})
+		} else if f, fe := optText("feedback", v, 5000); fe != nil {
 			d = append(d, *fe)
+		} else {
+			feedback = f
 		}
-		feedback = f
 	}
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)

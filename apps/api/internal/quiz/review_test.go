@@ -94,8 +94,10 @@ func TestReviewBounds(t *testing.T) {
 		"grading." + qs[1] + ".points":   {"grading": map[string]any{qs[1]: map[string]any{"points": -1}}},
 		"grading.nope":                   {"grading": map[string]any{"nope": map[string]any{"points": 1}}},
 		"feedback":                       {"feedback": strings.Repeat("x", 5001)},
+		"grading." + qs[0] + ".feedbak":  {"grading": map[string]any{qs[0]: map[string]any{"points": 1, "feedbak": "typo"}}},
 		"grading." + qs[0] + ".feedback": {"grading": map[string]any{qs[0]: map[string]any{"points": 1, "feedback": strings.Repeat("x", 2001)}}},
 	}
+	cases["feedback"] = map[string]any{"feedback": 5}
 	for field, body := range cases {
 		if st, b := e.call(e.Inst, "PATCH", p, body); st != 400 {
 			t.Errorf("%s: %d %s", field, st, b)
