@@ -40,11 +40,14 @@ type env struct {
 	UserID                                                 map[string]string // email -> id
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvLimit(t, 0) }
+
+// newEnvLimit is newEnv with the upload limit set (0 is the default 100 MB).
+func newEnvLimit(t *testing.T, max int64) *env {
 	t.Helper()
 	db := testdb.Open(t)
 	fx := testdb.Seed(t, db)
-	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, BaseURL: "http://localhost", Files: blob.Dir{Root: t.TempDir()}}
+	d := tenant.Deps{DB: db, Sessions: &auth.SessionStore{DB: db}, BaseURL: "http://localhost", Files: blob.Dir{Root: t.TempDir(), MaxBytes: max}}
 	r := httpx.NewRouter()
 	course.Register(r, d)
 	Register(r, d)

@@ -272,6 +272,31 @@
         }
       }
     },
+    "/upload-policy": {
+      "get": {
+        "operationId": "getUploadPolicy",
+        "summary": "Material upload limits",
+        "description": "Who: signed in. The largest file a material upload may store (UNICOURSE_MAX_UPLOAD_BYTES, default 104857600) and the allowed file extensions, lowercase and sorted. Uploads enforce both; this route lets clients check before sending.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPolicy"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
     "/universities/{slug}/me/sections": {
       "get": {
         "operationId": "listMySections",
@@ -3126,7 +3151,7 @@
       "post": {
         "operationId": "uploadMaterial",
         "summary": "Upload material",
-        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than 100 MB\", \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (100 MB by default; see GET /upload-policy), \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
         "parameters": [
           {
             "$ref": "#/components/parameters/slug"
@@ -5951,7 +5976,7 @@
           "file": {
             "type": "string",
             "format": "binary",
-            "description": "One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv."
+            "description": "One file, 1 byte to the upload limit; extension as listed by GET /upload-policy."
           },
           "title": {
             "type": "string",
@@ -5987,6 +6012,47 @@
             "description": "1 to the number of files in the (target) week."
           }
         },
+        "additionalProperties": false
+      },
+      "UploadPolicy": {
+        "type": "object",
+        "properties": {
+          "maxBytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "example": 104857600
+          },
+          "allowedExtensions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+$"
+            },
+            "example": [
+              "csv",
+              "doc",
+              "docx",
+              "gif",
+              "jpeg",
+              "jpg",
+              "md",
+              "pdf",
+              "png",
+              "ppt",
+              "pptx",
+              "txt",
+              "webp",
+              "xls",
+              "xlsx",
+              "zip"
+            ]
+          }
+        },
+        "required": [
+          "maxBytes",
+          "allowedExtensions"
+        ],
         "additionalProperties": false
       }
     },

@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
+	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
@@ -45,8 +46,6 @@ var fileTypes = map[string]string{
 }
 
 const (
-	maxFile    = 100 << 20       // 104,857,600 bytes, "100 MB" (spec 6 section 3)
-	maxBody    = maxFile + 1<<20 // plus 1 MB of multipart overhead (spec 6 section 5)
 	maxPerWeek = 200
 )
 
@@ -159,10 +158,34 @@ func (c *countErr) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func uploadErr(err error) error {
+// sizeText is n as "<k> MB" when it is a whole number of MiB, else "<n> bytes".
+func sizeText(n int64) string {
+	if n%(1<<20) == 0 {
+		return strconv.FormatInt(n>>20, 10) + " MB"
+	}
+	return strconv.FormatInt(n, 10) + " bytes"
+}
+
+// uploadPolicy answers the upload limit and allowlist (B9): the web's copy of both is gone.
+func uploadPolicy(d tenant.Deps) httpx.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if _, err := auth.Authenticate(w, r, d.Sessions); err != nil {
+			return err
+		}
+		httpx.WriteJSON(w, http.StatusOK, uploadPolicyBody{MaxBytes: d.Files.Limit(), AllowedExtensions: slices.Sorted(maps.Keys(fileTypes))})
+		return nil
+	}
+}
+
+type uploadPolicyBody struct {
+	MaxBytes          int64    `json:"maxBytes"`
+	AllowedExtensions []string `json:"allowedExtensions"`
+}
+
+func uploadErr(err error, limit int64) error {
 	var mb *http.MaxBytesError
 	if errors.As(err, &mb) {
-		return httpx.Validation(*fileErr("is larger than 100 MB"))
+		return httpx.Validation(*fileErr("is larger than " + sizeText(limit)))
 	}
 	return httpx.Validation(*fileErr("invalid multipart upload: " + err.Error()))
 }
@@ -200,7 +223,8 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
 		return notMultipart
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	limit := d.Files.Limit()
+	r.Body = http.MaxBytesReader(w, r.Body, limit+1<<20) // plus 1 MB of multipart overhead (spec 6 section 5)
 	mr, err := r.MultipartReader()
 	if err != nil {
 		return notMultipart
@@ -223,14 +247,14 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 		}
 		if err != nil {
 			removeTemp()
-			return uploadErr(err)
+			return uploadErr(err, limit)
 		}
 		switch part.FormName() {
 		case "title":
 			b, err := io.ReadAll(io.LimitReader(part, 4096))
 			if err != nil {
 				removeTemp()
-				return uploadErr(err)
+				return uploadErr(err, limit)
 			}
 			title = string(b)
 		case "file":
@@ -243,17 +267,17 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 				return httpx.Validation(*fe)
 			}
 			src := &countErr{r: part}
-			t, err := d.Files.Put(s.UniversityID, io.LimitReader(src, maxFile+1))
+			t, err := d.Files.Put(s.UniversityID, io.LimitReader(src, limit+1))
 			if err != nil {
 				if src.err != nil {
-					return uploadErr(src.err)
+					return uploadErr(src.err, limit)
 				}
 				return err
 			}
 			tmp, haveFile = t, true
-			if tmp.Size > maxFile {
+			if tmp.Size > limit {
 				removeTemp()
-				return httpx.Validation(*fileErr("is larger than 100 MB"))
+				return httpx.Validation(*fileErr("is larger than " + sizeText(limit)))
 			}
 			if tmp.Size == 0 {
 				removeTemp()
