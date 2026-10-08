@@ -698,3 +698,39 @@ func TestSignInInvitationNameOldestOfTwoNamed(t *testing.T) {
 		t.Fatalf("name %q, want First", got)
 	}
 }
+
+func TestAllowedAcceptedOutsideDomainInvitee(t *testing.T) {
+	db := testdb.Open(t)
+	fx := testdb.Seed(t, db)
+	ctx := context.Background()
+	const email = "visitor@outside.org"
+	check := func() bool {
+		t.Helper()
+		var ok bool
+		if err := pg.WithUserTx(ctx, db, "", email, func(tx *sql.Tx) (err error) {
+			ok, err = allowed(ctx, tx, email)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if check() {
+		t.Fatal("unknown outside email allowed")
+	}
+	insertInvitation(t, db, fx.UniversityA, email, "member", nil, time.Now().Add(time.Hour))
+	uid, err := SignIn(ctx, db, email, "Visitor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !check() {
+		t.Fatal("accepted invitee with active membership not allowed")
+	}
+	if _, err := SignIn(ctx, db, email, ""); err != nil {
+		t.Fatalf("second sign-in: %v", err)
+	}
+	texec(t, db, fx.UniversityA, `update memberships set status = 'invited' where user_id = $1`, uid)
+	if check() {
+		t.Fatal("inactive membership still allowed")
+	}
+}

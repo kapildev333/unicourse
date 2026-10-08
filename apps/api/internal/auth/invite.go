@@ -13,13 +13,19 @@ import (
 
 var ErrNotAllowed = &httpx.Error{Status: 403, Code: "forbidden", Message: "your email is not allowed for this university"}
 
-// allowed reports whether the email's domain belongs to any university or a pending, unexpired
-// invitation exists for it. email must be normalised; tx must be a pg.WithUserTx with app.email = email
+// allowed reports whether the email's domain belongs to any university, a pending, unexpired
+// invitation exists for it, or its user has an active membership in any university (an accepted
+// outside-domain invitee). email must be normalised; tx must be a pg.WithUserTx with app.email = email
 // so the invitations_by_email policy applies.
 func allowed(ctx context.Context, tx *sql.Tx, email string) (ok bool, err error) {
 	domain := email[strings.LastIndex(email, "@")+1:]
+	// memberships_self needs app.user_id; users has no row level security. Unknown email sets '' (matches nothing).
+	if _, err = tx.ExecContext(ctx, `select set_config('app.user_id', coalesce((select id::text from users where email = $1), ''), true)`, email); err != nil {
+		return false, err
+	}
 	err = tx.QueryRowContext(ctx, `select exists (select 1 from universities where $1 = any(allowed_email_domains))
-		or exists (select 1 from invitations where email = $2 and accepted_at is null and expires_at > now())`, domain, email).Scan(&ok)
+		or exists (select 1 from invitations where email = $2 and accepted_at is null and expires_at > now())
+		or exists (select 1 from memberships where status = 'active')`, domain, email).Scan(&ok)
 	return ok, err
 }
 
