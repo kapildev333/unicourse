@@ -148,7 +148,7 @@ func listSections(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 			}
 		}
 	}
-	q, fe := likeParam(r)
+	q, fe := tenant.LikeParam(r)
 	if fe != nil {
 		details = append(details, *fe)
 	}

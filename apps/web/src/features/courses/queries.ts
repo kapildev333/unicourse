@@ -2,24 +2,35 @@ import { useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '../../api/client'
 import { currentTerm } from '../../lib/schedule'
 
-/** First 200 courses for pickers (ceiling: a search endpoint past 200). */
-export function useAllCourses(slug: string, departmentId?: string, enabled = true) {
+/** First 200 courses (matching q when given) for pickers; pickers search past 200. */
+export function useAllCourses(slug: string, departmentId?: string, enabled = true, q = '') {
   return useQuery({
     enabled,
-    queryKey: [slug, 'courses', 'all', { departmentId }],
+    queryKey: [slug, 'courses', 'all', { departmentId, q }],
     queryFn: () =>
       unwrap(
-        api.GET('/universities/{slug}/courses', { params: { path: { slug }, query: { limit: 200, departmentId } } }),
+        api.GET('/universities/{slug}/courses', {
+          params: {
+            path: { slug },
+            query: { limit: 200, departmentId, q: q || undefined },
+          },
+        }),
       ),
     staleTime: 60_000,
   })
 }
 
-/** First 200 terms for pickers (ceiling: a search endpoint past 200). */
-export function useAllTerms(slug: string) {
+/** First 200 terms (matching q when given) for pickers; pickers search past 200. */
+export function useAllTerms(slug: string, q = '', enabled = true) {
   return useQuery({
-    queryKey: [slug, 'terms', 'all'],
-    queryFn: () => unwrap(api.GET('/universities/{slug}/terms', { params: { path: { slug }, query: { limit: 200 } } })),
+    enabled,
+    queryKey: [slug, 'terms', 'all', q],
+    queryFn: () =>
+      unwrap(
+        api.GET('/universities/{slug}/terms', {
+          params: { path: { slug }, query: { limit: 200, q: q || undefined } },
+        }),
+      ),
     staleTime: 60_000,
   })
 }

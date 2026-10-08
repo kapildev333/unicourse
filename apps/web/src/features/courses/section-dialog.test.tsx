@@ -191,3 +191,24 @@ it('opens wide, with the two-column phone grid for a meeting row', async () => {
   expect(group(1).getByLabelText('Day').closest('div[role=group]')).toHaveClass('grid-cols-2', 'sm:grid-cols-[minmax(0,8rem)_minmax(0,7rem)_minmax(0,7rem)_minmax(0,1fr)_auto]')
   expect(group(1).getByLabelText('Location').parentElement!.parentElement).toHaveClass('col-span-2')
 })
+
+it('shows Search courses only past 200 courses and sends q', async () => {
+  const other = { ...course, id: 'c2', code: 'MA101', title: 'Calculus' }
+  const { fetchFn } = setup({
+    'GET /universities/a/courses': (req) =>
+      new URL(req.url).searchParams.get('q') ? { body: { items: [other] } } : { body: { items: [course], nextCursor: 'n' } },
+  })
+  await screen.findByRole('option', { name: /CS101/ })
+  fireEvent.change(screen.getByLabelText('Course'), { target: { value: 'c1' } })
+  fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'calc' } })
+  await screen.findByRole('option', { name: /MA101/ })
+  expect(fetchFn.mock.calls.some((c) => new URL((c[0] as Request).url).searchParams.get('q') === 'calc')).toBe(true)
+  expect(screen.getByLabelText('Course')).toHaveValue('c1')
+  expect(screen.getByRole('option', { name: /CS101/ })).toBeInTheDocument()
+})
+
+it('has no course search field when the list fits one page', async () => {
+  setup({})
+  await screen.findByRole('option', { name: /CS101/ })
+  expect(screen.queryByLabelText('Search courses')).not.toBeInTheDocument()
+})

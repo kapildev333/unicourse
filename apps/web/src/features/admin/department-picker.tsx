@@ -1,4 +1,5 @@
-import { useId } from 'react'
+import { useDeferredValue, useId, useState } from 'react'
+import { FormField, inputClass } from '../../components/form-field'
 import { useAllDepartments } from './queries'
 
 export function DepartmentPicker(props: {
@@ -10,10 +11,35 @@ export function DepartmentPicker(props: {
   const { slug, value, onChange, error } = props
   const errId = useId()
   const q = useAllDepartments(slug)
-  const items = q.data?.items ?? []
+  const [search, setSearch] = useState('')
+  const deferred = useDeferredValue(search.trim())
+  const found = useAllDepartments(slug, deferred, !!deferred)
+  const searching = search !== ''
+  const items = (searching ? found.data?.items : q.data?.items) ?? []
   return (
     <fieldset aria-describedby={error ? errId : undefined}>
       <legend className="text-sm font-medium">Departments</legend>
+      {(q.data?.nextCursor || searching) && (
+        <div className="mt-1.5">
+          <FormField
+            label="Search departments"
+            name="departmentSearch"
+            hint={
+              searching && found.data?.nextCursor
+                ? 'Showing the first 200 matches. Type more to narrow them.'
+                : undefined
+            }
+          >
+            <input
+              type="search"
+              className={inputClass}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+            />
+          </FormField>
+        </div>
+      )}
       <div className="mt-1.5 max-h-48 overflow-y-auto rounded border border-line-strong p-2">
         {q.isPending ? (
           <p role="status" className="text-sm text-ink-muted">

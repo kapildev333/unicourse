@@ -1,3 +1,4 @@
+import { useDeferredValue, useState } from 'react'
 import type { components } from '../../api/types'
 import { FormField, inputClass } from '../../components/form-field'
 import { defaultTermId, todayIso, useAllTerms } from '../courses/queries'
@@ -14,16 +15,56 @@ export function useTermChoice(slug: string, termId?: string) {
   return { query, terms, term, notInSession }
 }
 
-export function TermPicker({ terms, value, onChange }: { terms: Term[]; value?: string; onChange: (id: string) => void }) {
+/** `more`: the unfiltered list had a next page, so a search field is shown (and `slug` is searched). */
+export function TermPicker(props: {
+  slug: string
+  terms: Term[]
+  more?: boolean
+  value?: string
+  onChange: (id: string) => void
+  hint?: string
+  className?: string
+}) {
+  const { slug, terms, more, value, onChange, hint, className = 'w-full md:w-64' } = props
+  const [search, setSearch] = useState('')
+  const deferred = useDeferredValue(search.trim())
+  const found = useAllTerms(slug, deferred, !!deferred)
+  const [picked, setPicked] = useState<Term>()
+  const searching = search !== ''
+  const shown = searching ? [...(found.data?.items ?? [])] : terms
+  const current = shown.some((t) => t.id === value) ? undefined : [picked, ...terms].find((t) => t?.id === value)
+  const options = current ? [current, ...shown] : shown
+  const pick = (id: string) => {
+    setPicked([...shown, ...terms].find((t) => t.id === id))
+    onChange(id)
+  }
   return (
-    <FormField label="Term" name="termId">
-      <select className={`${inputClass} w-full md:w-64`} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
-        {terms.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </select>
-    </FormField>
+    <>
+      {(more || searching) && (
+        <FormField
+          label="Search terms"
+          name="termSearch"
+          hint={
+            searching && found.data?.nextCursor ? 'Showing the first 200 matches. Type more to narrow them.' : undefined
+          }
+        >
+          <input
+            type="search"
+            className={`${inputClass} ${className}`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </FormField>
+      )}
+      <FormField label="Term" name="termId" hint={hint}>
+        <select className={`${inputClass} ${className}`} value={value ?? ''} onChange={(e) => pick(e.target.value)}>
+          {options.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </FormField>
+    </>
   )
 }

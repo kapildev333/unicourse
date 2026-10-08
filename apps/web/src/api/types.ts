@@ -459,7 +459,7 @@ export interface paths {
         put?: never;
         /**
          * Create Section
-         * @description Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings); per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. "must be after startsAt".
+         * @description Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings, "add at most 20 meeting times"); rows on the same weekday whose times intersect are 400 field meetings ("Meeting 1 and meeting 3 overlap on Monday."), and endsAt is exclusive, so 10:00-11:00 and 11:00-12:00 are fine; per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. "must be after startsAt".
          */
         post: operations["createSection"];
         delete?: never;
@@ -2654,6 +2654,8 @@ export interface operations {
                 limit?: components["parameters"]["limit"];
                 /** @description Opaque; corrupt is 400 field cursor. */
                 cursor?: components["parameters"]["cursor"];
+                /** @description Case-insensitive substring of the department code or name. Blank means no filter; over 100 characters is 400 field q. Works with limit and cursor. */
+                q?: string;
             };
             header?: never;
             path: {
@@ -2781,6 +2783,8 @@ export interface operations {
                 limit?: components["parameters"]["limit"];
                 /** @description Opaque; corrupt is 400 field cursor. */
                 cursor?: components["parameters"]["cursor"];
+                /** @description Case-insensitive substring of the term name. Blank means no filter; over 100 characters is 400 field q. Works with limit and cursor. */
+                q?: string;
             };
             header?: never;
             path: {
