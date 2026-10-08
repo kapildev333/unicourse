@@ -20,7 +20,7 @@ func Register(r *httpx.Router, d tenant.Deps) {
 	r.Handle("GET", base+"/sections/{id}/assessments", tenant.Wrap(d, listAssessments))
 	r.Handle("POST", base+"/sections/{id}/assessments", tenant.Wrap(d, createAssessment))
 	r.Handle("PATCH", base+"/sections/{id}/assessments/{assessmentId}", tenant.Wrap(d, updateAssessment))
-	r.Handle("DELETE", base+"/sections/{id}/assessments/{assessmentId}", tenant.Wrap(d, deleteAssessment))
+	r.Handle("DELETE", base+"/sections/{id}/assessments/{assessmentId}", tenant.Wrap(d, deleteAssessment(d.Files)))
 	r.Handle("PUT", base+"/sections/{id}/assessments/{assessmentId}/scores", tenant.Wrap(d, putScores))
 	r.Handle("GET", base+"/sections/{id}/gradebook", tenant.Wrap(d, getGradebook))
 	r.Handle("GET", base+"/sections/{id}/final-grades", tenant.Wrap(d, listFinal))

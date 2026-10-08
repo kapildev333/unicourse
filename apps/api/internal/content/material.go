@@ -216,24 +216,30 @@ func uploadMaterial(d tenant.Deps) tenant.Handler {
 	}
 }
 
-// receive is phase 2 of an upload: it runs after the request transaction committed, streams the file part
-// to a temp file with no transaction open, then inserts, audits and renames in a second transaction.
-func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Request, secID, weekID string) error {
+// Upload is a received file part held as an uncommitted temp blob: Commit or Remove its Temp.
+type Upload struct {
+	Temp                  blob.Temp
+	FileName, ContentType string
+}
+
+// ReceiveFile reads a multipart/form-data request with exactly one "file" part (allowlist, files.Limit(),
+// non-empty), streaming it to a temp blob with no transaction open. Text parts named in fields are read
+// (<= 4096 bytes) into *fields[name]; other parts are ignored. On error nothing is left behind.
+func ReceiveFile(files blob.Dir, universityID string, w http.ResponseWriter, r *http.Request, fields map[string]*string) (Upload, error) {
 	notMultipart := httpx.Validation(*fileErr("must be a multipart/form-data upload"))
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
-		return notMultipart
+		return Upload{}, notMultipart
 	}
-	limit := d.Files.Limit()
+	limit := files.Limit()
 	r.Body = http.MaxBytesReader(w, r.Body, limit+1<<20) // plus 1 MB of multipart overhead (spec 6 section 5)
 	mr, err := r.MultipartReader()
 	if err != nil {
-		return notMultipart
+		return Upload{}, notMultipart
 	}
 	var (
+		up         Upload
 		tmp        blob.Temp
 		haveFile   bool
-		name, ct   string
-		title      string
 		removeTemp = func() {
 			if haveFile {
 				tmp.Remove()
@@ -247,47 +253,61 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 		}
 		if err != nil {
 			removeTemp()
-			return uploadErr(err, limit)
+			return Upload{}, uploadErr(err, limit)
 		}
-		switch part.FormName() {
-		case "title":
+		if dst := fields[part.FormName()]; dst != nil && part.FormName() != "file" {
 			b, err := io.ReadAll(io.LimitReader(part, 4096))
 			if err != nil {
 				removeTemp()
-				return uploadErr(err, limit)
+				return Upload{}, uploadErr(err, limit)
 			}
-			title = string(b)
-		case "file":
+			*dst = string(b)
+			continue
+		}
+		if part.FormName() == "file" {
 			if haveFile {
 				removeTemp()
-				return httpx.Validation(*fileErr("must be exactly one file"))
+				return Upload{}, httpx.Validation(*fileErr("must be exactly one file"))
 			}
 			var fe *httpx.FieldError
-			if name, ct, fe = fileName(part.FileName()); fe != nil {
-				return httpx.Validation(*fe)
+			if up.FileName, up.ContentType, fe = fileName(part.FileName()); fe != nil {
+				return Upload{}, httpx.Validation(*fe)
 			}
 			src := &countErr{r: part}
-			t, err := d.Files.Put(s.UniversityID, io.LimitReader(src, limit+1))
+			t, err := files.Put(universityID, io.LimitReader(src, limit+1))
 			if err != nil {
 				if src.err != nil {
-					return uploadErr(src.err, limit)
+					return Upload{}, uploadErr(src.err, limit)
 				}
-				return err
+				return Upload{}, err
 			}
 			tmp, haveFile = t, true
 			if tmp.Size > limit {
 				removeTemp()
-				return httpx.Validation(*fileErr("is larger than " + sizeText(limit)))
+				return Upload{}, httpx.Validation(*fileErr("is larger than " + sizeText(limit)))
 			}
 			if tmp.Size == 0 {
 				removeTemp()
-				return httpx.Validation(*fileErr("is empty"))
+				return Upload{}, httpx.Validation(*fileErr("is empty"))
 			}
 		}
 	}
 	if !haveFile {
-		return httpx.Validation(*fileErr("is required"))
+		return Upload{}, httpx.Validation(*fileErr("is required"))
 	}
+	up.Temp = tmp
+	return up, nil
+}
+
+// receive is phase 2 of an upload: it runs after the request transaction committed, streams the file part
+// to a temp file with no transaction open, then inserts, audits and renames in a second transaction.
+func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Request, secID, weekID string) error {
+	var title string
+	up, err := ReceiveFile(d.Files, s.UniversityID, w, r, map[string]*string{"title": &title})
+	if err != nil {
+		return err
+	}
+	tmp, name, ct := up.Temp, up.FileName, up.ContentType
 	if strings.TrimSpace(title) == "" {
 		title = name
 		if utf8.RuneCountInString(title) > 200 {
@@ -296,7 +316,7 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 	} else {
 		var fe *httpx.FieldError
 		if title, fe = line("title", title, 200); fe != nil {
-			removeTemp()
+			tmp.Remove()
 			return httpx.Validation(*fe)
 		}
 	}

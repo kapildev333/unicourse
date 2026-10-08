@@ -5,11 +5,32 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
+
+// ServeFile writes the Spec 6 download response for a committed blob (attachment, nosniff,
+// sandbox CSP, ETag "<sha256>", private no-store, http.ServeContent with modTime).
+// A row without a blob is a logged 500, never a 404.
+func ServeFile(w http.ResponseWriter, r *http.Request, files blob.Dir, universityID, id, fileName, contentType, sha256 string, modTime time.Time) error {
+	f, err := files.Open(universityID, id)
+	if err != nil {
+		return fmt.Errorf("file %s: open: %w", id, err)
+	}
+	defer f.Close()
+	h := w.Header()
+	h.Set("Content-Type", contentType)
+	h.Set("Content-Disposition", contentDisposition(fileName))
+	h.Set("ETag", `"`+sha256+`"`)
+	h.Set("Cache-Control", "private, no-store")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "sandbox")
+	http.ServeContent(w, r, "", modTime, f)
+	return nil
+}
 
 func downloadMaterial(files blob.Dir) tenant.Handler {
 	return func(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
@@ -25,21 +46,7 @@ func downloadMaterial(files blob.Dir) tenant.Handler {
 			return 0, nil, err
 		}
 		return http.StatusOK, tenant.After(func(w http.ResponseWriter, r *http.Request) error {
-			// a row without a blob is a logged 500, never a 404
-			f, err := files.Open(s.UniversityID, m.ID)
-			if err != nil {
-				return fmt.Errorf("material %s: open file: %w", m.ID, err)
-			}
-			defer f.Close()
-			h := w.Header()
-			h.Set("Content-Type", m.ContentType)
-			h.Set("Content-Disposition", contentDisposition(m.FileName))
-			h.Set("ETag", `"`+m.sha256+`"`)
-			h.Set("Cache-Control", "private, no-store")
-			h.Set("X-Content-Type-Options", "nosniff")
-			h.Set("Content-Security-Policy", "sandbox")
-			http.ServeContent(w, r, "", m.CreatedAt, f)
-			return nil
+			return ServeFile(w, r, files, s.UniversityID, m.ID, m.FileName, m.ContentType, m.sha256, m.CreatedAt)
 		}), nil
 	}
 }
