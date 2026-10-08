@@ -13,7 +13,7 @@ function setup(when: boolean) {
         component: () => (
           <>
             <UnsavedChangesGuard when={when} />
-            <Link to="/other">Leave</Link>
+            <Link to={'/other' as never}>Leave</Link>
           </>
         ),
       }),
