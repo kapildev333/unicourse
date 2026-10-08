@@ -7486,7 +7486,9 @@
                   0
                 ]
               }
-            }
+            },
+            "minProperties": 1,
+            "maxProperties": 1
           },
           "submit": {
             "type": "boolean",
@@ -7530,7 +7532,9 @@
                 "points": 1.5,
                 "feedback": "Half credit."
               }
-            }
+            },
+            "minProperties": 1,
+            "maxProperties": 1
           },
           "feedback": {
             "type": "string",
