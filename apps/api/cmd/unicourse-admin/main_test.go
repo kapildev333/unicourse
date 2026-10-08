@@ -267,7 +267,7 @@ func TestPruneFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	var good, gone string
+	var good, gone, subFile string
 	err = pg.WithTx(context.Background(), db, uni, func(tx *sql.Tx) error {
 		var dept, course, term, sec, wk string
 		if err := tx.QueryRow(`insert into departments (university_id, name, code) values ($1, 'D', 'D') returning id`, uni).Scan(&dept); err != nil {
@@ -291,18 +291,31 @@ func TestPruneFiles(t *testing.T) {
 				return err
 			}
 		}
-		return nil
+		// a submission file: its blob is old but referenced, so it must be kept
+		var as, sub string
+		if err := tx.QueryRow(`insert into assessments (university_id, section_id, kind, name, max_points, weight, position, opens_at, closes_at)
+			values ($1, $2, 'assignment', 'A', 100, 10, 0, now() - interval '1 day', now() + interval '1 day') returning id`, uni, sec).Scan(&as); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into submissions (university_id, assessment_id, user_id, body) values ($1, $2, $3, 'b') returning id`, uni, as, user).Scan(&sub); err != nil {
+			return err
+		}
+		return tx.QueryRow(`insert into submission_files (university_id, submission_id, file_name, content_type, size_bytes, sha256, position)
+			values ($1, $2, 's.pdf', 'application/pdf', 1, repeat('b', 64), 1) returning id`, uni, sub).Scan(&subFile)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	const oldID, newID = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"
 	put(good)
+	put(subFile)
 	put(oldID)
 	put(newID)
 	twoHours := time.Now().Add(-2 * time.Hour)
-	if err := os.Chtimes(filepath.Join(root, uni, oldID), twoHours, twoHours); err != nil {
-		t.Fatal(err)
+	for _, id := range []string{oldID, subFile} {
+		if err := os.Chtimes(filepath.Join(root, uni, id), twoHours, twoHours); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if _, err := files.Put(uni, strings.NewReader("x")); err != nil { // a young .tmp file
 		t.Fatal(err)
@@ -339,8 +352,8 @@ func TestPruneFiles(t *testing.T) {
 	if code != 0 || out != want || errOut != "" {
 		t.Fatalf("delete: %d %q %q", code, out, errOut)
 	}
-	if exists(oldID) || !exists(newID) || !exists(good) {
-		t.Fatalf("old %v new %v good %v", exists(oldID), exists(newID), exists(good))
+	if exists(oldID) || !exists(newID) || !exists(good) || !exists(subFile) {
+		t.Fatalf("old %v new %v good %v submission file %v", exists(oldID), exists(newID), exists(good), exists(subFile))
 	}
 	if ents, _ := os.ReadDir(tmpDir); len(ents) != 1 {
 		t.Fatalf(".tmp = %v", ents)
