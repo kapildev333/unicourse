@@ -3657,6 +3657,500 @@
                             }
                           ],
                           "event": []
+                        },
+                        {
+                          "name": "questions",
+                          "item": [
+                            {
+                              "name": "List quiz questions",
+                              "request": {
+                                "name": "List quiz questions",
+                                "description": {
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 \"not open yet\" before opensAt and 409 \"closed\" after closesAt unless they have submitted an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "questions"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "GET"
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            },
+                            {
+                              "name": "Replace quiz questions",
+                              "request": {
+                                "name": "Replace quiz questions",
+                                "description": {
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the whole list (0 to 100 questions) and sets the quiz's maxPoints to the sum of the points (1 when empty). Errors: items (\"is required\", \"must have at most 100 questions\", \"total points must be at most 10000\"), items[<i>].kind, .prompt, .points (0.01 to 1000, 2 decimals), .choices (\"must have 2 to 10 choices\", \"must have at least one correct choice\", \"only for multiple choice\"), .choices[<j>].text, .answers (\"must have 1 to 20 accepted answers\", \"only for fill in the blank\"), .answers[<j>]; 409 \"questions are locked once a student has started\".",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "questions"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                  },
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "PUT",
+                                "body": {
+                                  "mode": "raw",
+                                  "raw": "{\n  \"items\": [\n    {\n      \"kind\": \"<string>\",\n      \"prompt\": \"<string>\",\n      \"points\": \"<number>\",\n      \"choices\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"answers\": [\n        \"<string>\"\n      ]\n    },\n    {\n      \"kind\": \"<string>\",\n      \"prompt\": \"<string>\",\n      \"points\": \"<number>\",\n      \"choices\": [\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        },\n        {\n          \"value\": \"<Error: Too many levels of nesting to fake this schema>\"\n        }\n      ],\n      \"answers\": [\n        \"<string>\"\n      ]\n    }\n  ]\n}",
+                                  "options": {
+                                    "raw": {
+                                      "language": "json"
+                                    }
+                                  }
+                                }
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            }
+                          ],
+                          "event": []
+                        },
+                        {
+                          "name": "attempts",
+                          "item": [
+                            {
+                              "name": "List quiz attempts",
+                              "request": {
+                                "name": "List quiz attempts",
+                                "description": {
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. One row per attempt of an enrolled student, ordered by display name (email when empty), then email.",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "attempts"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "GET"
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            },
+                            {
+                              "name": "Start a quiz attempt",
+                              "request": {
+                                "name": "Start a quiz attempt",
+                                "description": {
+                                  "content": "Who: a student enrolled in the section. Idempotent: 201 when the attempt is created, 200 with the existing attempt. Errors: 409 \"not open yet\", 409 \"closed\", 409 \"the quiz has no questions\".",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "attempts"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "POST"
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            },
+                            {
+                              "name": "{userId}",
+                              "item": [
+                                {
+                                  "name": "Get a quiz attempt",
+                                  "request": {
+                                    "name": "Get a quiz attempt",
+                                    "description": {
+                                      "content": "Who: staff of the section for any student; a student for themselves (me or their id), 403 for another student. 404 \"attempt\" when the student has none. A student sees grading, score and feedback only when the quiz is published and the attempt is submitted.",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "attempts",
+                                        ":userId"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "userId",
+                                          "description": "(Required) A student's user id; me for the caller."
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "GET"
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                },
+                                {
+                                  "name": "Review a quiz attempt",
+                                  "request": {
+                                    "name": "Review a quiz attempt",
+                                    "description": {
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the points and feedback of the named questions, recomputes the score (the sum of the points) and rewrites the gradebook score. Errors: 404 \"attempt\", 409 \"the attempt is not submitted\", grading (\"must not be null\", \"must be an object\"), grading.<questionId> (\"is not a question of this quiz\", \"invalid value\"), grading.<questionId>.<field> (\"unknown field\"), grading.<questionId>.points (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <question points>\"), grading.<questionId>.feedback (\"must not contain NUL\", \"must be at most 2000 characters\"), feedback (\"must not be null\", \"invalid value\", \"must not contain NUL\", \"must be at most 5000 characters\"), \"no fields to update\".",
+                                      "type": "text/plain"
+                                    },
+                                    "url": {
+                                      "path": [
+                                        "universities",
+                                        ":slug",
+                                        "sections",
+                                        ":id",
+                                        "assessments",
+                                        ":assessmentId",
+                                        "attempts",
+                                        ":userId"
+                                      ],
+                                      "host": [
+                                        "{{baseUrl}}"
+                                      ],
+                                      "query": [],
+                                      "variable": [
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "{{slug}}",
+                                          "key": "slug",
+                                          "description": "(Required) University slug."
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "id",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "assessmentId",
+                                          "description": "(Required) "
+                                        },
+                                        {
+                                          "disabled": false,
+                                          "type": "any",
+                                          "value": "",
+                                          "key": "userId",
+                                          "description": "(Required) A student's user id; me for the caller."
+                                        }
+                                      ]
+                                    },
+                                    "header": [
+                                      {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                      },
+                                      {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                      }
+                                    ],
+                                    "method": "PATCH",
+                                    "body": {
+                                      "mode": "raw",
+                                      "raw": "{\n  \"grading\": {\n    \"key_0\": {\n      \"points\": \"<number>\",\n      \"feedback\": \"<string>\"\n    }\n  },\n  \"feedback\": \"<string>\"\n}",
+                                      "options": {
+                                        "raw": {
+                                          "language": "json"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "response": [],
+                                  "event": [],
+                                  "protocolProfileBehavior": {
+                                    "disableBodyPruning": true
+                                  }
+                                }
+                              ],
+                              "event": []
+                            },
+                            {
+                              "name": "Save or submit a quiz attempt",
+                              "request": {
+                                "name": "Save or submit a quiz attempt",
+                                "description": {
+                                  "content": "Who: a student enrolled in the section, for their own attempt. Replaces the saved answers; submit true also grades and submits. Errors: 404 \"attempt\" when not started, 409 \"already submitted\", 409 \"closed; your answers as of the closing time were submitted\", answers (\"is required\"), answers.<questionId> (\"is not a question of this quiz\"), answers.<questionId>.choices (\"must be distinct indexes from 0 to <n>\", \"only for multiple choice\"), answers.<questionId>.text (\"only for fill in the blank\", \"must be at most 1000 characters\", \"must not contain NUL\").",
+                                  "type": "text/plain"
+                                },
+                                "url": {
+                                  "path": [
+                                    "universities",
+                                    ":slug",
+                                    "sections",
+                                    ":id",
+                                    "assessments",
+                                    ":assessmentId",
+                                    "attempts",
+                                    "me"
+                                  ],
+                                  "host": [
+                                    "{{baseUrl}}"
+                                  ],
+                                  "query": [],
+                                  "variable": [
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "{{slug}}",
+                                      "key": "slug",
+                                      "description": "(Required) University slug."
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "id",
+                                      "description": "(Required) "
+                                    },
+                                    {
+                                      "disabled": false,
+                                      "type": "any",
+                                      "value": "",
+                                      "key": "assessmentId",
+                                      "description": "(Required) "
+                                    }
+                                  ]
+                                },
+                                "header": [
+                                  {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                  },
+                                  {
+                                    "key": "Accept",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "method": "PUT",
+                                "body": {
+                                  "mode": "raw",
+                                  "raw": "{\n  \"answers\": {\n    \"key_0\": {\n      \"choices\": [\n        \"<integer>\",\n        \"<integer>\"\n      ],\n      \"text\": \"<string>\"\n    }\n  },\n  \"submit\": \"<boolean>\"\n}",
+                                  "options": {
+                                    "raw": {
+                                      "language": "json"
+                                    }
+                                  }
+                                }
+                              },
+                              "response": [],
+                              "event": [],
+                              "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                              }
+                            }
+                          ],
+                          "event": []
                         }
                       ],
                       "event": []
