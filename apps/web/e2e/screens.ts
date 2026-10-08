@@ -2,15 +2,13 @@
 // Output: e2e/.tmp/screens/*.png and index.md. Dark/light via emulated prefers-color-scheme (theme stays "System").
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { tmpDir } from './env'
-import { api, createUniversity, H, runId, signIn, upload } from './helpers'
+import { api, createUniversity, H, personas, runId, sectionIds, seedDemo, signIn } from './helpers'
 
 const slug = `northfield-${runId}`
 const dom = `northfield-${runId}.edu`
 const A = `/api/v1/universities/${slug}`
-const year = new Date().getFullYear()
 const out = path.join(tmpDir, 'screens')
 const index: string[] = []
 
@@ -42,37 +40,22 @@ async function snap(page: Page, base: string, desc: string, o: { dialog?: boolea
   await page.emulateMedia({ colorScheme: 'light' })
 }
 
-const people = [
-  ['Amara Okafor', 'amara.okafor'], ['Priya Raman', 'priya.raman'], ['Tomasz Zielinski', 'tomasz.zielinski'], ['Daniel Reyes', 'daniel.reyes'],
-  ['Mei-Ling Chou', 'mei-ling.chou'], ['Jonas Berg', 'jonas.berg'], ['Fatima Al-Sayed', 'fatima.alsayed'], ['Lucas Moreau', 'lucas.moreau'],
-].map(([name, local]) => ({ name, email: `${local}@${dom}` }))
-const prof = `elena.marsh@${dom}`
-const ta = `sofia.alvarez@${dom}`
-const prof2 = `david.mensah@${dom}`
-const newHire = `ingrid.larsen@${dom}`
+const P = personas(slug)
+const people = [P.amara, P.priya, P.tomasz, P.daniel, P.meiLing, P.jonas, P.fatima, P.lucas]
+const prof = P.elena.email
+const ta = P.sofia.email
+const newHire = P.ingrid.email
 
-// code, title, credits, department, meetings [weekday, start, end, room], student indexes, instructor
-// (Amara, index 0, is in three of the five so the Catalog shows enrolled and open cards)
-const courses = [
-  ['CS101', 'Introduction to Computer Science', 4, 'CS', [[1, '10:00', '11:20', 'Hall B 204'], [3, '10:00', '11:20', 'Hall B 204']], [0, 1, 2, 3, 4, 5, 6, 7], prof],
-  ['CS210', 'Data Structures and Algorithms', 4, 'CS', [[2, '10:00', '11:20', 'Engineering Building 310'], [4, '10:00', '11:20', 'Engineering Building 310']], [0, 1, 2, 3, 4], prof],
-  ['MATH201', 'Linear Algebra', 4, 'MATH', [[1, '13:00', '14:20', 'Science Center 112'], [3, '13:00', '14:20', 'Science Center 112']], [0, 1, 2, 3, 5, 6], prof],
-  ['ECON110', 'Principles of Microeconomics', 3, 'ECON', [[2, '13:30', '14:50', 'Mercer Hall 101'], [4, '13:30', '14:50', 'Mercer Hall 101']], [4, 5, 6, 7], prof2],
-  ['BIO150', 'Cell Biology', 4, 'BIO', [[3, '15:00', '16:20', 'Life Sciences 120'], [5, '09:00', '10:20', 'Life Sciences 120']], [1, 3, 7], prof2],
-] as const
-const depts = [['Computer Science', 'CS'], ['Mathematics', 'MATH'], ['Economics', 'ECON'], ['Biology', 'BIO']]
 const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const csv = (rows: string[][]) => ['email,displayName', ...rows.map((r) => r.join(','))].join('\n') + '\n'
-const usScale = [['A', 93, 4], ['A-', 90, 3.7], ['B+', 87, 3.3], ['B', 83, 3], ['B-', 80, 2.7], ['C+', 77, 2.3], ['C', 73, 2], ['C-', 70, 1.7], ['D+', 67, 1.3], ['D', 63, 1], ['D-', 60, 0.7], ['F', 0, 0]]
-const csMid = [87.5, 62, 94, 71.25, 78, 55.5, 89, 81.75]
 
 test('capture every screen', async ({ browser, page }) => {
   test.setTimeout(1_200_000)
   fs.mkdirSync(out, { recursive: true })
-  const ctxs = async (email: string) => {
+  const ctxs = async (email: string, uni = slug) => {
     const c = await browser.newContext()
     const p = await c.newPage()
-    await signIn(p, email, slug)
+    await signIn(p, email, uni)
     return p
   }
 
@@ -85,39 +68,30 @@ test('capture every screen', async ({ browser, page }) => {
     await snap(page, '02-auth-check-email-signedout', 'Magic link sent, "Check your email", nobody signed in')
   })
 
-  await test.step('university, admin, and empty states', async () => {
-    createUniversity({ name: 'Northfield University', slug, domain: dom, adminEmail: `registrar@${dom}` })
-    await signIn(page, `registrar@${dom}`, slug)
-    await snap(page, '10-my-sections-empty-admin', 'My sections with nothing yet, admin signed in')
-    await page.goto(`/${slug}/catalog`)
-    await snap(page, '11-catalog-empty-admin', 'Catalog before any term exists, admin signed in')
-    await page.goto(`/${slug}/courses`)
-    await snap(page, '12-courses-empty-admin', 'Courses list with no courses, admin signed in')
-    await page.goto(`/${slug}/courses/sections`)
-    await snap(page, '13-sections-empty-admin', 'Sections list with no sections, admin signed in')
-  })
-
   const dep: Record<string, string> = {}
   const sec: Record<string, string> = {}
-  await test.step('seed catalog, staff, rosters', async () => {
-    for (const [name, code] of depts) dep[code] = (await api(page, 'post', `${A}/departments`, { name, code })).id
-    await api(page, 'post', `${A}/terms`, { name: `Academic Year ${year}`, startsOn: `${year}-01-01`, endsOn: `${year}-12-31` })
-    const term = (await api(page, 'get', `${A}/terms`)).items.find((t: { name: string }) => t.name.includes('Academic'))
-    await api(page, 'post', `${A}/terms`, { name: `Spring ${year + 1}`, startsOn: `${year + 1}-01-12`, endsOn: `${year + 1}-05-15` })
-    for (const [code, title, credits, d, meets] of courses) {
-      const c = await api(page, 'post', `${A}/courses`, { departmentId: dep[d], code, title, credits })
-      const s = await api(page, 'post', `${A}/sections`, {
-        courseId: c.id, termId: term.id, number: '001',
-        meetings: meets.map(([weekday, startsAt, endsAt, location]) => ({ weekday, startsAt, endsAt, location })),
-      })
-      sec[code] = s.id
-    }
-    for (const email of [prof, ta, prof2, newHire]) await api(page, 'post', `${A}/invitations`, { email, role: 'member' })
-    await api(page, 'post', `${A}/invitations`, { email: `ops@${dom}`, role: 'admin' })
-    for (const [code, , , , , , who] of courses) await api(page, 'post', `${A}/sections/${sec[code]}/staff`, { email: who, role: 'instructor' })
-    await api(page, 'post', `${A}/sections/${sec.CS101}/staff`, { email: ta, role: 'ta' })
-    for (const [code, , , , , idx] of courses)
-      await upload(page, `${A}/sections/${sec[code]}/enrollments`, csv(idx.map((i) => [people[i].email, people[i].name])))
+  await test.step('empty states (a university with nothing in it), then the demo world', async () => {
+    const blank = `blank-${runId}`
+    createUniversity({ name: 'Northfield University', slug: blank, domain: `${blank}.edu`, adminEmail: `registrar@${blank}.edu` })
+    const ep = await ctxs(`registrar@${blank}.edu`, blank)
+    await snap(ep, '10-my-sections-empty-admin', 'My sections with nothing yet, admin signed in')
+    await ep.goto(`/${blank}/catalog`)
+    await snap(ep, '11-catalog-empty-admin', 'Catalog before any term exists, admin signed in')
+    await ep.goto(`/${blank}/courses`)
+    await snap(ep, '12-courses-empty-admin', 'Courses list with no courses, admin signed in')
+    await ep.goto(`/${blank}/courses/sections`)
+    await snap(ep, '13-sections-empty-admin', 'Sections list with no sections, admin signed in')
+    await ep.context().close()
+
+    // the demo world (Spec 7), then what the captures need beyond it: CS101 open, as the older seed left it
+    seedDemo(slug)
+    await signIn(page, P.admin.email, slug)
+    const ids = await sectionIds(page, slug)
+    for (const code of ['CS101', 'CS210', 'MATH201', 'ECON110', 'BIO150']) sec[code] = ids[`${code}-001`]
+    const res = await page.request.delete(`${A}/sections/${sec.CS101}/final-grades`, { headers: H })
+    expect(res.ok(), await res.text()).toBeTruthy()
+    const depList = (await api(page, 'get', `${A}/departments`)).items as { id: string; code: string }[]
+    for (const d of depList) dep[d.code] = d.id
   })
 
   await test.step('invite link while signed out', async () => {
@@ -132,38 +106,9 @@ test('capture every screen', async ({ browser, page }) => {
 
   const profPage = await ctxs(prof)
   const taPage = await ctxs(ta)
-  const prof2Page = await ctxs(prof2)
   const stu = await ctxs(people[0].email)
-  // staff names, so student and roster screens show people rather than emails
-  for (const [p, name] of [[profPage, 'Elena Marsh'], [taPage, 'Sofia Alvarez'], [prof2Page, 'David Mensah'], [page, 'Renata Quinn']] as const)
-    await api(p, 'patch', '/api/v1/me', { displayName: name })
   for (const p of people.slice(1)) await (await ctxs(p.email)).context().close()
   // ingrid.larsen is never signed in, so Invitations keeps one pending row
-
-  await test.step('assessments and scores', async () => {
-    const meta: Record<string, [string, string]> = { CS101: ['Midterm Exam', 'Final Exam'], CS210: ['Problem Set Average', 'Final Project'], MATH201: ['Midterm Exam', 'Final Exam'], ECON110: ['Midterm Exam', 'Final Exam'], BIO150: ['Lab Practical', 'Final Exam'] }
-    let s = 0
-    for (const [code, , , , , , who] of courses) {
-      s++
-      const owner = who === prof ? profPage : prof2Page
-      const enr = (await api(page, 'get', `${A}/sections/${sec[code]}/enrollments`)).items as { userId: string; email: string }[]
-      const idx = (e: { email: string }) => people.findIndex((p) => p.email === e.email)
-      for (const [n, name] of meta[code].entries()) {
-        const a = await api(owner, 'post', `${A}/sections/${sec[code]}/assessments`, { name, maxPoints: 100, weight: n ? 60 : 40, published: true })
-        const scores = enr
-          .map((e) => {
-            const i = idx(e)
-            const pts = code === 'CS101' && !n ? csMid[i] : Math.round((48 + ((i * 37 + s * 19 + n * 13) % 51) + (i % 4) * 0.25) * 4) / 4
-            return { userId: e.userId, points: pts }
-          })
-          // one missing score left in place per section: the last-enrolled student has no Final
-          .filter((_x, k, all) => !(n === 1 && k === all.length - 1))
-        await api(owner, 'put', `${A}/sections/${sec[code]}/assessments/${a.id}/scores`, { scores })
-      }
-    }
-    const scale = await api(page, 'get', `${A}/grade-scale`)
-    if (!scale.rows?.length) await api(page, 'put', `${A}/grade-scale`, { rows: usScale.map(([letter, minPercent, points]) => ({ letter, minPercent, points })) })
-  })
 
   await test.step('student and instructor home', async () => {
     await stu.goto(`/${slug}/me`)
@@ -210,23 +155,6 @@ test('capture every screen', async ({ browser, page }) => {
     await row.getByLabel('Location').fill('Engineering Building 215')
     await snap(page, '44-sections-section-dialog-admin', 'New section dialog with one meeting row added, admin', { dialog: true })
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
-
-    // CS101 content for the Home and Materials captures (admin may edit content)
-    const sc = `${A}/sections/${sec.CS101}`
-    await api(page, 'put', `${sc}/description`, {
-      description: 'An introduction to programming and computational thinking.\nWe meet Monday and Wednesday in Hall B 204.',
-    })
-    const fix = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url))
-    for (const [title, files] of [['Week 1: Getting started', ['syllabus.pdf', 'slides.pptx']], ['Week 2: Variables and types', ['code-samples.zip']]] as const) {
-      const w = await api(page, 'post', `${sc}/weeks`, { title, notes: 'Read the chapter before class.' })
-      for (const f of files) {
-        const res = await page.request.post(`${sc}/weeks/${w.id}/materials`, {
-          headers: H,
-          multipart: { file: { name: f, mimeType: 'application/octet-stream', buffer: fs.readFileSync(fix(f)) } },
-        })
-        expect(res.ok(), await res.text()).toBeTruthy()
-      }
-    }
 
     await page.goto(`/${slug}/sections/${sec.CS101}`)
     await snap(page, '45-section-detail-admin', 'Section Home CS101 (title band, description, meeting times), admin')
