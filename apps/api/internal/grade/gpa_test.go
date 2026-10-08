@@ -154,3 +154,21 @@ func TestMyGradesShape(t *testing.T) {
 		t.Error("cross-tenant leak")
 	}
 }
+
+func TestMyGradesAssessmentKind(t *testing.T) {
+	e := newEnv(t)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into assessments (university_id, section_id, kind, name, max_points, weight, position, published, opens_at, closes_at)
+			values ($1, $2, 'quiz', 'Q1', 1, 10, 0, true, now(), now() + interval '1 day')`, e.Fx.UniversityA, e.SectionA)
+		return err
+	})
+	m := e.assessment("Man", "10", "10")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set published = true where id = $1`, m)
+		return err
+	})
+	_, body := e.raw(e.Stud, "GET", "/me/grades", nil)
+	if !strings.Contains(body, `"name":"Q1","kind":"quiz"`) || !strings.Contains(body, `"name":"Man","kind":"manual"`) {
+		t.Errorf("kind missing: %s", body)
+	}
+}

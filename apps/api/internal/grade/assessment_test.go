@@ -2,6 +2,7 @@ package grade
 
 import (
 	"database/sql"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -214,5 +215,163 @@ func TestAssessmentAudit(t *testing.T) {
 	}
 	if n, b, a := e.audit("assessment.delete", id); n != 1 || !strings.Contains(b.String, "35.00") || a.Valid {
 		t.Errorf("delete %d %v %v", n, b, a)
+	}
+}
+
+func (e *env) post(c *http.Cookie, b map[string]any) (int, string) {
+	return e.raw(c, "POST", "/sections/"+e.SectionA+"/assessments", b)
+}
+
+func win(extra map[string]any) map[string]any {
+	b := map[string]any{"kind": "quiz", "name": "Q", "weight": 5, "opensAt": "2026-10-12T09:00:00Z", "closesAt": "2026-10-13T03:30:00Z"}
+	for k, v := range extra {
+		b[k] = v
+	}
+	return b
+}
+
+func TestAssessmentKindDefaultsManual(t *testing.T) {
+	e := newEnv(t)
+	st, raw := e.post(e.Inst, map[string]any{"name": "M", "maxPoints": 10, "weight": 1})
+	if st != 201 || !strings.Contains(raw, `"kind":"manual"`) || !strings.Contains(raw, `"description":""`) || strings.Contains(raw, "opensAt") || strings.Contains(raw, "questionCount") {
+		t.Fatalf("%d %s", st, raw)
+	}
+}
+
+func TestAssessmentWindowRules(t *testing.T) {
+	e := newEnv(t)
+	for name, c := range map[string]struct {
+		body map[string]any
+		want []string
+	}{
+		"manual with opensAt":     {map[string]any{"name": "M", "maxPoints": 1, "weight": 1, "opensAt": "2026-10-12T09:00:00Z"}, []string{"opensAt"}},
+		"manual with closesAt":    {map[string]any{"name": "M", "maxPoints": 1, "weight": 1, "closesAt": "2026-10-12T09:00:00Z"}, []string{"closesAt"}},
+		"quiz without window":     {map[string]any{"kind": "quiz", "name": "Q", "weight": 1}, []string{"opensAt", "closesAt"}},
+		"assignment no closesAt":  {map[string]any{"kind": "assignment", "name": "A", "maxPoints": 10, "weight": 1, "opensAt": "2026-10-12T09:00:00Z"}, []string{"closesAt"}},
+		"bad time":                {win(map[string]any{"opensAt": "tomorrow"}), []string{"opensAt"}},
+		"closes before opens":     {win(map[string]any{"closesAt": "2026-10-12T09:00:00Z"}), []string{"closesAt"}},
+		"closes before opens (2)": {win(map[string]any{"closesAt": "2026-10-01T09:00:00Z"}), []string{"closesAt"}},
+		"quiz maxPoints":          {win(map[string]any{"maxPoints": 10}), []string{"maxPoints"}},
+		"quiz dueOn":              {win(map[string]any{"dueOn": "2026-10-12"}), []string{"dueOn"}},
+		"assignment dueOn":        {win(map[string]any{"kind": "assignment", "maxPoints": 10, "dueOn": "2026-10-12"}), []string{"dueOn"}},
+		"bad kind":                {win(map[string]any{"kind": "exam"}), []string{"kind"}},
+		"description long":        {win(map[string]any{"description": strings.Repeat("é", 10001)}), []string{"description"}},
+	} {
+		st, raw := e.post(e.Inst, c.body)
+		if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, c.want) {
+			t.Errorf("%s: %d %s", name, st, raw)
+		}
+	}
+	if st, raw := e.post(e.Inst, win(map[string]any{"description": strings.Repeat("é", 10000)})); st != 201 {
+		t.Errorf("description at limit: %d %s", st, raw)
+	}
+}
+
+func TestAssessmentQuizDueOnInUniversityTimezone(t *testing.T) {
+	e := newEnv(t) // the fixture university is America/New_York
+	// 2026-10-12 23:30 in New York (EDT, UTC-4) is 03:30 UTC on the 13th
+	st, raw := e.post(e.Inst, win(map[string]any{"opensAt": "2026-10-12T09:00:00-04:00", "closesAt": "2026-10-12T23:30:00-04:00", "description": "  Read ch. 1\n\nthen answer  "}))
+	m := jmap(t, []byte(raw))
+	if st != 201 || m["dueOn"] != "2026-10-12" || m["closesAt"] != "2026-10-13T03:30:00Z" || m["opensAt"] != "2026-10-12T13:00:00Z" ||
+		m["maxPoints"] != 1.0 || m["kind"] != "quiz" || m["questionCount"] != 0.0 || m["description"] != "Read ch. 1\n\nthen answer" {
+		t.Fatalf("%d %s", st, raw)
+	}
+	id := m["id"].(string)
+	// PATCH recomputes dueOn from the new closesAt
+	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-20T02:00:00Z"})
+	if m = jmap(t, []byte(raw)); st != 200 || m["dueOn"] != "2026-10-19" {
+		t.Fatalf("patch: %d %s", st, raw)
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-01T00:00:00Z"}); st != 400 || !strings.Contains(raw, "after opensAt") {
+		t.Fatalf("patch window: %d %s", st, raw)
+	}
+	for _, b := range []map[string]any{{"maxPoints": 5}, {"dueOn": "2026-10-20"}, {"dueOn": nil}} {
+		if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), b); st != 400 {
+			t.Errorf("patch %v: %d %s", b, st, raw)
+		}
+	}
+	// assignment keeps its own maxPoints
+	st, raw = e.post(e.Inst, win(map[string]any{"name": "A", "kind": "assignment", "maxPoints": 20}))
+	if m = jmap(t, []byte(raw)); st != 201 || m["maxPoints"] != 20.0 || m["dueOn"] != "2026-10-12" || strings.Contains(raw, "questionCount") {
+		t.Fatalf("assignment: %d %s", st, raw)
+	}
+}
+
+func TestAssessmentKindImmutable(t *testing.T) {
+	e := newEnv(t)
+	_, raw := e.post(e.Inst, win(nil))
+	id := jmap(t, []byte(raw))["id"].(string)
+	st, raw := e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"kind": "manual"})
+	if f := func() []string { _, f := errDetails([]byte(raw)); return f }(); st != 400 || !reflect.DeepEqual(f, []string{"kind"}) {
+		t.Fatalf("%d %s", st, raw)
+	}
+}
+
+func TestAssessmentKindRoles(t *testing.T) {
+	e := newEnv(t)
+	for _, role := range roles {
+		quiz, manual := 403, 403
+		switch role {
+		case "admin", "dain", "inst":
+			quiz, manual = 201, 201
+		case "ta":
+			quiz = 201
+		}
+		if st, raw := e.post(e.as(role), win(map[string]any{"name": "Q-" + role})); st != quiz {
+			t.Errorf("quiz %s: %d %s", role, st, raw)
+		}
+		if st, raw := e.post(e.as(role), win(map[string]any{"kind": "assignment", "maxPoints": 5, "name": "A-" + role})); st != quiz {
+			t.Errorf("assignment %s: %d %s", role, st, raw)
+		}
+		if st, raw := e.post(e.as(role), map[string]any{"name": "M-" + role, "maxPoints": 1, "weight": 1}); st != manual {
+			t.Errorf("manual %s: %d %s", role, st, raw)
+		}
+	}
+	// TA edits and deletes a quiz but not a manual assessment; an invalid kind is 400 for a TA, not 403
+	_, raw := e.post(e.Inst, win(map[string]any{"name": "TQ"}))
+	qid := jmap(t, []byte(raw))["id"].(string)
+	mid := e.assessment("Man", "10", "10")
+	if st, raw := e.raw(e.TA, "PATCH", e.aPath(qid), map[string]any{"position": 4}); st != 200 {
+		t.Errorf("ta patch quiz: %d %s", st, raw)
+	}
+	if st, raw := e.raw(e.TA, "PATCH", e.aPath(mid), map[string]any{"position": 4}); st != 403 {
+		t.Errorf("ta patch manual: %d %s", st, raw)
+	}
+	if st, raw := e.raw(e.TA, "DELETE", e.aPath(mid), nil); st != 403 {
+		t.Errorf("ta delete manual: %d %s", st, raw)
+	}
+	if st, raw := e.post(e.TA, win(map[string]any{"kind": "exam"})); st != 400 {
+		t.Errorf("ta bad kind: %d %s", st, raw)
+	}
+	if st, raw := e.raw(e.Stud, "PATCH", e.aPath(qid), map[string]any{"position": 4}); st != 403 {
+		t.Errorf("stud patch quiz: %d %s", st, raw)
+	}
+	if st, raw := e.raw(e.TA, "DELETE", e.aPath(qid), nil); st != 204 {
+		t.Errorf("ta delete quiz: %d %s", st, raw)
+	}
+}
+
+func TestAssessmentStudentListKinds(t *testing.T) {
+	e := newEnv(t)
+	e.post(e.Inst, win(map[string]any{"name": "DraftQuiz"}))
+	e.post(e.Inst, win(map[string]any{"name": "DraftAssign", "kind": "assignment", "maxPoints": 5}))
+	e.assessment("DraftManual", "10", "10")
+	pub := e.assessment("PubManual", "10", "10")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set published = true where id = $1`, pub)
+		return err
+	})
+	_, raw := e.raw(e.Stud, "GET", "/sections/"+e.SectionA+"/assessments", nil)
+	for _, want := range []string{"DraftQuiz", "DraftAssign", "PubManual"} {
+		if !strings.Contains(raw, want) {
+			t.Errorf("student misses %s: %s", want, raw)
+		}
+	}
+	if strings.Contains(raw, "DraftManual") {
+		t.Errorf("student sees unpublished manual: %s", raw)
+	}
+	_, raw = e.raw(e.TA, "GET", "/sections/"+e.SectionA+"/assessments", nil)
+	if !strings.Contains(raw, "DraftManual") {
+		t.Errorf("staff misses manual: %s", raw)
 	}
 }
