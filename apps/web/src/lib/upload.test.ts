@@ -68,3 +68,10 @@ it('rejects on a network error', async () => {
   expect(e).toBeInstanceOf(Error)
   expect(e).not.toBeInstanceOf(ApiError)
 })
+
+it('rejects instead of hanging on a status Response cannot hold', async () => {
+  const p = sendWithProgress('/u', new FormData(), () => {})
+  FakeXhr.last.status = 999
+  FakeXhr.last.onload?.()
+  await expect(p).rejects.toBeInstanceOf(Error)
+})

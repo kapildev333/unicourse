@@ -16,18 +16,22 @@ export function sendWithProgress<T>(url: string, form: FormData, onBytes: (sent:
     }
     xhr.onerror = xhr.onabort = xhr.ontimeout = () => reject(new Error('Network error'))
     xhr.onload = () => {
-      let body: unknown
       try {
-        body = JSON.parse(xhr.responseText)
-      } catch {
-        body = undefined // empty or non-JSON body: unwrap falls back to the status text
+        let body: unknown
+        try {
+          body = JSON.parse(xhr.responseText)
+        } catch {
+          body = undefined // empty or non-JSON body: unwrap falls back to the status text
+        }
+        const ok = xhr.status >= 200 && xhr.status < 300
+        const headers = new Headers()
+        const id = xhr.getResponseHeader('X-Request-Id')
+        if (id) headers.set('X-Request-Id', id)
+        const response = new Response(null, { status: xhr.status, statusText: xhr.statusText, headers })
+        unwrap<T>(Promise.resolve({ data: ok ? (body as T) : undefined, error: ok ? undefined : body, response })).then(resolve, reject)
+      } catch (e) {
+        reject(e) // e.g. a status outside 200-599 makes new Response throw
       }
-      const ok = xhr.status >= 200 && xhr.status < 300
-      const headers = new Headers()
-      const id = xhr.getResponseHeader('X-Request-Id')
-      if (id) headers.set('X-Request-Id', id)
-      const response = new Response(null, { status: xhr.status, statusText: xhr.statusText, headers })
-      unwrap<T>(Promise.resolve({ data: ok ? (body as T) : undefined, error: ok ? undefined : body, response })).then(resolve, reject)
     }
     xhr.send(form)
   })

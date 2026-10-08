@@ -81,3 +81,7 @@ it('reports whole-percent progress per file, leaving the line unchanged', async 
     ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 100 }],
   ])
 })
+
+it('words a 413 from a proxy', () => {
+  expect(uploadReason(new ApiError(413, 'internal', 'm', []))).toBe('It is larger than the server accepts.')
+})

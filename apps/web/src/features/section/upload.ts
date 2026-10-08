@@ -48,6 +48,7 @@ export async function runUploads(
 }
 
 export function uploadReason(e: unknown): string {
+  if (e instanceof ApiError && e.status === 413) return 'It is larger than the server accepts.' // a proxy refused the body
   if (!(e instanceof ApiError)) return 'The upload was interrupted. Check your connection and try again.'
   const d = e.details[0]
   if (e.code === 'validation_failed' && d) {
