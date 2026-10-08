@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { api, demoTerm, expectNoSideScroll, logLines, mails, pageAs, personas, runId, seedDemo, springTerm, year } from './helpers'
+import { H, api, demoTerm, expectNoSideScroll, logLines, mails, pageAs, personas, runId, seedDemo, springTerm, year } from './helpers'
 
 const slug = `e2e-adm-${runId}`
 const P = personas(slug)
@@ -197,7 +197,7 @@ test('E-ADMIN-08 audit log entries and filters', async ({ browser }) => {
   const admin = await pageAs(browser, P.admin.email, slug)
   const d = await api(admin, 'post', `${A}/departments`, { name: 'Physics', code: 'PHYS' })
   await api(admin, 'patch', `${A}/departments/${d.id}`, { name: 'Applied Physics' })
-  expect((await admin.request.delete(`${A}/departments/${d.id}`, { headers: { 'Sec-Fetch-Site': 'same-origin' } })).status()).toBe(204)
+  expect((await admin.request.delete(`${A}/departments/${d.id}`, { headers: H })).status()).toBe(204)
 
   await admin.goto(`/${slug}/admin/audit`)
   await admin.getByLabel('Entity').selectOption({ label: 'Department' })
@@ -213,6 +213,16 @@ test('E-ADMIN-08 audit log entries and filters', async ({ browser }) => {
   await expect(rows.nth(2).getByText('After'), 'admin, Audit log: After').toBeVisible()
   await expect(rows.nth(2).getByText('Applied Physics (changed)'), 'admin, Audit log: changed value').toBeVisible()
 
+  // Other entities: the filter must really apply, and the term, member and invitation cases above left entries.
+  const byEntity: [string, string[]][] = [
+    ['Term', ['Term deleted']],
+    ['Membership', ['Member removed', 'Member updated']],
+    ['Invitation', ['Invitation revoked', 'Invitation sent']],
+  ]
+  for (const [entity, actions] of byEntity) {
+    await admin.getByLabel('Entity').selectOption({ label: entity })
+    for (const [i, a] of actions.entries()) await expect(rows.nth(i + 1), `admin, Audit log ${entity}: row ${i + 1}`).toContainText(a)
+  }
   await admin.getByLabel('Entity').selectOption({ label: 'All' })
   await admin.getByLabel('Changed by').selectOption({ label: P.deptAdmin.email })
   await expect(rows.nth(1), 'admin, Audit log: Owen filter').toContainText('Owen Park')
@@ -251,7 +261,7 @@ test('E-ADMIN-09 a department admin sees a narrower view', async ({ browser }) =
     await owen.goto(`/${slug}/admin/${p}`)
     await expect(owen.getByRole('alert'), `department admin, ${p}: no permission`).toContainText("You don't have permission to view this.")
   }
-  const res = await owen.request.post(`${A}/invitations`, { headers: { 'Sec-Fetch-Site': 'same-origin' }, data: { email: `x@${slug}.edu`, role: 'admin' } })
+  const res = await owen.request.post(`${A}/invitations`, { headers: H, data: { email: `x@${slug}.edu`, role: 'admin' } })
   expect(res.status(), 'department admin, API: admin invitation').toBe(403)
   await owen.context().close()
 })
