@@ -162,7 +162,7 @@ test('E-AUTH-10 invitation accept from the mailed link, outside-domain invitee',
   await admin.context().close()
 })
 
-test.fixme('E-AUTH-11: F1 accepted outside-domain invitee gets no sign-in link', async ({ browser }) => {
+test('E-AUTH-11 an accepted outside-domain invitee can sign in again', async ({ browser }) => {
   const guest = `guest2@guest-${runId}.test`
   const admin = await pageAs(browser, P.admin.email, slug)
   const page = await acceptInvite(browser, admin, guest)
