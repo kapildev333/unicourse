@@ -332,3 +332,12 @@ func TestWalkTempAndRemoveTemp(t *testing.T) {
 		t.Error("blob removed")
 	}
 }
+
+func TestLimit(t *testing.T) {
+	if got := (Dir{}).Limit(); got != 104857600 {
+		t.Fatalf("default %d", got)
+	}
+	if got := (Dir{MaxBytes: 5}).Limit(); got != 5 {
+		t.Fatalf("set %d", got)
+	}
+}

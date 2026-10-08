@@ -25,6 +25,8 @@ type rec struct {
 	fail  func(call int) error
 	block chan struct{} // closed-on-entry signal when non-nil; Send then waits for ctx
 	delay time.Duration
+
+	inflight, peak int
 }
 
 func (r *rec) Send(ctx context.Context, to, subject, text string) error {
@@ -41,7 +43,14 @@ func (r *rec) Send(ctx context.Context, to, subject, text string) error {
 		return ctx.Err()
 	}
 	if r.delay > 0 {
+		r.mu.Lock()
+		r.inflight++
+		r.peak = max(r.peak, r.inflight)
+		r.mu.Unlock()
 		time.Sleep(r.delay)
+		r.mu.Lock()
+		r.inflight--
+		r.mu.Unlock()
 	}
 	if r.fail != nil {
 		return r.fail(n)
@@ -366,5 +375,34 @@ func TestExpiredMagicLinkMailIsGivenUpUnsent(t *testing.T) {
 	}
 	if !failed || body != "" || !strings.Contains(buf.String(), "magic link expired") {
 		t.Fatalf("row %v %q log %q", failed, body, buf.String())
+	}
+}
+
+func TestSendersDeliverEachOnce(t *testing.T) {
+	r := &rec{delay: 50 * time.Millisecond}
+	s, db, _ := setup(t, r)
+	s.Senders = 2
+	mails := make([]Mail, 20)
+	for i := range mails {
+		mails[i] = Mail{To: fmt.Sprintf("u%d@a.edu", i), Subject: "s", Text: "t"}
+	}
+	enqueue(t, db, mails...)
+	if err := s.drainAll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]int{}
+	for _, c := range r.calls() {
+		seen[c.to]++
+	}
+	if len(seen) != 20 || len(r.calls()) != 20 {
+		t.Fatalf("%d distinct, %d sends, want 20", len(seen), len(r.calls()))
+	}
+	if n := count(t, db, `select count(*) from outbox_mails`); n != 0 {
+		t.Fatalf("%d mails left", n)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.peak != 2 {
+		t.Fatalf("peak in-flight %d, want 2", r.peak)
 	}
 }

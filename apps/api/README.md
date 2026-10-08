@@ -65,9 +65,11 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_GOOGLE_CLIENT_ID`, `UNICOURSE_GOOGLE_CLIENT_SECRET` | no | Google sign-in |
 | `UNICOURSE_MICROSOFT_CLIENT_ID`, `UNICOURSE_MICROSOFT_CLIENT_SECRET` | no | Microsoft sign-in |
 | `UNICOURSE_SMTP_URL` | no | mail server; empty means the stdout mailer. Mail is queued in `outbox_mails` and sent by every API process |
-| `UNICOURSE_WEB_ORIGIN` | no | CORS origin, development only (production serves the web app from the API binary) |
+| `UNICOURSE_WEB_ORIGIN` | no | CORS origin, development only (production serves the web app from the API binary). Must be `scheme://host[:port]`, one trailing `/` accepted, no path; anything else fails startup. The host is lowercased |
 | `UNICOURSE_WEB_DIR` | no | built web app (`apps/web/dist`) to serve at `/`; empty means API only |
-| `UNICOURSE_TRUSTED_PROXIES` | no | comma-separated CIDRs or IPs of the reverse proxies in front of the API; X-Forwarded-For is read only on connections from these (rightmost untrusted hop). Empty trusts none and keys rate limits on the connection address. List proxy addresses only, never client networks |
+| `UNICOURSE_TRUSTED_PROXIES` | no | comma-separated CIDRs or IPs of the reverse proxies in front of the API; X-Forwarded-For and Forwarded (`for=`) are read only on connections from these (rightmost untrusted hop); a request carrying both is keyed on the proxy address unless they agree. `::ffff:` prefixes of /96 or longer are read as IPv4. Empty trusts none and keys rate limits on the connection address. List proxy addresses only, never client networks |
+| `UNICOURSE_OUTBOX_SENDERS` | no | mail sender goroutines per API process, 1 to 10, default 1; each holds a database connection while it talks to SMTP |
+| `UNICOURSE_MAX_UPLOAD_BYTES` | no | largest material file in bytes, default 104857600 (100 MB); the web reads it from GET /api/v1/upload-policy |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests, as the API role |
 | `UNICOURSE_TEST_OWNER_DATABASE_URL` | tests | the same database as the owner role (migrates and truncates) |
 
