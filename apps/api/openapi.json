@@ -3709,6 +3709,376 @@
           }
         }
       }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/questions": {
+      "get": {
+        "operationId": "listQuestions",
+        "summary": "List quiz questions",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 \"not open yet\" before opensAt and 409 \"closed\" after closesAt unless they have submitted an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putQuestions",
+        "summary": "Replace quiz questions",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the whole list (0 to 100 questions) and sets the quiz's maxPoints to the sum of the points (1 when empty). Errors: items (\"is required\", \"must have at most 100 questions\", \"total points must be at most 10000\"), items[<i>].kind, .prompt, .points (0.01 to 1000, 2 decimals), .choices (\"must have 2 to 10 choices\", \"must have at least one correct choice\", \"only for multiple choice\"), .choices[<j>].text, .answers (\"must have 1 to 20 accepted answers\", \"only for fill in the blank\"), .answers[<j>]; 409 \"questions are locked once a student has started\".",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionsPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts": {
+      "get": {
+        "operationId": "listAttempts",
+        "summary": "List quiz attempts",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. One row per attempt of an enrolled student, ordered by display name (email when empty), then email.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "startAttempt",
+        "summary": "Start a quiz attempt",
+        "description": "Who: a student enrolled in the section. Idempotent: 201 when the attempt is created, 200 with the existing attempt. Errors: 409 \"not open yet\", 409 \"closed\", 409 \"the quiz has no questions\".",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The existing attempt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts/{userId}": {
+      "get": {
+        "operationId": "getAttempt",
+        "summary": "Get a quiz attempt",
+        "description": "Who: staff of the section for any student; a student for themselves (me or their id), 403 for another student. 404 \"attempt\" when the student has none. A student sees grading, score and feedback only when the quiz is published and the attempt is submitted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A student's user id; me for the caller."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "reviewAttempt",
+        "summary": "Review a quiz attempt",
+        "description": "Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the points and feedback of the named questions, recomputes the score (the sum of the points) and rewrites the gradebook score. Errors: 404 \"attempt\", 409 \"the attempt is not submitted\", grading.<questionId> (\"is not a question of this quiz\"), grading.<questionId>.points (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <question points>\"), grading.<questionId>.feedback (at most 2000 characters), feedback (at most 5000 characters), \"no fields to update\".",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A student's user id; me for the caller."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptReview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/sections/{id}/assessments/{assessmentId}/attempts/me": {
+      "put": {
+        "operationId": "putAttempt",
+        "summary": "Save or submit a quiz attempt",
+        "description": "Who: a student enrolled in the section, for their own attempt. Replaces the saved answers; submit true also grades and submits. Errors: 404 \"attempt\" when not started, 409 \"already submitted\", 409 \"closed; your answers as of the closing time were submitted\", answers (\"is required\"), answers.<questionId> (\"is not a question of this quiz\"), answers.<questionId>.choices (\"must be distinct indexes from 0 to <n>\", \"only for multiple choice\"), answers.<questionId>.text (\"only for fill in the blank\", \"must be at most 1000 characters\", \"must not contain NUL\").",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "$ref": "#/components/parameters/assessmentId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6717,6 +7087,412 @@
         "required": [
           "file"
         ]
+      },
+      "Choice": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Paris"
+          },
+          "correct": {
+            "type": "boolean",
+            "example": true,
+            "description": "Staff only, and a student only once the quiz is published and their attempt is submitted."
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "Question": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "choice",
+              "blank"
+            ],
+            "example": "choice"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": "Capital of France?"
+          },
+          "points": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0.01,
+            "maximum": 1000
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "multiple": {
+            "type": "boolean",
+            "example": false,
+            "description": "Derived: a choice question with more than one correct choice (the web shows checkboxes, otherwise radios). Always present, and does not reveal which choices are correct."
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "description": "Empty for fill in the blank."
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "Accepted answers of a fill in the blank question; staff only, and a student only once the quiz is published and their attempt is submitted."
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "prompt",
+          "points",
+          "position",
+          "multiple",
+          "choices"
+        ]
+      },
+      "QuestionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "description": "Ordered by position."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ChoiceInput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Paris"
+          },
+          "correct": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "text",
+          "correct"
+        ]
+      },
+      "QuestionInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "choice",
+              "blank"
+            ],
+            "example": "choice"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": "Capital of France?"
+          },
+          "points": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0.01,
+            "maximum": 1000,
+            "description": "At most 2 decimals."
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChoiceInput"
+            },
+            "minItems": 2,
+            "maxItems": 10,
+            "description": "Multiple choice only: 2 to 10, at least one correct."
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "description": "Fill in the blank only: 1 to 20 accepted answers."
+          }
+        },
+        "required": [
+          "kind",
+          "prompt",
+          "points"
+        ]
+      },
+      "QuestionsPut": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionInput"
+            },
+            "maxItems": 100,
+            "description": "The whole list; replaces the questions."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Answer": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Multiple choice: distinct indexes into the question's choices."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Fill in the blank."
+          }
+        },
+        "required": []
+      },
+      "Mark": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "number",
+            "example": 2,
+            "minimum": 0
+          },
+          "correct": {
+            "type": "boolean",
+            "example": true
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 2000,
+            "example": ""
+          }
+        },
+        "required": [
+          "points",
+          "correct",
+          "feedback"
+        ]
+      },
+      "Attempt": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:05:00Z"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:40:00Z",
+            "description": "Omitted until submitted."
+          },
+          "autoSubmitted": {
+            "type": "boolean",
+            "example": false,
+            "description": "True when the quiz closed and the saved answers were submitted for the student (submittedAt is then closesAt)."
+          },
+          "answers": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Answer"
+            },
+            "description": "By question id; unanswered questions are absent."
+          },
+          "grading": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Mark"
+            },
+            "description": "By question id. Omitted until submitted; for a student also until the quiz is published."
+          },
+          "score": {
+            "type": "number",
+            "example": 5.25,
+            "minimum": 0,
+            "description": "Omitted until submitted; for a student also until the quiz is published."
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Omitted until submitted; for a student also until the quiz is published."
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-13T09:00:00Z"
+          }
+        },
+        "required": [
+          "userId",
+          "startedAt",
+          "autoSubmitted",
+          "answers"
+        ]
+      },
+      "AttemptRow": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "stud@a.edu"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Stu Dent"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:05:00Z"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:40:00Z"
+          },
+          "autoSubmitted": {
+            "type": "boolean",
+            "example": false
+          },
+          "score": {
+            "type": "number",
+            "example": 5.25,
+            "minimum": 0,
+            "description": "Omitted until submitted."
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-13T09:00:00Z"
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "startedAt",
+          "autoSubmitted"
+        ]
+      },
+      "AttemptList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptRow"
+            },
+            "description": "Enrolled students with an attempt, ordered by display name (email when empty), then email."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AttemptPut": {
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Answer"
+            },
+            "description": "The whole map; replaces the saved answers. Empty entries are dropped."
+          },
+          "submit": {
+            "type": "boolean",
+            "example": false,
+            "description": "True grades the quiz and submits the attempt."
+          }
+        },
+        "required": [
+          "answers"
+        ]
+      },
+      "MarkInput": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "number",
+            "example": 1.5,
+            "minimum": 0,
+            "description": "At most 2 decimals, from 0 to the question's points."
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "points"
+        ]
+      },
+      "AttemptReview": {
+        "type": "object",
+        "properties": {
+          "grading": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MarkInput"
+            },
+            "description": "By question id; replaces the points (and feedback when given) of those questions only. correct becomes true when the points equal the question's points."
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Replaces the attempt feedback; empty clears it."
+          }
+        },
+        "required": []
       }
     },
     "parameters": {
