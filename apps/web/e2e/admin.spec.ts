@@ -224,7 +224,7 @@ test('E-ADMIN-08 audit log entries and filters', async ({ browser }) => {
     for (const [i, a] of actions.entries()) await expect(rows.nth(i + 1), `admin, Audit log ${entity}: row ${i + 1}`).toContainText(a)
   }
   await admin.getByLabel('Entity').selectOption({ label: 'All' })
-  await admin.getByLabel('Changed by').selectOption({ label: P.deptAdmin.email })
+  await admin.getByLabel('Changed by').selectOption({ label: 'Owen Park' })
   await expect(rows.nth(1), 'admin, Audit log: Owen filter').toContainText('Owen Park')
 
   const t = new Date(Date.now() + 86_400_000)
