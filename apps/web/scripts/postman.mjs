@@ -24,6 +24,16 @@ function strip(o) {
   }
 }
 
+// The converter fills an additionalProperties map with a random number of key_0, key_1, ... entries;
+// keep key_0 so repeated runs are byte-identical.
+export function oneKey(v) {
+  if (Array.isArray(v)) return v.map(oneKey)
+  if (!v || typeof v !== 'object') return v
+  const ks = Object.keys(v)
+  const generated = ks.length > 0 && ks.every((k) => /^key_\d+$/.test(k))
+  return Object.fromEntries((generated ? ['key_0'] : ks).map((k) => [k, oneKey(v[k])]))
+}
+
 function requests(items) {
   return items.flatMap((i) => (i.item ? requests(i.item) : i.request ? [i] : []))
 }
@@ -43,6 +53,12 @@ export async function buildCollection(specText) {
   const all = requests(collection.item)
   for (const i of all) {
     i.response = []
+    const body = i.request.body
+    if (body?.mode === 'raw' && body.raw) {
+      try {
+        body.raw = JSON.stringify(oneKey(JSON.parse(body.raw)), null, 2)
+      } catch {} // not JSON (Postman keeps it as is)
+    }
     for (const v of i.request.url?.variable ?? []) v.value = PATH_VALUES[v.key] ?? ''
     for (const q of i.request.url?.query ?? []) Object.assign(q, { value: '', disabled: true })
   }
