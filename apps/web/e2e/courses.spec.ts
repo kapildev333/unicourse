@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { api, demoTerm, expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
+import { api, demoTerm, expectNoSideScroll, H, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
 
 const slug = `e2e-crs-${runId}`
 const P = personas(slug)
@@ -121,7 +121,6 @@ test('E-COURSES-05 section create with meeting validation', async ({ browser }) 
   await m1.getByLabel('Day').selectOption({ label: 'Monday' })
   await m1.getByLabel('Starts').fill('11:00')
   await m1.getByLabel('Ends').fill('10:00')
-  await m2.getByLabel('Starts').fill('')
   await d.getByRole('button', { name: 'Create section' }).click()
   await expect(m1.getByText('Enter an end time after the start time.'), 'admin, New section: meeting 1 error').toBeVisible()
   await expect(m2.getByText('Enter a start time.'), 'admin, New section: meeting 2 error').toBeVisible()
@@ -218,13 +217,13 @@ test('E-COURSES-09 Participants per role', async ({ browser }) => {
   await expect(elena.getByRole('button', { name: 'Add instructor' }), 'instructor, Participants: no Add instructor').toHaveCount(0)
   await expect(elena.getByRole('button', { name: 'Remove Sofia Alvarez as TA' }), 'instructor, Participants: remove TA').toBeVisible()
   await expect(elena.getByRole('button', { name: 'Remove Elena Marsh as instructor' }), 'instructor, Participants: no remove instructor').toHaveCount(0)
-  await expect(elena.getByRole('heading', { name: /^Roster/ }), 'instructor, Participants: roster').toBeVisible()
+  await expect(elena.getByRole('heading', { name: /^Roster 8/ }), 'instructor, Participants: roster').toBeVisible()
   await expect(elena.getByRole('button', { name: 'Import roster' }), 'instructor, Participants: no Import roster').toHaveCount(0)
   await expect(elena.getByRole('button', { name: /from the roster$/ }), 'instructor, Participants: no roster remove').toHaveCount(0)
   await elena.getByLabel('Add by email').fill(`ta.two@${slug}.edu`)
   await elena.getByRole('button', { name: 'Add TA' }).click()
   await expect(status(elena, `Invitation sent to ta.two@${slug}.edu. They will appear on the staff once they sign in.`), 'instructor, Participants: invitation notice').toBeVisible()
-  const res = await elena.request.post(`${A}/sections/${ids['CS101-001']}/staff`, { headers: { 'Sec-Fetch-Site': 'same-origin' }, data: { email: `x@${slug}.edu`, role: 'instructor' } })
+  const res = await elena.request.post(`${A}/sections/${ids['CS101-001']}/staff`, { headers: H, data: { email: `x@${slug}.edu`, role: 'instructor' } })
   expect(res.status(), 'instructor: API refuses adding an instructor').toBe(403)
   await elena.context().close()
 
@@ -266,7 +265,7 @@ test('E-COURSES-10 a department admin manages only own departments', async ({ br
   await page.keyboard.press('Escape')
   const depts = await api(page, 'get', `${A}/departments?limit=200`)
   const math = depts.items.find((x: { code: string }) => x.code === 'MATH')
-  const res = await page.request.post(`${A}/courses`, { headers: { 'Sec-Fetch-Site': 'same-origin' }, data: { departmentId: math.id, code: 'MATH999', title: 'X' } })
+  const res = await page.request.post(`${A}/courses`, { headers: H, data: { departmentId: math.id, code: 'MATH999', title: 'X' } })
   expect(res.status(), 'department admin: API refuses a MATH course').toBe(403)
   await page.context().close()
 })
