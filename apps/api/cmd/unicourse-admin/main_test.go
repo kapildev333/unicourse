@@ -517,6 +517,8 @@ func TestPlatformRoleIsNotOwner(t *testing.T) {
 
 // D135: even with app.university_id set to an existing university, the platform role sees no rows and
 // writes none in the tables create-university uses.
+var errRollback = errors.New("rollback")
+
 func TestPlatformRoleCannotActInExistingUniversity(t *testing.T) {
 	api, _ := testdb.OpenWithOwner(t)
 	fx := testdb.Seed(t, api)
@@ -538,9 +540,9 @@ func TestPlatformRoleCannotActInExistingUniversity(t *testing.T) {
 		if sqlState(err) != "42501" {
 			t.Errorf("invitation insert into existing university: %v, want 42501", err)
 		}
-		return nil
+		return errRollback // the failed insert aborted the transaction anyway
 	})
-	if err != nil {
+	if err != errRollback {
 		t.Fatal(err)
 	}
 }
