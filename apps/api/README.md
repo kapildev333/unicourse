@@ -58,6 +58,7 @@ Environment only. A missing required variable fails startup with the list of wha
 |---|---|---|
 | `UNICOURSE_DATABASE_URL` | yes | Postgres connection string for the API role `unicourse` (not the owner) |
 | `UNICOURSE_OWNER_DATABASE_URL` | CLI | Postgres connection string for the owner role `unicourse_owner`; used by `unicourse-admin` (all commands except create-university when the platform URL is set), never set it for the API process |
+| `UNICOURSE_PLATFORM_DATABASE_URL` | CLI | connection string for role `unicourse_platform`; `unicourse-admin create-university` uses it when set (else the owner URL). The role cannot migrate or alter the schema, cannot read or write any existing university's rows (restrictive row level security limits it to a university created in the same transaction), and can read user ids and emails |
 | `UNICOURSE_BASE_URL` | yes | public URL of the API (OAuth redirects, magic links) |
 | `UNICOURSE_SESSION_SECRET` | yes | secret for session and token signing, at least 32 bytes |
 | `UNICOURSE_FILES_DIR` | yes | existing writable directory for uploaded material files, laid out `<university_id>/<material_id>` (temp uploads in `<university_id>/.tmp/`); every API process must mount the same directory; back it up together with the database. Locally `apps/api/data/files` (gitignored) |
@@ -71,9 +72,8 @@ Environment only. A missing required variable fails startup with the list of wha
 | `UNICOURSE_OUTBOX_SENDERS` | no | mail sender goroutines per API process, 1 to 10, default 1; each holds a database connection while it talks to SMTP |
 | `UNICOURSE_MAX_UPLOAD_BYTES` | no | largest material file in bytes, default 104857600 (100 MB); the web reads it from GET /api/v1/upload-policy |
 | `UNICOURSE_TEST_DATABASE_URL` | tests | database used by integration tests, as the API role |
-| `UNICOURSE_PLATFORM_DATABASE_URL` | CLI | connection string for role `unicourse_platform`; `unicourse-admin create-university` uses it when set (else the owner URL). The role cannot migrate or read tenant data outside the university being created |
-| `UNICOURSE_TEST_PLATFORM_DATABASE_URL` | tests | the platform role on the test database; default: the test owner URL with user and password `unicourse_platform` |
 | `UNICOURSE_TEST_OWNER_DATABASE_URL` | tests | the same database as the owner role (migrates and truncates) |
+| `UNICOURSE_TEST_PLATFORM_DATABASE_URL` | tests | the platform role on the test database; default: the test owner URL with user and password `unicourse_platform` |
 
 ## Database roles and migrations
 

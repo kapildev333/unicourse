@@ -514,3 +514,33 @@ func TestPlatformRoleIsNotOwner(t *testing.T) {
 		t.Fatalf("select departments as platform role: %v, want 42501", err)
 	}
 }
+
+// D135: even with app.university_id set to an existing university, the platform role sees no rows and
+// writes none in the tables create-university uses.
+func TestPlatformRoleCannotActInExistingUniversity(t *testing.T) {
+	api, _ := testdb.OpenWithOwner(t)
+	fx := testdb.Seed(t, api)
+	platform := openPlatform(t)
+	uni := fx.UniversityA
+	err := pg.WithPlatformTx(context.Background(), platform, func(tx *sql.Tx) error {
+		if err := pg.SetUniversity(context.Background(), tx, uni); err != nil {
+			return err
+		}
+		var n int
+		if err := tx.QueryRow(`select count(*) from memberships`).Scan(&n); err != nil || n != 0 {
+			t.Errorf("memberships visible: %d, %v", n, err)
+		}
+		if err := tx.QueryRow(`select count(*) from invitations`).Scan(&n); err != nil || n != 0 {
+			t.Errorf("invitations visible: %d, %v", n, err)
+		}
+		_, err := tx.Exec(`insert into invitations (university_id, email, role, token_hash, expires_at)
+			values ($1, 'x@example.edu', 'admin', '\x01', now() + interval '1 day')`, uni)
+		if sqlState(err) != "42501" {
+			t.Errorf("invitation insert into existing university: %v, want 42501", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
