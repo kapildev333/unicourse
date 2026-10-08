@@ -173,7 +173,7 @@ export function TermsPage({ slug }: { slug: string }) {
       <EmptyState
         icon={CalendarRange}
         title="No terms yet"
-        body="Add a term such as “Fall 2026” before creating sections."
+        body={canManage ? 'Add a term such as “Fall 2026” before creating sections.' : 'A university admin adds terms.'}
         action={create}
       />
     )
@@ -188,9 +188,11 @@ export function TermsPage({ slug }: { slug: string }) {
               <th scope="col">Starts</th>
               <th scope="col">Ends</th>
               <th scope="col">Status</th>
-              <th scope="col">
-                <span className="sr-only">Actions</span>
-              </th>
+              {canManage && (
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -202,23 +204,21 @@ export function TermsPage({ slug }: { slug: string }) {
                 <td data-label="Status">
                   <Badge tone="neutral">{termState(d)}</Badge>
                 </td>
-                <td className="text-right whitespace-nowrap">
-                  {canManage && (
-                    <>
-                      <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost-danger"
-                        size="sm"
-                        aria-label={`Delete ${d.name}`}
-                        onClick={() => setDeleting(d)}
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </td>
+                {canManage && (
+                  <td className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost-danger"
+                      size="sm"
+                      aria-label={`Delete ${d.name}`}
+                      onClick={() => setDeleting(d)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

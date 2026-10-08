@@ -140,4 +140,12 @@ it('shows no New, Edit or Delete to a department admin', async () => {
   expect(screen.queryByRole('button', { name: /^New / })).toBeNull()
   expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull()
   expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull()
+})
+
+it('does not tell a department admin to add a term', async () => {
+  mockApi({ 'GET /universities/x/terms': () => ({ body: { items: [] } }) })
+  renderAs('dept_admin')
+  expect(await screen.findByText('No terms yet')).toBeInTheDocument()
+  expect(screen.queryByText(/Add a term/)).toBeNull()
 })

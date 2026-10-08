@@ -151,4 +151,5 @@ it('shows no New, Edit or Delete to a department admin', async () => {
   expect(screen.queryByRole('button', { name: /^New / })).toBeNull()
   expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull()
   expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull()
 })

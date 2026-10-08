@@ -172,6 +172,9 @@ func parseSlots(cell string) (ms []MeetingInput, bad string) {
 		}
 		ms = append(ms, m)
 	}
+	if o := overlaps(ms); o != nil {
+		return nil, o[0].Message
+	}
 	sortMeetings(ms)
 	return ms, ""
 }

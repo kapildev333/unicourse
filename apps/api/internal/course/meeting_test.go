@@ -270,6 +270,7 @@ func TestParseSlots(t *testing.T) {
 		{"Mon 10:00-11:15 @", []MeetingInput{{1, "10:00", "11:15", ""}}, ""},
 		{"Mon 10:00-11:00; ", []MeetingInput{{1, "10:00", "11:00", ""}}, ""},
 		{"Mon 11:00-12:00; Mon 10:00-11:00", []MeetingInput{{1, "10:00", "11:00", ""}, {1, "11:00", "12:00", ""}}, ""},
+		{"Mon 10:00-11:00; Mon 10:30-12:00", nil, "Meeting 1 and meeting 2 overlap on Monday."},
 		{"", nil, ""},
 		{" ; ;", nil, ""},
 		{"Mon 10:00-10:00", nil, `meeting "Mon 10:00-10:00": endsAt must be after startsAt`},

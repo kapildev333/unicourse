@@ -191,9 +191,11 @@ export function DepartmentsPage({ slug }: { slug: string }) {
             <tr>
               <th scope="col">Name</th>
               <th scope="col">Code</th>
-              <th scope="col">
-                <span className="sr-only">Actions</span>
-              </th>
+              {canManage && (
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -201,23 +203,21 @@ export function DepartmentsPage({ slug }: { slug: string }) {
               <tr key={d.id}>
                 <td data-label="Name">{d.name}</td>
                 <td data-label="Code">{d.code}</td>
-                <td className="text-right whitespace-nowrap">
-                  {canManage && (
-                    <>
-                      <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost-danger"
-                        size="sm"
-                        aria-label={`Delete ${d.name}`}
-                        onClick={() => setDeleting(d)}
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </td>
+                {canManage && (
+                  <td className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost-danger"
+                      size="sm"
+                      aria-label={`Delete ${d.name}`}
+                      onClick={() => setDeleting(d)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
