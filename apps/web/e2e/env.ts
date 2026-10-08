@@ -17,12 +17,15 @@ export const ownerDatabaseUrl =
   process.env.UNICOURSE_E2E_OWNER_DATABASE_URL ??
   'postgres://unicourse_owner:unicourse_owner@localhost:5432/unicourse_e2e?sslmode=disable'
 
+export const port = Number(process.env.UNICOURSE_E2E_PORT ?? '18180')
+export const baseURL = `http://localhost:${port}`
+
 export const e2eEnv = {
   ...process.env,
   UNICOURSE_DATABASE_URL: databaseUrl,
   UNICOURSE_OWNER_DATABASE_URL: ownerDatabaseUrl,
-  UNICOURSE_ADDR: '127.0.0.1:18180',
-  UNICOURSE_BASE_URL: 'http://localhost:18180',
+  UNICOURSE_ADDR: `127.0.0.1:${port}`,
+  UNICOURSE_BASE_URL: baseURL,
   UNICOURSE_SESSION_SECRET: 'e2e-session-secret-at-least-32-bytes-long',
   UNICOURSE_FILES_DIR: filesDir,
   UNICOURSE_WEB_DIR: webDir,
