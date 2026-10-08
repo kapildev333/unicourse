@@ -43,16 +43,3 @@ export function useWeeks(slug: string, sectionId: string) {
     queryFn: () => unwrap(api.GET('/universities/{slug}/sections/{id}/weeks', { params: { path: { slug, id: sectionId } } })),
   })
 }
-
-// fetch sets the multipart boundary itself, so no Content-Type (same as api/upload.ts)
-export function uploadMaterial(slug: string, sectionId: string, weekId: string, file: File): Promise<Material> {
-  const form = new FormData()
-  form.append('file', file)
-  return unwrap(
-    api.POST('/universities/{slug}/sections/{id}/weeks/{weekId}/materials', {
-      params: { path: { slug, id: sectionId, weekId } },
-      body: form as never,
-      bodySerializer: (b: unknown) => b as FormData,
-    }),
-  )
-}

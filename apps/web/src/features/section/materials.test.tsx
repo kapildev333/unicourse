@@ -195,7 +195,8 @@ it('uploads valid files and lists refused ones', async () => {
   fireEvent.change(screen.getByLabelText('Files for Week 1'), {
     target: { files: [pdf, exe] },
   })
-  await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Uploading 1 of 1: a.pdf (50%)'))
+  await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('Uploading 1 of 1: a.pdf'))
+  await waitFor(() => expect(screen.getByRole('progressbar', { name: 'Uploading a.pdf' })).toHaveAttribute('value', '50'))
   expect(screen.getByRole('button', { name: 'Upload files to Week 2' })).toBeDisabled()
   release()
   await waitFor(() =>
@@ -204,6 +205,7 @@ it('uploads valid files and lists refused ones', async () => {
   const alert = screen.getByRole('alert')
   expect(alert).toHaveTextContent('1 file not uploaded')
   expect(alert).toHaveTextContent("b.exe: This file type can't be uploaded.")
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   expect(posts).toHaveLength(1)
   expect(posts[0].get('file')).toBeInstanceOf(File)
 })

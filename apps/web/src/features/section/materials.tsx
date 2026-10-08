@@ -25,6 +25,7 @@ export const downloadHref = (slug: string, sectionId: string, id: string) =>
 type UploadState = {
   weekId: string
   line: string
+  file?: { name: string; pct: number }
   failed: Failed[]
   busy: boolean
 }
@@ -134,7 +135,7 @@ function Materials({ slug, section, canEdit }: { slug: string; section: Section;
       files,
       policy,
       (f, pct) => sendMaterial(slug, section.id, week.id, f, pct),
-      (line) => setUpload((u) => u && { ...u, line }),
+      (line, file) => setUpload((u) => u && { ...u, line, file }),
     )
     await refresh(weeksKey(slug, section.id))
     setUpload({
@@ -402,6 +403,14 @@ function WeekCard(props: {
         <p role="status" className={`px-4 text-sm text-ink sm:px-6 ${line ? 'pb-3' : ''}`}>
           {line}
         </p>
+      )}
+      {canEdit && mine?.busy && mine.file && (
+        <progress
+          value={mine.file.pct}
+          max={100}
+          aria-label={`Uploading ${mine.file.name}`}
+          className="mx-4 mb-3 block w-[calc(100%-2rem)] accent-accent sm:mx-6 sm:w-[calc(100%-3rem)]"
+        />
       )}
       {canEdit && failed.length > 0 && (
         <div className="px-4 pb-3 sm:px-6">

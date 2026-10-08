@@ -71,13 +71,13 @@ it('maps the server size text', () => {
   expect(uploadReason(e)).toBe('It is larger than 1 MB.')
 })
 
-it('shows whole-percent progress once per change', async () => {
-  const lines: string[] = []
-  await runUploads([file('a.pdf')], policy, async (_f, pct) => [0, 0, 45, 45, 100].forEach(pct), (l) => lines.push(l))
-  expect(lines).toEqual([
-    'Uploading 1 of 1: a.pdf',
-    'Uploading 1 of 1: a.pdf (0%)',
-    'Uploading 1 of 1: a.pdf (45%)',
-    'Uploading 1 of 1: a.pdf (100%)',
+it('reports whole-percent progress per file, leaving the line unchanged', async () => {
+  const calls: unknown[][] = []
+  await runUploads([file('a.pdf')], policy, async (_f, pct) => [0, 0, 45, 45, 100].forEach((p) => pct(p)), (...a) => calls.push(a))
+  expect(calls).toEqual([
+    ['Uploading 1 of 1: a.pdf'],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 0 }],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 45 }],
+    ['Uploading 1 of 1: a.pdf', { name: 'a.pdf', pct: 100 }],
   ])
 })

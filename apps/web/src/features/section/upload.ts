@@ -19,7 +19,7 @@ export async function runUploads(
   files: File[],
   policy: UploadPolicy | undefined,
   send: (f: File, onPercent: (pct: number) => void) => Promise<unknown>,
-  onProgress: (line: string) => void,
+  onProgress: (line: string, file?: { name: string; pct: number }) => void,
 ): Promise<{ done: number; total: number; failed: Failed[] }> {
   const failed: Failed[] = []
   const ok: File[] = []
@@ -35,9 +35,9 @@ export async function runUploads(
     let last = -1
     try {
       await send(f, (pct) => {
-        if (pct === last) return // one announcement per whole percent
+        if (pct === last) return // fewer renders: whole percents only
         last = pct
-        onProgress(`${head} (${pct}%)`)
+        onProgress(head, { name: f.name, pct })
       })
       done++
     } catch (e) {
