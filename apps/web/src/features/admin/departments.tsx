@@ -15,6 +15,7 @@ import { Loading } from '../../components/loading'
 import { StatusMessage } from '../../components/status-message'
 import { Table } from '../../components/table'
 import { useCursorList } from '../../lib/use-cursor-list'
+import { useMe } from '../auth/use-me'
 import { useRefresh } from './queries'
 import { PageHeader } from '../../components/page-header'
 
@@ -149,6 +150,8 @@ export function DepartmentsPage({ slug }: { slug: string }) {
       }),
     ),
   )
+  // D23 hides only the tabs: the page itself is read-only for a department admin
+  const canManage = useMe().data?.memberships.find((m) => m.university.slug === slug)?.role === 'admin'
   const [editing, setEditing] = useState<Department | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Department | null>(null)
   const [notice, setNotice] = useState('')
@@ -157,7 +160,7 @@ export function DepartmentsPage({ slug }: { slug: string }) {
     setDeleting(null)
     if (n) setNotice(n)
   }
-  const create = (
+  const create = !canManage ? undefined : (
     <Button disabled={list.isPending} onClick={() => setEditing('new')}>
       <Plus size={16} />
       New department
@@ -199,17 +202,21 @@ export function DepartmentsPage({ slug }: { slug: string }) {
                 <td data-label="Name">{d.name}</td>
                 <td data-label="Code">{d.code}</td>
                 <td className="text-right whitespace-nowrap">
-                  <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost-danger"
-                    size="sm"
-                    aria-label={`Delete ${d.name}`}
-                    onClick={() => setDeleting(d)}
-                  >
-                    Delete
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost-danger"
+                        size="sm"
+                        aria-label={`Delete ${d.name}`}
+                        onClick={() => setDeleting(d)}
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

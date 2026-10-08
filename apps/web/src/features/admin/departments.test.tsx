@@ -1,9 +1,24 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { mockApi, renderWithQuery } from '../../test-utils'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render } from '@testing-library/react'
+import { mockApi } from '../../test-utils'
 import { DepartmentsPage } from './departments'
 
 afterEach(() => vi.unstubAllGlobals())
+
+function renderAs(role = 'admin') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  client.setQueryData(['me'], {
+    user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
+    memberships: [{ university: { id: 'x', slug: 'x', name: 'X U' }, role, departmentIds: [] }],
+  })
+  return render(
+    <QueryClientProvider client={client}>
+      <DepartmentsPage slug="x" />
+    </QueryClientProvider>,
+  )
+}
 
 const cs = { id: '1', name: 'Computer Science', code: 'CS' }
 const math = { id: '2', name: 'Mathematics', code: 'MATH' }
@@ -12,7 +27,7 @@ const L = 'GET /universities/x/departments'
 
 it('lists departments from the API', async () => {
   mockApi({ [L]: list([cs, math]) })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   expect(await screen.findByText('Computer Science')).toBeInTheDocument()
   expect(screen.getByText('MATH')).toBeInTheDocument()
 })
@@ -26,7 +41,7 @@ it('creates a department, uppercases the code, and refreshes the list', async ()
       return { status: 201, body: items[2] }
     },
   })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   await screen.findByText('Computer Science')
   fireEvent.click(screen.getByRole('button', { name: 'New department' }))
   fireEvent.change(screen.getByLabelText('Name'), {
@@ -50,7 +65,7 @@ it('shows the conflict copy on the code field and focuses it', async () => {
       body: { error: { code: 'conflict', message: 'dup', details: [] } },
     }),
   })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   await screen.findByText('Computer Science')
   fireEvent.click(screen.getByRole('button', { name: 'New department' }))
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Cs2' } })
@@ -68,7 +83,7 @@ it('confirms before deleting and shows the 409 copy', async () => {
       body: { error: { code: 'conflict', message: 'in use', details: [] } },
     }),
   })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   fireEvent.click(await screen.findByRole('button', { name: 'Delete Computer Science' }))
   const dialog = await screen.findByRole('dialog', {
     name: 'Delete department?',
@@ -87,7 +102,7 @@ it('confirms before deleting and shows the 409 copy', async () => {
 
 it('shows the empty state', async () => {
   mockApi({ [L]: list([]) })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   expect(await screen.findByText('No departments yet')).toBeInTheDocument()
 })
 
@@ -98,7 +113,7 @@ it('shows an error banner with retry when the list fails', async () => {
       body: { error: { code: 'internal', message: 'x', details: [] } },
     }),
   })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })
 
@@ -108,7 +123,7 @@ it('edits sending only changed fields and sends nothing when unchanged', async (
     'PATCH /universities/x/departments/1': () => ({ body: { ...cs, name: 'X' } }),
   })
   const patches = () => fn.mock.calls.map((c) => c[0] as Request).filter((r) => r.method === 'PATCH')
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Computer Science' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -124,7 +139,16 @@ it('stacks the table with labelled cells', async () => {
   mockApi({
     'GET /universities/x/departments': () => ({ body: { items: [{ id: 'd1', name: 'Computer Science', code: 'CS' }] } }),
   })
-  renderWithQuery(<DepartmentsPage slug="x" />)
+  renderAs()
   expect(await screen.findByText('CS')).toHaveAttribute('data-label', 'Code')
   expect(screen.getByRole('table')).toHaveClass('ui-table-stack')
+})
+
+it('shows no New, Edit or Delete to a department admin', async () => {
+  mockApi({ [L]: list([cs]) })
+  renderAs('dept_admin')
+  expect(await screen.findByText('Computer Science')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^New / })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull()
 })
