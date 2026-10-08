@@ -4844,16 +4844,32 @@
             "format": "uuid",
             "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "quiz",
+              "assignment"
+            ],
+            "example": "quiz",
+            "description": "manual: staff-entered scores (Spec 4). quiz and assignment: Spec 11."
+          },
           "name": {
             "type": "string",
             "maxLength": 100,
             "example": "Midterm"
           },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "example": "Chapters 1 to 3."
+          },
           "maxPoints": {
             "type": "number",
             "exclusiveMinimum": 0,
             "maximum": 10000,
-            "example": 100
+            "example": 100,
+            "description": "A quiz's total is the sum of its question points (1 while it has none)."
           },
           "weight": {
             "type": "number",
@@ -4865,7 +4881,20 @@
           "dueOn": {
             "type": "string",
             "format": "date",
-            "example": "2026-10-20"
+            "example": "2026-10-20",
+            "description": "Manual: as entered. Quiz and assignment: the date of closesAt in the university's timezone."
+          },
+          "opensAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:00:00Z",
+            "description": "Quizzes and assignments only. UTC."
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-13T03:30:00Z",
+            "description": "Quizzes and assignments only. UTC."
           },
           "published": {
             "type": "boolean",
@@ -4875,12 +4904,20 @@
             "type": "integer",
             "minimum": 0,
             "example": 0
+          },
+          "questionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5,
+            "description": "Quizzes only."
           }
         },
         "required": [
           "id",
           "sectionId",
+          "kind",
           "name",
+          "description",
           "maxPoints",
           "weight",
           "published",
@@ -4890,18 +4927,34 @@
       "AssessmentCreate": {
         "type": "object",
         "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "quiz",
+              "assignment"
+            ],
+            "example": "quiz",
+            "description": "Omitted means manual. Manual needs admin, dept_admin or instructor; quiz and assignment also allow a TA of the section. Not changeable later."
+          },
           "name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 100,
             "example": "Midterm"
           },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "example": "Chapters 1 to 3.",
+            "description": "Trimmed; line breaks kept."
+          },
           "maxPoints": {
             "type": "number",
             "exclusiveMinimum": 0,
             "maximum": 10000,
             "example": 100,
-            "description": "At most 2 decimals."
+            "description": "At most 2 decimals. Required for manual and assignment; rejected for a quiz (derived from the questions)."
           },
           "weight": {
             "type": "number",
@@ -4913,7 +4966,20 @@
           "dueOn": {
             "type": "string",
             "format": "date",
-            "example": "2026-10-20"
+            "example": "2026-10-20",
+            "description": "Manual only; rejected for a quiz or assignment (derived from closesAt)."
+          },
+          "opensAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:00:00Z",
+            "description": "Required for a quiz or assignment, rejected for manual. RFC 3339."
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-13T03:30:00Z",
+            "description": "Required for a quiz or assignment, rejected for manual. RFC 3339, after opensAt."
           },
           "published": {
             "type": "boolean",
@@ -4930,7 +4996,6 @@
         },
         "required": [
           "name",
-          "maxPoints",
           "weight"
         ],
         "additionalProperties": false
@@ -4944,11 +5009,17 @@
             "maxLength": 100,
             "example": "Midterm"
           },
+          "description": {
+            "type": "string",
+            "maxLength": 10000,
+            "example": "Chapters 1 to 3."
+          },
           "maxPoints": {
             "type": "number",
             "exclusiveMinimum": 0,
             "maximum": 10000,
-            "example": 100
+            "example": 100,
+            "description": "Not for a quiz."
           },
           "weight": {
             "type": "number",
@@ -4963,7 +5034,19 @@
             ],
             "format": "date",
             "example": "2026-10-20",
-            "description": "null clears the date."
+            "description": "null clears the date. Manual only."
+          },
+          "opensAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-12T13:00:00Z",
+            "description": "Quizzes and assignments only."
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-13T03:30:00Z",
+            "description": "Quizzes and assignments only; after opensAt. Recomputes dueOn."
           },
           "published": {
             "type": "boolean",
@@ -5524,6 +5607,15 @@
             "type": "string",
             "example": "Midterm"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "quiz",
+              "assignment"
+            ],
+            "example": "manual"
+          },
           "weight": {
             "type": "number",
             "example": 40
@@ -5546,6 +5638,7 @@
         "required": [
           "id",
           "name",
+          "kind",
           "weight",
           "maxPoints"
         ]

@@ -1767,9 +1767,20 @@ export interface components {
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
              */
             sectionId: string;
+            /**
+             * @description manual: staff-entered scores (Spec 4). quiz and assignment: Spec 11.
+             * @example quiz
+             * @enum {string}
+             */
+            kind: "manual" | "quiz" | "assignment";
             /** @example Midterm */
             name: string;
-            /** @example 100 */
+            /** @example Chapters 1 to 3. */
+            description: string;
+            /**
+             * @description A quiz's total is the sum of its question points (1 while it has none).
+             * @example 100
+             */
             maxPoints: number;
             /**
              * @description Percent of the section grade.
@@ -1778,22 +1789,51 @@ export interface components {
             weight: number;
             /**
              * Format: date
+             * @description Manual: as entered. Quiz and assignment: the date of closesAt in the university's timezone.
              * @example 2026-10-20
              */
             dueOn?: string;
+            /**
+             * Format: date-time
+             * @description Quizzes and assignments only. UTC.
+             * @example 2026-10-12T13:00:00Z
+             */
+            opensAt?: string;
+            /**
+             * Format: date-time
+             * @description Quizzes and assignments only. UTC.
+             * @example 2026-10-13T03:30:00Z
+             */
+            closesAt?: string;
             /** @example false */
             published: boolean;
             /** @example 0 */
             position: number;
+            /**
+             * @description Quizzes only.
+             * @example 5
+             */
+            questionCount?: number;
         };
         AssessmentCreate: {
+            /**
+             * @description Omitted means manual. Manual needs admin, dept_admin or instructor; quiz and assignment also allow a TA of the section. Not changeable later.
+             * @example quiz
+             * @enum {string}
+             */
+            kind?: "manual" | "quiz" | "assignment";
             /** @example Midterm */
             name: string;
             /**
-             * @description At most 2 decimals.
+             * @description Trimmed; line breaks kept.
+             * @example Chapters 1 to 3.
+             */
+            description?: string;
+            /**
+             * @description At most 2 decimals. Required for manual and assignment; rejected for a quiz (derived from the questions).
              * @example 100
              */
-            maxPoints: number;
+            maxPoints?: number;
             /**
              * @description At most 2 decimals. Weights may sum to anything until finalization.
              * @example 40
@@ -1801,9 +1841,22 @@ export interface components {
             weight: number;
             /**
              * Format: date
+             * @description Manual only; rejected for a quiz or assignment (derived from closesAt).
              * @example 2026-10-20
              */
             dueOn?: string;
+            /**
+             * Format: date-time
+             * @description Required for a quiz or assignment, rejected for manual. RFC 3339.
+             * @example 2026-10-12T13:00:00Z
+             */
+            opensAt?: string;
+            /**
+             * Format: date-time
+             * @description Required for a quiz or assignment, rejected for manual. RFC 3339, after opensAt.
+             * @example 2026-10-13T03:30:00Z
+             */
+            closesAt?: string;
             /**
              * @description Omitted means false.
              * @example false
@@ -1818,16 +1871,33 @@ export interface components {
         AssessmentUpdate: {
             /** @example Midterm */
             name?: string;
-            /** @example 100 */
+            /** @example Chapters 1 to 3. */
+            description?: string;
+            /**
+             * @description Not for a quiz.
+             * @example 100
+             */
             maxPoints?: number;
             /** @example 40 */
             weight?: number;
             /**
              * Format: date
-             * @description null clears the date.
+             * @description null clears the date. Manual only.
              * @example 2026-10-20
              */
             dueOn?: string | null;
+            /**
+             * Format: date-time
+             * @description Quizzes and assignments only.
+             * @example 2026-10-12T13:00:00Z
+             */
+            opensAt?: string;
+            /**
+             * Format: date-time
+             * @description Quizzes and assignments only; after opensAt. Recomputes dueOn.
+             * @example 2026-10-13T03:30:00Z
+             */
+            closesAt?: string;
             /** @example true */
             published?: boolean;
             /** @example 1 */
@@ -2093,6 +2163,11 @@ export interface components {
             id: string;
             /** @example Midterm */
             name: string;
+            /**
+             * @example manual
+             * @enum {string}
+             */
+            kind: "manual" | "quiz" | "assignment";
             /** @example 40 */
             weight: number;
             /** @example 100 */
