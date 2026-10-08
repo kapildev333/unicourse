@@ -163,7 +163,7 @@ func assessmentFields(in fieldsIn) (fieldsIn, []httpx.FieldError) {
 			}
 		}
 	}
-	if opensOK && closesOK && !closes.After(opens) {
+	if opensOK && closesOK && !closes.Round(time.Microsecond).After(opens.Round(time.Microsecond)) {
 		bad("closesAt", "must be after opensAt")
 	}
 	if in.Position != nil {

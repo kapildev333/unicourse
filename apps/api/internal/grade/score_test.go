@@ -261,6 +261,10 @@ func TestUpsertScore(t *testing.T) {
 	if pts != "7.50" || by != stud {
 		t.Fatalf("insert: %s %s", pts, by)
 	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update scores set graded_at = now() - interval '1 day'`)
+		return err
+	})
 	up("9.00", inst)
 	pts, by, at2 := read()
 	if pts != "9.00" || by != inst || at2.Before(at) {
@@ -272,5 +276,11 @@ func TestUpsertScore(t *testing.T) {
 	})
 	if n != 1 {
 		t.Fatalf("%d rows", n)
+	}
+	if time.Since(at2) > time.Minute {
+		t.Fatalf("graded_at not refreshed: %v", at2)
+	}
+	if n, _, _ := e.audit("score.set", a); n != 0 {
+		t.Fatalf("UpsertScore wrote %d score.set audit rows", n)
 	}
 }

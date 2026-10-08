@@ -250,6 +250,7 @@ func TestAssessmentWindowRules(t *testing.T) {
 		"assignment no closesAt":  {map[string]any{"kind": "assignment", "name": "A", "maxPoints": 10, "weight": 1, "opensAt": "2026-10-12T09:00:00Z"}, []string{"closesAt"}},
 		"bad time":                {win(map[string]any{"opensAt": "tomorrow"}), []string{"opensAt"}},
 		"closes before opens":     {win(map[string]any{"closesAt": "2026-10-12T09:00:00Z"}), []string{"closesAt"}},
+		"sub-microsecond gap":     {win(map[string]any{"opensAt": "2026-10-12T09:00:00.0000001Z", "closesAt": "2026-10-12T09:00:00.0000004Z"}), []string{"closesAt"}},
 		"closes before opens (2)": {win(map[string]any{"closesAt": "2026-10-01T09:00:00Z"}), []string{"closesAt"}},
 		"quiz maxPoints":          {win(map[string]any{"maxPoints": 10}), []string{"maxPoints"}},
 		"quiz dueOn":              {win(map[string]any{"dueOn": "2026-10-12"}), []string{"dueOn"}},
