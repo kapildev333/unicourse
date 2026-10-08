@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -27,6 +29,9 @@ type Fixture struct {
 	Terms       []Term       `json:"terms"`
 	People      []Person     `json:"people"`
 	Courses     []Course     `json:"courses"`
+
+	embedded bool
+	files    fs.FS // where materials' files are read; set by Load/LoadFile, nil reads the embedded files
 }
 type University struct {
 	Name     string `json:"name"`
@@ -118,9 +123,26 @@ type Material struct {
 // Load substitutes the placeholders (slug "" = the fixture's slug; year is <year>) and validates the
 // shape and references. Value rules (lengths, formats, weights) are the API's, reported at write time.
 func Load(raw []byte, slug string, year int) (Fixture, error) {
+	sub, err := fs.Sub(files, "files")
+	if err != nil {
+		return Fixture{}, err
+	}
+	return load(raw, "demo.json", sub, true, slug, year)
+}
+
+// LoadFile is Load for a fixture file on disk; its materials' files resolve relative to the file's directory.
+func LoadFile(path, slug string, year int) (Fixture, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Fixture{}, err
+	}
+	return load(raw, filepath.Base(path), os.DirFS(filepath.Dir(path)), false, slug, year)
+}
+
+func load(raw []byte, name string, files fs.FS, embedded bool, slug string, year int) (Fixture, error) {
 	var probe struct{ University struct{ Slug string } }
 	if err := json.Unmarshal(raw, &probe); err != nil {
-		return Fixture{}, fmt.Errorf("demo.json: %w", err)
+		return Fixture{}, fmt.Errorf("%s: %w", name, err)
 	}
 	if slug == "" {
 		slug = probe.University.Slug
@@ -130,14 +152,14 @@ func Load(raw []byte, slug string, year int) (Fixture, error) {
 	dec.DisallowUnknownFields()
 	var f Fixture
 	if err := dec.Decode(&f); err != nil {
-		return Fixture{}, fmt.Errorf("demo.json: %w", err)
+		return Fixture{}, fmt.Errorf("%s: %w", name, err)
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return Fixture{}, errors.New("demo.json: unexpected data after the top-level object")
+		return Fixture{}, errors.New(name + ": unexpected data after the top-level object")
 	}
-	f.University.Slug = slug
+	f.University.Slug, f.files, f.embedded = slug, files, embedded
 	if err := f.validate(); err != nil {
-		return Fixture{}, fmt.Errorf("demo.json: %w", err)
+		return Fixture{}, fmt.Errorf("%s: %w", name, err)
 	}
 	return f, nil
 }
@@ -315,8 +337,15 @@ func (f *Fixture) validate() error {
 					if strings.Contains(m.File, "/") {
 						return fmt.Errorf("%s: %q must be a bare file name", path, m.File)
 					}
-					if _, err := fs.Stat(files, "files/"+m.File); err != nil {
-						return fmt.Errorf("%s: no embedded file %q", path, m.File)
+					st, err := fs.Stat(f.files, m.File)
+					if err == nil && st.IsDir() {
+						err = fs.ErrInvalid
+					}
+					if err != nil {
+						if f.embedded {
+							return fmt.Errorf("%s: no embedded file %q", path, m.File)
+						}
+						return fmt.Errorf("%s: no file %q in the fixture's directory", path, m.File)
 					}
 				}
 			}
