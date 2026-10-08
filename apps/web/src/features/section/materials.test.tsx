@@ -60,6 +60,7 @@ function setup(routes: Routes, o: { editor?: boolean } = {}) {
       body: mine(editor ? undefined : 'student'),
     }),
     [W]: () => ({ body: two() }),
+    'GET /upload-policy': () => ({ body: { maxBytes: 104857600, allowedExtensions: ['pdf', 'png', 'zip'] } }),
     ...routes,
   })
   renderSection({
@@ -199,6 +200,12 @@ it('continues after a per-file server error', async () => {
   const alert = await screen.findByRole('alert')
   expect(alert).toHaveTextContent('a.pdf: It is larger than 100 MB.')
   expect(fn.mock.calls.filter(([r]) => r.method === 'POST')).toHaveLength(2)
+})
+
+it('reads the upload policy for the helper line and accept', async () => {
+  setup({})
+  expect(await screen.findByText(/^Files up to 100 MB: PDF, Word/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Files for Week 1')).toHaveAttribute('accept', '.pdf,.png,.zip')
 })
 
 it('renames and moves a file', async () => {

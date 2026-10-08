@@ -398,6 +398,38 @@
       "event": []
     },
     {
+      "name": "Material upload limits",
+      "request": {
+        "name": "Material upload limits",
+        "description": {
+          "content": "Who: signed in. The largest file a material upload may store (UNICOURSE_MAX_UPLOAD_BYTES, default 104857600) and the allowed file extensions, lowercase and sorted. Uploads enforce both; this route lets clients check before sending.",
+          "type": "text/plain"
+        },
+        "url": {
+          "path": [
+            "upload-policy"
+          ],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "method": "GET"
+      },
+      "response": [],
+      "event": [],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      }
+    },
+    {
       "name": "universities/{slug}",
       "item": [
         {
@@ -3988,7 +4020,7 @@
                           "request": {
                             "name": "Upload material",
                             "description": {
-                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than 100 MB\", \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
+                              "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. multipart/form-data with one part file and an optional part title; other parts are ignored. Appended last in the week. Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (100 MB by default; see GET /upload-policy), \"invalid multipart upload: <reason>\"), title, materials when the week already holds 200 files.",
                               "type": "text/plain"
                             },
                             "url": {
@@ -4046,7 +4078,7 @@
                                 {
                                   "key": "file",
                                   "type": "file",
-                                  "description": "(Required) One file, 1 byte to 100 MB; extension pdf, png, jpg, jpeg, gif, webp, zip, ppt, pptx, doc, docx, xls, xlsx, txt, md or csv."
+                                  "description": "(Required) One file, 1 byte to the upload limit; extension as listed by GET /upload-policy."
                                 },
                                 {
                                   "key": "title",

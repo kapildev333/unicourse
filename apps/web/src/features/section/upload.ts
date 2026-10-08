@@ -1,27 +1,29 @@
 import { ApiError } from '../../api/errors'
 import { errorMessage } from '../../components/form-errors'
 import { sentence } from '../grades/grade'
-import { ALLOWED, MAX_BYTES, extension } from './files'
+import { extension, formatSize } from './files'
+import type { UploadPolicy } from './queries'
 
 export type Failed = { name: string; reason: string }
 
-/** Reason a file is refused before sending, or undefined. Order: type, empty, size. */
-export function precheck(f: File): string | undefined {
-  if (!(ALLOWED as readonly string[]).includes(extension(f.name))) return "This file type can't be uploaded."
+/** Reason a file is refused before sending, or undefined. Order: type, empty, size. Without a policy the server decides. */
+export function precheck(f: File, policy?: UploadPolicy): string | undefined {
+  if (policy && !policy.allowedExtensions.includes(extension(f.name))) return "This file type can't be uploaded."
   if (f.size === 0) return 'The file is empty.'
-  if (f.size > MAX_BYTES) return 'It is larger than 100 MB.'
+  if (policy && f.size > policy.maxBytes) return `It is larger than ${formatSize(policy.maxBytes)}.`
 }
 
 /** Sends the files that pass precheck one at a time, in order; a failure never stops the rest. */
 export async function runUploads(
   files: File[],
+  policy: UploadPolicy | undefined,
   send: (f: File) => Promise<unknown>,
   onProgress: (line: string) => void,
 ): Promise<{ done: number; total: number; failed: Failed[] }> {
   const failed: Failed[] = []
   const ok: File[] = []
   for (const f of files) {
-    const r = precheck(f)
+    const r = precheck(f, policy)
     if (r) failed.push({ name: f.name, reason: r })
     else ok.push(f)
   }
@@ -43,7 +45,7 @@ export function uploadReason(e: unknown): string {
   const d = e.details[0]
   if (e.code === 'validation_failed' && d) {
     if (d.field === 'materials') return 'This week already has 200 files.'
-    if (d.message.includes('larger than 100 MB')) return 'It is larger than 100 MB.'
+    if (d.message.startsWith('is larger than')) return `It is larger than ${d.message.slice('is larger than '.length)}.`
     if (d.message === 'is empty') return 'The file is empty.'
     if (d.message.startsWith('file type not allowed')) return "This file type can't be uploaded."
     return sentence(d.message)

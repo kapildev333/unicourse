@@ -1,6 +1,6 @@
 import { File as FileIcon, FileArchive, FileText, Image as ImageIcon, Presentation } from 'lucide-react'
 import { expect, it } from 'vitest'
-import { ACCEPT, extension, fileIcon, formatSize } from './files'
+import { accept, extension, fileIcon, formatSize } from './files'
 
 it('formats sizes', () => {
   const cases: [number, string][] = [
@@ -20,8 +20,7 @@ it('reads extensions and builds accept', () => {
   expect(extension('Deck.PDF')).toBe('pdf')
   expect(extension('deck.tar.gz')).toBe('gz')
   expect(extension('README')).toBe('')
-  expect(ACCEPT.startsWith('.pdf,.png')).toBe(true)
-  expect(ACCEPT.split(',')).toHaveLength(16)
+  expect(accept({ maxBytes: 1, allowedExtensions: ['pdf', 'png'] })).toBe('.pdf,.png')
 })
 
 it('picks icons by type', () => {

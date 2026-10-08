@@ -1,26 +1,7 @@
 import { File as FileIcon, FileArchive, FileText, Image as ImageIcon, Presentation, type LucideIcon } from 'lucide-react'
+import type { UploadPolicy } from './queries'
 
-export const MAX_BYTES = 104_857_600
-// Mirrors the server's allowlist; the server stays the authority.
-export const ALLOWED = [
-  'pdf',
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'webp',
-  'zip',
-  'ppt',
-  'pptx',
-  'doc',
-  'docx',
-  'xls',
-  'xlsx',
-  'txt',
-  'md',
-  'csv',
-] as const
-export const ACCEPT = ALLOWED.map((e) => `.${e}`).join(',')
+export const accept = (p: UploadPolicy) => p.allowedExtensions.map((e) => '.' + e).join(',')
 
 /** Text after the last dot, lower case; '' when there is none (as the server reads it). */
 export const extension = (name: string) => {

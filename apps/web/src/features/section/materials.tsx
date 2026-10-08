@@ -11,10 +11,10 @@ import { StatusMessage } from '../../components/status-message'
 import { formatDate } from '../../lib/format'
 import { RemoveDialog } from '../courses/remove-dialog'
 import { authorName } from './access'
-import { ACCEPT, fileIcon, formatSize } from './files'
+import { accept, fileIcon, formatSize } from './files'
 import { MoveDialog, RenameDialog } from './material-dialogs'
 import { PlainText } from './plain-text'
-import { uploadMaterial, useContentRefresh, useWeeks, weeksKey, type Material, type Section, type Week } from './queries'
+import { uploadMaterial, useContentRefresh, useUploadPolicy, useWeeks, weeksKey, type Material, type Section, type Week } from './queries'
 import { SectionFrame } from './section-frame'
 import { finalLine, runUploads, type Failed } from './upload'
 import { WeekDialog, materialsForbidden } from './week-dialog'
@@ -40,6 +40,7 @@ export function MaterialsPage({ slug, sectionId }: { slug: string; sectionId: st
 function Materials({ slug, section, canEdit }: { slug: string; section: Section; canEdit: boolean }) {
   const q = useWeeks(slug, section.id)
   const refresh = useContentRefresh(slug)
+  const policy = useUploadPolicy().data
   const weeks = q.data?.items ?? []
   const [weekDialog, setWeekDialog] = useState<'new' | Week | null>(null)
   const [renaming, setRenaming] = useState<Material | null>(null)
@@ -131,6 +132,7 @@ function Materials({ slug, section, canEdit }: { slug: string; section: Section;
     setUpload({ weekId: week.id, line: '', failed: [], busy: true })
     const r = await runUploads(
       files,
+      policy,
       (f) => uploadMaterial(slug, section.id, week.id, f),
       (line) => setUpload((u) => u && { ...u, line }),
     )
@@ -214,9 +216,9 @@ function Materials({ slug, section, canEdit }: { slug: string; section: Section;
         </h2>
         {canEdit && weeks.length > 0 && addButton}
       </div>
-      {canEdit && (
+      {canEdit && policy && (
         <p className="mb-4 text-sm text-ink-muted">
-          Files up to 100 MB: PDF, Word, PowerPoint, Excel, images (PNG, JPG, GIF, WebP), ZIP, TXT, Markdown and CSV.
+          Files up to {formatSize(policy.maxBytes)}: PDF, Word, PowerPoint, Excel, images (PNG, JPG, GIF, WebP), ZIP, TXT, Markdown and CSV.
         </p>
       )}
       <StatusMessage message={notice} />
@@ -326,6 +328,7 @@ function WeekCard(props: {
   onDeleteFile: (m: Material) => void
 }) {
   const { slug, sectionId, week: w, weeks, first, last, canEdit, upload, moveBusy } = props
+  const policy = useUploadPolicy().data
   const inputRef = useRef<HTMLInputElement>(null)
   const mine = upload?.weekId === w.id ? upload : null
   const busy = !!upload?.busy
@@ -382,7 +385,7 @@ function WeekCard(props: {
               ref={inputRef}
               type="file"
               multiple
-              accept={ACCEPT}
+              accept={policy ? accept(policy) : undefined}
               hidden
               aria-label={`Files for ${w.title}`}
               onChange={(e) => {
