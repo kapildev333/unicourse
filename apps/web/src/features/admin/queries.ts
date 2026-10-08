@@ -1,14 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from '../../api/client'
 
-/** First 200 departments for pickers and name maps (ceiling: a search endpoint past 200). */
-export function useAllDepartments(slug: string) {
+/** First 200 departments (matching q when given) for pickers and name maps; pickers search past 200. */
+export function useAllDepartments(slug: string, q = '', enabled = true) {
   return useQuery({
-    queryKey: [slug, 'departments', 'all'],
+    enabled,
+    queryKey: [slug, 'departments', 'all', q],
     queryFn: () =>
       unwrap(
         api.GET('/universities/{slug}/departments', {
-          params: { path: { slug }, query: { limit: 200 } },
+          params: { path: { slug }, query: { limit: 200, q: q || undefined } },
         }),
       ),
     staleTime: 60_000,

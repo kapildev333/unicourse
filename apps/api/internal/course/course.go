@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
@@ -24,24 +22,6 @@ type Course struct {
 	Title        string      `json:"title"`
 	Credits      json.Number `json:"credits"`
 	createdAt    time.Time
-}
-
-var likeEsc = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-
-// likeParam reads q: nil when blank after trim; else "%"+escaped+"%".
-func likeParam(r *http.Request) (any, *httpx.FieldError) {
-	v := strings.TrimSpace(r.URL.Query().Get("q"))
-	switch {
-	case v == "":
-		return nil, nil
-	case !utf8.ValidString(v):
-		return nil, &httpx.FieldError{Field: "q", Message: "must be valid UTF-8"}
-	case strings.ContainsRune(v, 0):
-		return nil, &httpx.FieldError{Field: "q", Message: "must not contain NUL"}
-	case utf8.RuneCountInString(v) > 100:
-		return nil, &httpx.FieldError{Field: "q", Message: "must be at most 100 characters"}
-	}
-	return "%" + likeEsc.Replace(v) + "%", nil
 }
 
 // courseFields validates departmentId, code and title (all errors at once, body field order).
@@ -107,7 +87,7 @@ func listCourses(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			details = append(details, invalidUUID("departmentId"))
 		}
 	}
-	q, fe := likeParam(r)
+	q, fe := tenant.LikeParam(r)
 	if fe != nil {
 		details = append(details, *fe)
 	}

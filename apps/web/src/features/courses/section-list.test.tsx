@@ -182,7 +182,7 @@ it('does not request sections when there are no terms', async () => {
   expect(fn.mock.calls.some((c) => new URL((c[0] as Request).url).pathname.endsWith('/sections'))).toBe(false)
 })
 
-it('hints when the course picker is truncated', async () => {
+it('offers course search when the course picker is truncated', async () => {
   vi.setSystemTime(new Date('2026-03-01T12:00:00'))
   mockApi({
     [T]: () => ({ body: { items: terms } }),
@@ -192,7 +192,7 @@ it('hints when the course picker is truncated', async () => {
   renderPage(admin)
   await screen.findByText('CS101')
   fireEvent.click(screen.getByRole('button', { name: 'New section' }))
-  expect(await screen.findByText('Showing the first 200 courses. Use Import sections for the others.')).toBeInTheDocument()
+  expect(await screen.findByLabelText('Search courses')).toBeInTheDocument()
 })
 
 it('requests only the department courses for a dept_admin with one department', async () => {

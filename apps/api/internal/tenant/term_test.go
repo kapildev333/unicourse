@@ -206,3 +206,45 @@ func TestTermPatchNull(t *testing.T) {
 		}
 	}
 }
+
+func TestListTermsQ(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	for _, n := range []string{"Spring 2027", "Spring 2028", "Summer 2027"} {
+		if st, raw := e.do(admin, "POST", termPath, map[string]any{"name": n, "startsOn": "2027-01-10", "endsOn": "2027-05-20"}); st != 201 {
+			t.Fatal(st, string(raw))
+		}
+	}
+	list := func(q string) (int, []string, string) {
+		st, raw := e.do(admin, "GET", termPath+q, nil)
+		var p struct {
+			Items      []Term
+			NextCursor string
+		}
+		json.Unmarshal(raw, &p)
+		var out []string
+		for _, t := range p.Items {
+			out = append(out, t.Name)
+		}
+		return st, out, p.NextCursor
+	}
+	for q, want := range map[string][]string{
+		"?q=spr": {"Spring 2027", "Spring 2028"}, "?q=2027": {"Spring 2027", "Summer 2027"},
+		"?q=2027-01": nil, "?q=%25": nil, "?q=_": nil,
+	} {
+		if _, got, _ := list(q); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: %v, want %v", q, got, want)
+		}
+	}
+	if _, got, _ := list("?q="); len(got) != 4 {
+		t.Errorf("blank: %v", got)
+	}
+	if st, _, _ := list("?q=" + repeat("a", 101)); st != 400 {
+		t.Errorf("long q: %d", st)
+	}
+	_, p1, cur := list("?q=spr&limit=1")
+	_, p2, cur2 := list("?q=spr&limit=1&cursor=" + cur)
+	if !reflect.DeepEqual(p1, []string{"Spring 2027"}) || !reflect.DeepEqual(p2, []string{"Spring 2028"}) || cur2 != "" {
+		t.Fatalf("paging %v %v %q", p1, p2, cur2)
+	}
+}

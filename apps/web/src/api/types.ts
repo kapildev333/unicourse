@@ -459,7 +459,7 @@ export interface paths {
         put?: never;
         /**
          * Create Section
-         * @description Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings); per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. "must be after startsAt".
+         * @description Who: admin, dept_admin (own departments). meetings is optional, at most 20 rows (400 field meetings, "add at most 20 meeting times"); rows on the same weekday whose times intersect are 400 field meetings ("Meeting 1 and meeting 3 overlap on Monday."), and endsAt is exclusive, so 10:00-11:00 and 11:00-12:00 are fine; per row errors use field meetings[<i>].weekday, .startsAt, .endsAt, .location (0-based, in the order sent), e.g. "must be after startsAt".
          */
         post: operations["createSection"];
         delete?: never;
@@ -527,7 +527,7 @@ export interface paths {
         put?: never;
         /**
          * Import sections
-         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots "Mon 10:00-11:15 @ Room 101"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; "@ location" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active", "meeting \"<slot>\" must look like Mon 10:00-11:15 @ Room 101", "meeting \"<slot>\": unknown weekday <X>", "meeting \"<slot>\": <field> <message>", "at most 20 meetings". An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message "section exists; adds meetings"); an existing section's meetings are never changed (message "section exists; keeps meetings").
+         * @description Who: admin, dept_admin (own departments). CSV header row required, case-insensitive. Columns: required courseCode, termName, number; optional instructorEmails, taEmails (semicolon-separated), meetings (semicolon-separated slots "Mon 10:00-11:15 @ Room 101"; weekday Mon..Sun, case-insensitive; 24-hour HH:MM; "@ location" optional). Max 5 MiB. Errors: details has one entry per bad row (field line:<n>), checksum mismatch is field checksum, file problems are field file. Row messages: "number is required", "number must be at most 20 characters", "unknown course code <X>", "unknown term <X>", "course <X> is not in a department you manage", "invalid email <raw>", "<email> listed as both instructor and ta", "<email>: membership is not active", "meeting \"<slot>\" must look like Mon 10:00-11:15 @ Room 101", "meeting \"<slot>\": unknown weekday <X>", "meeting \"<slot>\": <field> <message>", "at most 20 meetings", "Meeting <i> and meeting <j> overlap on <Weekday>." (slots numbered 1-based in cell order; endsAt is exclusive). An existing section is never changed; instructors, TAs and invitations missing from it are added (action add/invite, message "section exists; adds staff"); listed staff keep their current role. Meetings are written for a new section, or an existing one that has none (message "section exists; adds meetings"); an existing section's meetings are never changed (message "section exists; keeps meetings").
          */
         post: operations["importSections"];
         delete?: never;
@@ -2654,6 +2654,8 @@ export interface operations {
                 limit?: components["parameters"]["limit"];
                 /** @description Opaque; corrupt is 400 field cursor. */
                 cursor?: components["parameters"]["cursor"];
+                /** @description Case-insensitive substring of the department code or name. Blank means no filter; over 100 characters is 400 field q. Works with limit and cursor. */
+                q?: string;
             };
             header?: never;
             path: {
@@ -2781,6 +2783,8 @@ export interface operations {
                 limit?: components["parameters"]["limit"];
                 /** @description Opaque; corrupt is 400 field cursor. */
                 cursor?: components["parameters"]["cursor"];
+                /** @description Case-insensitive substring of the term name. Blank means no filter; over 100 characters is 400 field q. Works with limit and cursor. */
+                q?: string;
             };
             header?: never;
             path: {

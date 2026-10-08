@@ -83,7 +83,7 @@ export function MySectionsPage(props: {
 }) {
   const { slug, termId, view, onSearchChange } = props
   const { membership } = useUniversity()
-  const { query: termsQuery, terms, term, notInSession } = useTermChoice(slug, termId)
+  const { query: termsQuery, terms, term, picked, pick, notInSession } = useTermChoice(slug, termId)
   const q = useMySections(slug)
   let body: React.ReactNode
   if (termsQuery.isPending) body = <Loading variant="cards" />
@@ -151,7 +151,7 @@ export function MySectionsPage(props: {
       {terms.length > 0 && (
         <>
           <div role="search" aria-label="Filters" className="mb-6 grid gap-4 md:flex md:flex-wrap md:items-end">
-            <TermPicker terms={terms} value={term?.id} onChange={(id) => onSearchChange({ termId: id })} />
+            <TermPicker slug={slug} terms={terms} more={!!termsQuery.data?.nextCursor} picked={picked} value={term?.id} onChange={(id, t) => { pick(t); onSearchChange({ termId: id }) }} />
             <div>
               <SegmentedControl
                 label="View"

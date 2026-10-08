@@ -172,3 +172,21 @@ func listAuditLog(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 		Total int `json:"total"`
 	}{out, total}, nil
 }
+
+var likeEsc = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// LikeParam reads ?q: nil when blank after trim; else "%" + escaped + "%" for ILIKE (default escape \).
+func LikeParam(r *http.Request) (any, *httpx.FieldError) {
+	v := strings.TrimSpace(r.URL.Query().Get("q"))
+	switch {
+	case v == "":
+		return nil, nil
+	case !utf8.ValidString(v):
+		return nil, &httpx.FieldError{Field: "q", Message: "must be valid UTF-8"}
+	case strings.ContainsRune(v, 0):
+		return nil, &httpx.FieldError{Field: "q", Message: "must not contain NUL"}
+	case utf8.RuneCountInString(v) > 100:
+		return nil, &httpx.FieldError{Field: "q", Message: "must be at most 100 characters"}
+	}
+	return "%" + likeEsc.Replace(v) + "%", nil
+}

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { Button } from '../../components/button'
@@ -34,10 +34,21 @@ export function SectionDialog(props: {
   const { slug, term, section, onClose, onSaved } = props
   const { membership } = useUniversity()
   const onlyDept = membership.role === 'dept_admin' && membership.departmentIds.length === 1 ? membership.departmentIds[0] : undefined
-  const courseData = useAllCourses(slug, onlyDept, !section).data
-  const courses = (courseData?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
-  const refresh = useRefresh(slug, 'sections')
   const [courseId, setCourseId] = useState('')
+  const courseData = useAllCourses(slug, onlyDept, !section).data
+  const [search, setSearch] = useState('')
+  const deferred = useDeferredValue(search.trim())
+  const found = useAllCourses(slug, onlyDept, !section && !!deferred, deferred).data
+  const searching = search !== ''
+  const manageable = (d?: typeof courseData) =>
+    (d?.items ?? []).filter((c) => canManageDepartment(membership, c.departmentId))
+  const shown = searching ? manageable(found) : manageable(courseData)
+  const [picked, setPicked] = useState<(typeof shown)[number]>()
+  const chosen = shown.some((c) => c.id === courseId)
+    ? undefined
+    : [picked, ...manageable(courseData)].find((c) => c?.id === courseId)
+  const courses = chosen ? [chosen, ...shown] : shown
+  const refresh = useRefresh(slug, 'sections')
   const [number, setNumber] = useState(section?.number ?? '')
   const [rows, setRows] = useState<MeetingRow[]>(() => section?.meetings.map((m) => ({ ...m, key: nextKey() })) ?? [])
   const [sentKeys, setSentKeys] = useState<string[]>([])
@@ -101,21 +112,44 @@ export function SectionDialog(props: {
             Course: {section.course.code} · {section.course.title}
           </p>
         ) : (
-          <FormField
-            label="Course"
-            name="courseId"
-            hint={courseData?.nextCursor ? 'Showing the first 200 courses. Use Import sections for the others.' : undefined}
-            error={fields.courseId}
-          >
-            <select className={inputClass} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-              <option value="">Choose a course</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} · {c.title}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <>
+            {(courseData?.nextCursor || searching) && (
+              <FormField
+                label="Search courses"
+                name="courseSearch"
+                hint={
+                  searching && found?.nextCursor
+                    ? 'Showing the first 200 matches. Type more to narrow them.'
+                    : undefined
+                }
+              >
+                <input
+                  type="search"
+                  className={inputClass}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                />
+              </FormField>
+            )}
+            <FormField label="Course" name="courseId" error={fields.courseId}>
+              <select
+                className={inputClass}
+                value={courseId}
+                onChange={(e) => {
+                  setCourseId(e.target.value)
+                  setPicked(courses.find((c) => c.id === e.target.value))
+                }}
+              >
+                <option value="">Choose a course</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} · {c.title}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </>
         )}
         <FormField label="Section number" name="number" hint="For example 001." error={fields.number}>
           <input type="text" className={inputClass} value={number} onChange={(e) => setNumber(e.target.value)} />

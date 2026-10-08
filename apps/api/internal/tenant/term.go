@@ -67,9 +67,14 @@ func listTerms(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	q, fe := LikeParam(r)
+	if fe != nil {
+		return 0, nil, httpx.Validation(*fe)
+	}
 	rows, err := tx.QueryContext(r.Context(), `select id, name, to_char(starts_on,'YYYY-MM-DD'), to_char(ends_on,'YYYY-MM-DD'), created_at from terms
 		where ($1::timestamptz is null or (created_at, id) > ($1, $2::uuid))
-		order by created_at, id limit $3`, after, afterID, p.Limit+1)
+		  and ($4::text is null or name ilike $4)
+		order by created_at, id limit $3`, after, afterID, p.Limit+1, q)
 	if err != nil {
 		return 0, nil, err
 	}

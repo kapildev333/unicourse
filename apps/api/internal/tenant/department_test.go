@@ -323,3 +323,55 @@ func TestDepartmentsRejectWrongCaseKey(t *testing.T) {
 		t.Fatalf("right case: %d %s", st, raw)
 	}
 }
+
+func TestListDepartmentsQ(t *testing.T) {
+	e := newServer(t, regTenant)
+	admin := e.adminCookie()
+	e.tx(e.Fx.UniversityB, func(tx *sql.Tx) error { // another university's match must never appear
+		_, err := tx.Exec(`insert into departments (university_id, name, code) values ($1, 'Mathematics B', 'MATHB')`, e.Fx.UniversityB)
+		return err
+	})
+	for _, d := range [][2]string{{"Mathematics", "MATH"}, {"Math Education", "MEDU"}, {"100% Club", "PCT"}, {"Under_score", "US"}} {
+		if st, raw := e.do(admin, "POST", deptPath, map[string]any{"name": d[0], "code": d[1]}); st != 201 {
+			t.Fatal(st, string(raw))
+		}
+	}
+	list := func(q string) (int, []Department, string) {
+		st, raw := e.do(admin, "GET", deptPath+q, nil)
+		var p struct {
+			Items      []Department
+			NextCursor string
+		}
+		json.Unmarshal(raw, &p)
+		return st, p.Items, p.NextCursor
+	}
+	codes := func(q string) []string {
+		_, items, _ := list(q)
+		var out []string
+		for _, d := range items {
+			out = append(out, d.Code)
+		}
+		return out
+	}
+	for q, want := range map[string][]string{
+		"?q=mat": {"MATH", "MEDU"}, "?q=MATHE": {"MATH"}, "?q=education": {"MEDU"},
+		"?q=%25": {"PCT"}, "?q=_": {"US"}, "?q=zzz": nil,
+	} {
+		if got := codes(q); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: %v, want %v", q, got, want)
+		}
+	}
+	if got := codes("?q=%20"); len(got) != 5 {
+		t.Errorf("blank q: %v", got)
+	}
+	if st, _, _ := list("?q=" + repeat("a", 101)); st != 400 {
+		t.Errorf("long q: %d", st)
+	}
+	_, p1, cur := list("?q=mat&limit=1")
+	if len(p1) != 1 || p1[0].Code != "MATH" || cur == "" {
+		t.Fatalf("page1 %v %q", p1, cur)
+	}
+	if _, p2, cur2 := list("?q=mat&limit=1&cursor=" + cur); len(p2) != 1 || p2[0].Code != "MEDU" || cur2 != "" {
+		t.Fatalf("page2 %v %q", p2, cur2)
+	}
+}
