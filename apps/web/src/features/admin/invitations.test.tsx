@@ -92,7 +92,7 @@ it('shows the duplicate 409 copy on the email field', async () => {
   fireEvent.click(screen.getAllByRole('button', { name: 'Invite someone' })[0])
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'c@a.edu' } })
   fireEvent.click(screen.getByRole('button', { name: 'Send invitation' }))
-  expect(await screen.findByText(/already has a pending invitation/)).toBeInTheDocument()
+  expect(await screen.findByText(/already has access or a pending invitation/)).toBeInTheDocument()
 })
 
 it('revokes through a confirmation dialog', async () => {

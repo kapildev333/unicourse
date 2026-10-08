@@ -17,6 +17,7 @@ import { Table } from '../../components/table'
 import { Badge } from '../../components/badge'
 import { formatDate } from '../../lib/format'
 import { useCursorList } from '../../lib/use-cursor-list'
+import { useMe } from '../auth/use-me'
 import { useRefresh } from './queries'
 import { PageHeader } from '../../components/page-header'
 
@@ -146,6 +147,8 @@ export function TermsPage({ slug }: { slug: string }) {
       }),
     ),
   )
+  // D23 hides only the tabs: the page itself is read-only for a department admin
+  const canManage = useMe().data?.memberships.find((m) => m.university.slug === slug)?.role === 'admin'
   const [editing, setEditing] = useState<Term | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Term | null>(null)
   const [notice, setNotice] = useState('')
@@ -154,7 +157,7 @@ export function TermsPage({ slug }: { slug: string }) {
     setDeleting(null)
     if (n) setNotice(n)
   }
-  const create = (
+  const create = !canManage ? undefined : (
     <Button disabled={list.isPending} onClick={() => setEditing('new')}>
       <Plus size={16} />
       New term
@@ -170,7 +173,7 @@ export function TermsPage({ slug }: { slug: string }) {
       <EmptyState
         icon={CalendarRange}
         title="No terms yet"
-        body="Add a term such as “Fall 2026” before creating sections."
+        body={canManage ? 'Add a term such as “Fall 2026” before creating sections.' : 'A university admin adds terms.'}
         action={create}
       />
     )
@@ -185,9 +188,11 @@ export function TermsPage({ slug }: { slug: string }) {
               <th scope="col">Starts</th>
               <th scope="col">Ends</th>
               <th scope="col">Status</th>
-              <th scope="col">
-                <span className="sr-only">Actions</span>
-              </th>
+              {canManage && (
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -199,19 +204,21 @@ export function TermsPage({ slug }: { slug: string }) {
                 <td data-label="Status">
                   <Badge tone="neutral">{termState(d)}</Badge>
                 </td>
-                <td className="text-right whitespace-nowrap">
-                  <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost-danger"
-                    size="sm"
-                    aria-label={`Delete ${d.name}`}
-                    onClick={() => setDeleting(d)}
-                  >
-                    Delete
-                  </Button>
-                </td>
+                {canManage && (
+                  <td className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost-danger"
+                      size="sm"
+                      aria-label={`Delete ${d.name}`}
+                      onClick={() => setDeleting(d)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

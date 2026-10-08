@@ -129,3 +129,20 @@ it('shows a Target column with entity, name when present, and a short id', async
   expect(screen.getByText('abcdef12')).toBeInTheDocument()
   expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 7 changes')
 })
+
+it('lists the Changed by options by name, falling back to the email', async () => {
+  mockApi({
+    'GET /universities/x/memberships': () => ({
+      body: {
+        items: [
+          { userId: 'u1', email: 'dana@a.edu', displayName: 'Dana' },
+          { userId: 'u2', email: 'bob@a.edu', displayName: '' },
+        ],
+      },
+    }),
+    [L]: () => ({ body: { items: [] } }),
+  })
+  renderWithQuery(<AuditLogPage slug="x" />)
+  expect(await screen.findByRole('option', { name: 'Dana' })).toHaveValue('u1')
+  expect(screen.getByRole('option', { name: 'bob@a.edu' })).toHaveValue('u2')
+})

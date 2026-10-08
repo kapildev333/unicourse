@@ -113,6 +113,24 @@ it('Edit opens the section dialog in edit mode only for managed departments', as
   expect(await screen.findByRole('dialog', { name: 'Edit CS101-001' })).toBeInTheDocument()
 })
 
+it('explains a 409 on deleting a section with final grades', async () => {
+  vi.setSystemTime(new Date('2026-03-01T12:00:00'))
+  mockApi({
+    [T]: () => ({ body: { items: terms } }),
+    [L]: () => ({ body: { items: [s1] } }),
+    'DELETE /universities/a/sections/s1': () => ({
+      status: 409,
+      body: { error: { code: 'conflict', message: 'section has final grades', details: [] } },
+    }),
+  })
+  renderPage(admin)
+  await screen.findByText('CS101')
+  fireEvent.click(screen.getByRole('button', { name: 'Delete CS101 section 001' }))
+  const del = await screen.findByRole('dialog', { name: 'Delete CS101 section 001?' })
+  fireEvent.click(within(del).getByRole('button', { name: 'Delete' }))
+  expect(await within(del).findByText('This section has final grades and cannot be deleted.')).toBeInTheDocument()
+})
+
 it('creates and deletes a section', async () => {
   vi.setSystemTime(new Date('2026-03-01T12:00:00'))
   let items = [s1]

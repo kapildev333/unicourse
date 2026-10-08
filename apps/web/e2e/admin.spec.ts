@@ -170,7 +170,7 @@ test('E-ADMIN-07 invitations list, validation, send, revoke', async ({ browser }
   await expect(dlg.getByText('Enter a valid email address.'), 'admin, Invitations dialog: email field error').toBeVisible()
   await dlg.getByLabel('Email').fill(P.amara.email)
   await dlg.getByRole('button', { name: 'Send invitation' }).click()
-  await expect(dlg.getByText('This person already has a pending invitation or is already a member.'), 'admin, Invitations dialog: duplicate').toBeVisible()
+  await expect(dlg.getByText('This email already has access or a pending invitation.'), 'admin, Invitations dialog: duplicate').toBeVisible()
   await dlg.getByLabel('Email').fill(hire)
   await dlg.getByLabel('Role').selectOption({ label: 'Department admin' })
   await dlg.getByRole('button', { name: 'Send invitation' }).click()
@@ -224,7 +224,7 @@ test('E-ADMIN-08 audit log entries and filters', async ({ browser }) => {
     for (const [i, a] of actions.entries()) await expect(rows.nth(i + 1), `admin, Audit log ${entity}: row ${i + 1}`).toContainText(a)
   }
   await admin.getByLabel('Entity').selectOption({ label: 'All' })
-  await admin.getByLabel('Changed by').selectOption({ label: P.deptAdmin.email })
+  await admin.getByLabel('Changed by').selectOption({ label: 'Owen Park' })
   await expect(rows.nth(1), 'admin, Audit log: Owen filter').toContainText('Owen Park')
 
   const t = new Date(Date.now() + 86_400_000)

@@ -289,6 +289,7 @@ export function SectionListPage(props: { slug: string; termId?: string; onTermCh
         pendingLabel="Deleting…"
         pending={del.isPending}
         error={del.error}
+        copy={{ conflict: 'This section has final grades and cannot be deleted.' }}
         onConfirm={() => deleting && del.mutate(deleting)}
         onClose={() => setDeleting(null)}
       />

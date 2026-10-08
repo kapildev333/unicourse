@@ -95,9 +95,9 @@ it('create: two rows are posted in order', async () => {
   ])
 })
 
-const invalid = (field: string) => ({
+const invalid = (field: string, message = 'x') => ({
   status: 422,
-  body: { error: { code: 'validation_failed', message: 'bad', details: [{ field, message: 'x' }] } },
+  body: { error: { code: 'validation_failed', message: 'bad', details: [{ field, message }] } },
 })
 
 it('maps a meetings[1].endsAt error to row 2 and keeps it after removing row 1', async () => {
@@ -117,13 +117,24 @@ it('maps a meetings[1].endsAt error to row 2 and keeps it after removing row 1',
 })
 
 it('shows the 20-row error and disables Add at 20 rows', async () => {
-  setup({ 'POST /universities/a/sections': () => invalid('meetings') })
+  setup({ 'POST /universities/a/sections': () => invalid('meetings', 'add at most 20 meeting times') })
   await screen.findByRole('option', { name: /CS101/ })
   for (let i = 0; i < 20; i++) add()
   expect(screen.getByRole('button', { name: 'Add meeting time' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Create section' }))
   expect(await screen.findByText('Add at most 20 meeting times.')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByText('Add at most 20 meeting times.')).toHaveFocus())
+})
+
+it('shows the API overlap message under the meetings group', async () => {
+  setup({ 'POST /universities/a/sections': () => invalid('meetings', 'Meeting 1 and meeting 2 overlap on Monday.') })
+  await screen.findByRole('option', { name: /CS101/ })
+  add()
+  add()
+  fireEvent.click(screen.getByRole('button', { name: 'Create section' }))
+  const msg = await screen.findByText('Meeting 1 and meeting 2 overlap on Monday.')
+  expect(msg).toHaveAttribute('role', 'alert')
+  await waitFor(() => expect(msg).toHaveFocus())
 })
 
 it('edit: removing every row sends meetings []', async () => {

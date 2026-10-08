@@ -72,7 +72,7 @@ func checkMeeting(m MeetingInput) (MeetingInput, []httpx.FieldError) {
 // that order); only the returned rows are sorted. Never returns nil rows.
 func validateMeetings(in []MeetingInput) ([]MeetingInput, []httpx.FieldError) {
 	if len(in) > maxMeetings {
-		return []MeetingInput{}, []httpx.FieldError{{Field: "meetings", Message: "must have at most 20 entries"}}
+		return []MeetingInput{}, []httpx.FieldError{{Field: "meetings", Message: "add at most 20 meeting times"}}
 	}
 	out := make([]MeetingInput, 0, len(in))
 	var d []httpx.FieldError
@@ -83,8 +83,27 @@ func validateMeetings(in []MeetingInput) ([]MeetingInput, []httpx.FieldError) {
 		}
 		out = append(out, m)
 	}
+	if len(d) == 0 {
+		d = overlaps(out)
+	}
 	sortMeetings(out)
 	return out, d
+}
+
+var dayNames = [...]string{"", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+
+// overlaps reports the first pair (in sent order, 1-based as the editor shows them) whose [start, end) intersect on one day.
+// Only called on rows that passed checkMeeting, so times compare as strings.
+func overlaps(ms []MeetingInput) []httpx.FieldError {
+	for i, a := range ms {
+		for j := i + 1; j < len(ms); j++ {
+			b := ms[j]
+			if a.Weekday == b.Weekday && a.StartsAt < b.EndsAt && b.StartsAt < a.EndsAt {
+				return []httpx.FieldError{{Field: "meetings", Message: "Meeting " + strconv.Itoa(i+1) + " and meeting " + strconv.Itoa(j+1) + " overlap on " + dayNames[a.Weekday] + "."}}
+			}
+		}
+	}
+	return nil
 }
 
 func sortMeetings(ms []MeetingInput) {
@@ -152,6 +171,9 @@ func parseSlots(cell string) (ms []MeetingInput, bad string) {
 			return nil, `meeting "` + p + `": ` + errs[0].Field + " " + errs[0].Message
 		}
 		ms = append(ms, m)
+	}
+	if o := overlaps(ms); o != nil {
+		return nil, o[0].Message
 	}
 	sortMeetings(ms)
 	return ms, ""

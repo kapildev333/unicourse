@@ -12,7 +12,7 @@ import { useUniversity } from '../auth/use-me'
 type Course = components['schemas']['Course']
 
 const copy = {
-  'conflict:code': 'A course with this code already exists in this department.',
+  'conflict:code': 'A course with this code already exists in this university.',
   forbidden: 'You can only manage courses in your own departments.',
   'validation_failed:departmentId': 'Choose a department.',
   'validation_failed:code': 'Enter a course code of at most 20 characters.',

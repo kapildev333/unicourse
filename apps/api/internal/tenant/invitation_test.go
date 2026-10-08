@@ -68,7 +68,7 @@ func TestInvitationCreateAndAccept(t *testing.T) {
 	}
 
 	// duplicate pending, and mixed-case duplicate
-	if st, raw := e.do(adm, "POST", pathA+"/invitations", map[string]any{"email": "CAROL@a.edu", "role": "member"}); st != 409 || !strings.Contains(string(raw), "already pending") {
+	if st, raw := e.do(adm, "POST", pathA+"/invitations", map[string]any{"email": "CAROL@a.edu", "role": "member"}); st != 409 || !strings.Contains(string(raw), "pending invitation") {
 		t.Fatalf("duplicate: %d %s", st, raw)
 	}
 
@@ -85,7 +85,7 @@ func TestInvitationCreateAndAccept(t *testing.T) {
 		t.Fatalf("accepted: %s %s %d", role, status, e.deptAdminRows(uid))
 	}
 	// now a member, and the accepted invitation cannot be revoked
-	if st, raw := e.do(adm, "POST", pathA+"/invitations", map[string]any{"email": "carol@a.edu", "role": "member"}); st != 409 || !strings.Contains(string(raw), "already a member") {
+	if st, raw := e.do(adm, "POST", pathA+"/invitations", map[string]any{"email": "carol@a.edu", "role": "member"}); st != 409 || !strings.Contains(string(raw), "already has access or a pending invitation") {
 		t.Fatalf("member: %d %s", st, raw)
 	}
 	if st, _ := e.do(adm, "DELETE", pathA+"/invitations/"+inv.ID, nil); st != 409 {

@@ -82,7 +82,7 @@ it('creates a course and shows a field error for a duplicate code', async () => 
   fireEvent.change(within(dialog).getByLabelText('Code'), { target: { value: ' MATH1 ' } })
   fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Calculus' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Create course' }))
-  expect(await screen.findByText(/code already exists in this department/)).toBeInTheDocument()
+  expect(await screen.findByText(/code already exists in this university/)).toBeInTheDocument()
   await waitFor(() => expect(within(dialog).getByLabelText('Code')).toHaveFocus())
   conflict = false
   fireEvent.click(within(dialog).getByRole('button', { name: 'Create course' }))

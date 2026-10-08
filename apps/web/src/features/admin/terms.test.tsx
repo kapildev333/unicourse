@@ -1,9 +1,24 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { mockApi, renderWithQuery } from '../../test-utils'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render } from '@testing-library/react'
+import { mockApi } from '../../test-utils'
 import { TermsPage } from './terms'
 
 afterEach(() => vi.unstubAllGlobals())
+
+function renderAs(role = 'admin') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  client.setQueryData(['me'], {
+    user: { id: 'u0', email: 'x@a.edu', displayName: 'X' },
+    memberships: [{ university: { id: 'x', slug: 'x', name: 'X U' }, role, departmentIds: [] }],
+  })
+  return render(
+    <QueryClientProvider client={client}>
+      <TermsPage slug="x" />
+    </QueryClientProvider>,
+  )
+}
 
 const fall = {
   id: '1',
@@ -24,7 +39,7 @@ async function openCreate() {
 
 it('renders dates as local dates and uses date inputs in the dialog', async () => {
   mockApi({ [L]: () => ({ body: { items: [fall] } }) })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
   expect(await screen.findByText(fmt.format(new Date(2026, 8, 1)))).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'New term' }))
@@ -38,7 +53,7 @@ it('shows the endsOn field error and focuses the input', async () => {
     'POST /universities/x/terms': () =>
       err(400, 'validation_failed', [{ field: 'endsOn', message: 'must be after startsOn' }]),
   })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   await openCreate()
   fireEvent.change(screen.getByLabelText('Name'), {
     target: { value: 'Spring' },
@@ -56,7 +71,7 @@ it('shows the name conflict copy', async () => {
     [L]: () => ({ body: { items: [fall] } }),
     'POST /universities/x/terms': () => err(409, 'conflict'),
   })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   await openCreate()
   fireEvent.click(screen.getByRole('button', { name: 'Create term' }))
   expect(await screen.findByText('A term with this name already exists.')).toBeInTheDocument()
@@ -67,7 +82,7 @@ it('shows the delete 409 copy and the empty state', async () => {
     [L]: () => ({ body: { items: [fall] } }),
     'DELETE /universities/x/terms/1': () => err(409, 'conflict'),
   })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   await screen.findByText('Fall 2026')
   fireEvent.click(screen.getByRole('button', { name: 'Delete Fall 2026' }))
   fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
@@ -76,7 +91,7 @@ it('shows the delete 409 copy and the empty state', async () => {
 
 it('shows the empty state', async () => {
   mockApi({ [L]: () => ({ body: { items: [] } }) })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   expect(await screen.findByText('No terms yet')).toBeInTheDocument()
 })
 
@@ -97,7 +112,7 @@ it('stacks rows on phones and shows Current, Upcoming and Past from the dates', 
         },
       }),
     })
-    renderWithQuery(<TermsPage slug="x" />)
+    renderAs()
     await screen.findByText('Fall 2026')
     const row = (n: string) => screen.getByText(n).closest('tr')!
     expect(within(row('Fall 2026')).getByText('Current')).toBeInTheDocument()
@@ -114,6 +129,23 @@ it('stacks rows on phones and shows Current, Upcoming and Past from the dates', 
 
 it('names what failed to load', async () => {
   mockApi({ [L]: () => err(500, 'internal') })
-  renderWithQuery(<TermsPage slug="x" />)
+  renderAs()
   expect(await screen.findByText("Couldn't load terms")).toBeInTheDocument()
+})
+
+it('shows no New, Edit or Delete to a department admin', async () => {
+  mockApi({ 'GET /universities/x/terms': () => ({ body: { items: [fall] } }) })
+  renderAs('dept_admin')
+  expect(await screen.findByText('Fall 2026')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^New / })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Delete / })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull()
+})
+
+it('does not tell a department admin to add a term', async () => {
+  mockApi({ 'GET /universities/x/terms': () => ({ body: { items: [] } }) })
+  renderAs('dept_admin')
+  expect(await screen.findByText('No terms yet')).toBeInTheDocument()
+  expect(screen.queryByText(/Add a term/)).toBeNull()
 })

@@ -20,7 +20,6 @@ const copy = {
   forbidden: 'You can only manage sections in your own departments.',
   'validation_failed:courseId': 'Choose a course.',
   'validation_failed:number': 'Enter a section number of at most 20 characters.',
-  'validation_failed:meetings': 'Add at most 20 meeting times.',
 }
 
 /** Mount only while open (parent renders it conditionally) so the form starts fresh each time. */
