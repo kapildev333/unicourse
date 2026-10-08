@@ -4,6 +4,8 @@ package config
 import (
 	"fmt"
 	"net/netip"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +15,8 @@ type Config struct {
 	SMTPURL, WebOrigin, WebDir                                                   string
 	// TrustedProxies are the reverse proxies whose X-Forwarded-For is believed; empty trusts none.
 	TrustedProxies []netip.Prefix
+	OutboxSenders  int   // mail sender goroutines per process, 1 to 10
+	MaxUploadBytes int64 // largest material file, 1 to 10 GiB
 }
 
 // Load reads configuration through getenv; the error lists every missing required variable.
@@ -50,10 +54,54 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("UNICOURSE_SESSION_SECRET must be at least 32 bytes, got %d", len(c.SessionSecret))
 	}
 	var err error
+	var senders int64
+	if senders, err = wholeInRange(opt("OUTBOX_SENDERS"), 1, 1, 10, "UNICOURSE_OUTBOX_SENDERS must be a whole number from 1 to 10"); err != nil {
+		return Config{}, err
+	}
+	c.OutboxSenders = int(senders)
+	if c.MaxUploadBytes, err = wholeInRange(opt("MAX_UPLOAD_BYTES"), 100<<20, 1, 10<<30, "UNICOURSE_MAX_UPLOAD_BYTES must be a whole number of bytes from 1 to 10737418240"); err != nil {
+		return Config{}, err
+	}
+	if c.WebOrigin, err = webOrigin(c.WebOrigin); err != nil {
+		return Config{}, err
+	}
 	if c.TrustedProxies, err = parseProxies(opt("TRUSTED_PROXIES")); err != nil {
 		return Config{}, err
 	}
 	return c, nil
+}
+
+// wholeInRange parses s as a base-10 integer in [lo, hi]; empty gives def.
+func wholeInRange(s string, def, lo, hi int64, msg string) (int64, error) {
+	if s == "" {
+		return def, nil
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n < lo || n > hi {
+		return 0, fmt.Errorf("%s, got %q", msg, s)
+	}
+	return n, nil
+}
+
+// webOrigin accepts scheme://host[:port] with one optional trailing slash and returns it lowercased without the slash.
+func webOrigin(s string) (string, error) {
+	if s == "" {
+		return "", nil
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil ||
+		u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || (u.Path != "" && u.Path != "/") {
+		return "", fmt.Errorf("UNICOURSE_WEB_ORIGIN must be scheme://host[:port] with no path, e.g. http://localhost:5173, got %q", s)
+	}
+	if port := u.Port(); strings.HasSuffix(u.Host, ":") || (port != "" && !validPort(port)) {
+		return "", fmt.Errorf("UNICOURSE_WEB_ORIGIN must be scheme://host[:port] with no path, e.g. http://localhost:5173, got %q", s)
+	}
+	return u.Scheme + "://" + strings.ToLower(u.Host), nil
+}
+
+func validPort(p string) bool {
+	n, err := strconv.Atoi(p)
+	return err == nil && n >= 1 && n <= 65535
 }
 
 func parseProxies(s string) ([]netip.Prefix, error) {
@@ -82,6 +130,9 @@ func parseProxies(s string) ([]netip.Prefix, error) {
 		}
 		if err != nil {
 			return nil, fmt.Errorf("UNICOURSE_TRUSTED_PROXIES: %q is not a CIDR or IP address", item)
+		}
+		if p.Addr().Is4In6() && p.Bits() >= 96 {
+			p = netip.PrefixFrom(p.Addr().Unmap(), p.Bits()-96)
 		}
 		if p.Bits() == 0 {
 			return nil, fmt.Errorf("UNICOURSE_TRUSTED_PROXIES: %s trusts every address; list only the proxies' addresses", item)

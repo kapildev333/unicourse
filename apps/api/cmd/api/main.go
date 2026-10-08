@@ -72,6 +72,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	files.MaxBytes = cfg.MaxUploadBytes
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -99,6 +101,7 @@ func main() {
 		}
 	}
 	sender := outbox.NewSender(db, mailer, logger)
+	sender.Senders = cfg.OutboxSenders
 	go sender.Run(ctx)
 
 	deps, err := authDeps(ctx, cfg, db, sender.Wake)

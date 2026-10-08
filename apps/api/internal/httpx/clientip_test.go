@@ -41,7 +41,7 @@ func TestClientIP(t *testing.T) {
 		if c.none {
 			t2 = nil
 		}
-		if got := clientIP(c.remote, c.xff, t2); got != c.want {
+		if got := clientIP(c.remote, c.xff, nil, t2); got != c.want {
 			t.Errorf("row %d: clientIP(%q, %q) = %q, want %q", i+1, c.remote, c.xff, got, c.want)
 		}
 	}
@@ -52,5 +52,52 @@ func TestClientIPWithoutMiddleware(t *testing.T) {
 	r.Header.Set("X-Forwarded-For", "1.2.3.4")
 	if got := ClientIP(r); got != "192.0.2.1" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestClientIPForwarded(t *testing.T) {
+	tr := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("2001:db8:ffff::/48")}
+	for i, c := range []struct {
+		remote   string
+		fwd, xff []string
+		want     string
+	}{
+		{"198.51.100.9:1", []string{"for=203.0.113.7"}, nil, "198.51.100.9"},
+		{"", []string{"for=203.0.113.7"}, nil, "203.0.113.7"},
+		{"", []string{"for=192.0.2.60;proto=http;by=203.0.113.43"}, nil, "192.0.2.60"},
+		{"", []string{`For="[2001:db8:cafe::17]:4711"`}, nil, "2001:db8:cafe::17"},
+		{"", []string{`for="[2001:db8:cafe::17]"`}, nil, "2001:db8:cafe::17"},
+		{"", []string{`for="203.0.113.7:47011"`}, nil, "203.0.113.7"},
+		{"", []string{"for=1.2.3.4, for=203.0.113.7"}, nil, "203.0.113.7"},
+		{"", []string{"for=1.2.3.4", "for=203.0.113.7"}, nil, "203.0.113.7"},
+		{"", []string{"for=203.0.113.7, for=10.0.0.5"}, nil, "203.0.113.7"},
+		{"", []string{"for=10.0.0.9, for=10.0.0.5"}, nil, "10.0.0.9"},
+		{"", []string{"for=unknown"}, nil, "10.0.0.2"},
+		{"", []string{"for=_hidden, for=10.0.0.5"}, nil, "10.0.0.2"},
+		{"", []string{"proto=https"}, nil, "10.0.0.2"},
+		{"", []string{`for="203.0.113.7`}, nil, "10.0.0.2"},
+		{"", []string{`for="20\3.0.113.7"`}, nil, "10.0.0.2"},
+		{"", []string{"for=garbage, for=203.0.113.7"}, nil, "203.0.113.7"},
+		{"", []string{`for="::ffff:203.0.113.7"`}, nil, "203.0.113.7"},
+		{"", []string{`for="[::ffff:203.0.113.7]:1"`}, nil, "203.0.113.7"},
+		{"", []string{"for=203.0.113.7"}, []string{"203.0.113.7"}, "203.0.113.7"},
+		{"", []string{"for=198.51.100.1"}, []string{"203.0.113.7"}, "10.0.0.2"},
+		{"", []string{"for=203.0.113.7"}, []string{" , "}, "203.0.113.7"},
+		{"", []string{" , "}, []string{"203.0.113.7"}, "203.0.113.7"},
+		{"", []string{"for=10.0.0.3"}, []string{"203.0.113.7, 10.0.0.3"}, "203.0.113.7"},
+		{"", []string{"for=203.0.113.7, for=10.0.0.3"}, []string{"10.0.0.3"}, "203.0.113.7"},
+		{"", []string{"for=203.0.113.7"}, []string{"10.0.0.8"}, "203.0.113.7"},
+		{"", []string{"for=203.0.113.7"}, []string{"garbage"}, "203.0.113.7"},
+		{"", []string{"for="}, nil, "10.0.0.2"},
+		{"", []string{`for=""`, "for=10.0.0.5"}, nil, "10.0.0.2"},
+		{"", []string{"for=198.51.100.1"}, []string{"198.51.100.2"}, "10.0.0.2"},
+	} {
+		remote := c.remote
+		if remote == "" {
+			remote = "10.0.0.2:1"
+		}
+		if got := clientIP(remote, c.xff, c.fwd, tr); got != c.want {
+			t.Errorf("row %d: clientIP(%q, xff %q, fwd %q) = %q, want %q", i+1, remote, c.xff, c.fwd, got, c.want)
+		}
 	}
 }

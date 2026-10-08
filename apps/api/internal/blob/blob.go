@@ -17,7 +17,20 @@ import (
 
 // Dir is the files directory. The zero value is valid to hold (route registration, tests that never upload)
 // but every method fails on it.
-type Dir struct{ Root string }
+type Dir struct {
+	Root     string
+	MaxBytes int64 // largest file an upload may store; 0 means DefaultMaxBytes
+}
+
+const DefaultMaxBytes = 100 << 20 // 104,857,600 bytes, "100 MB" (spec 6 section 3)
+
+// Limit is MaxBytes, or DefaultMaxBytes when it is not set (tests, seed-demo).
+func (d Dir) Limit() int64 {
+	if d.MaxBytes > 0 {
+		return d.MaxBytes
+	}
+	return DefaultMaxBytes
+}
 
 var (
 	ErrBadID = errors.New("blob: id is not a uuid")

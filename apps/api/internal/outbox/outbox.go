@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
@@ -41,12 +42,13 @@ type Sender struct {
 	Poll        time.Duration // fallback when no Wake arrives
 	Backoff     time.Duration // delay after the first failure, doubled per attempt, capped at 1h; 0 retries at once (tests)
 	MaxAttempts int           // the attempt that reaches this count gives up
+	Senders     int           // goroutines draining in parallel per process; below 1 means 1
 	wake        chan struct{}
 }
 
 // NewSender sets the defaults: Poll 5s, Backoff 30s, MaxAttempts 8.
 func NewSender(db *sql.DB, m Mailer, log *slog.Logger) *Sender {
-	return &Sender{DB: db, Mailer: m, Log: log, Poll: 5 * time.Second, Backoff: 30 * time.Second, MaxAttempts: 8, wake: make(chan struct{}, 1)}
+	return &Sender{DB: db, Mailer: m, Log: log, Poll: 5 * time.Second, Backoff: 30 * time.Second, MaxAttempts: 8, Senders: 1, wake: make(chan struct{}, 1)}
 }
 
 // Wake nudges Run to drain now. Non-blocking, safe from any goroutine; call it after commit.
@@ -65,7 +67,7 @@ func (s *Sender) Run(ctx context.Context) {
 	defer poll.Stop()
 	defer hk.Stop()
 	for {
-		if err := s.Drain(ctx); err != nil && ctx.Err() == nil {
+		if err := s.drainAll(ctx); err != nil && ctx.Err() == nil {
 			s.Log.Error("mail outbox", "err", err)
 		}
 		select {
@@ -96,6 +98,21 @@ func (s *Sender) Drain(ctx context.Context) error {
 	}
 }
 
+// drainAll runs Senders Drains at once and waits for all; each claims its own rows (FOR UPDATE SKIP LOCKED).
+func (s *Sender) drainAll(ctx context.Context) error {
+	// ponytail: a wake during a round is buffered and starts the next round only after every goroutine of this one
+	// finished, so one slow SMTP send can delay new mail. Long-lived workers on a broadcast wake if that matters.
+	n := max(s.Senders, 1)
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func() { defer wg.Done(); errs[i] = s.Drain(ctx) }()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
 func (s *Sender) sendOne(ctx context.Context) (claimed bool, err error) {
 	err = pg.WithPlatformTx(ctx, s.DB, func(tx *sql.Tx) error {
 		var id, to, subject, body string
@@ -119,7 +136,6 @@ limit 1 for update skip locked`).Scan(&id, &to, &subject, &body, &attempts, &exp
 			_, err = tx.ExecContext(ctx, `update outbox_mails set failed_at = now(), body = '', last_error = 'magic link expired' where id = $1`, id)
 			return err
 		}
-		// ponytail: one send at a time per process (add goroutines when delivery rate matters).
 		// ponytail: at-least-once: a crash between SMTP accept and commit re-sends.
 		sendErr := s.Mailer.Send(ctx, to, subject, body)
 		if ctx.Err() != nil {
