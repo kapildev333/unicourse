@@ -34,7 +34,7 @@ commands:
   prune-files [--delete]  list (or remove) files no material references, and materials whose file is missing
   seed-demo [--slug s] [--reset] [--fixture f]  load the demo university (see seed-demo -h)
 
-environment: UNICOURSE_OWNER_DATABASE_URL (all commands; the owner role, not the API role), UNICOURSE_BASE_URL (create-university, seed-demo), UNICOURSE_FILES_DIR (prune-files, seed-demo)
+environment: UNICOURSE_OWNER_DATABASE_URL (the owner role; migrate, prune-files, seed-demo, and create-university when the next is unset), UNICOURSE_PLATFORM_DATABASE_URL (create-university only; the unicourse_platform role), UNICOURSE_BASE_URL (create-university, seed-demo), UNICOURSE_FILES_DIR (prune-files, seed-demo)
 `
 
 const createHelp = `create-university flags:
@@ -452,12 +452,28 @@ func pruneFiles(ctx context.Context, args []string, env func(string) string, ope
 	return code
 }
 
+// databaseURL picks the role for cmd: create-university uses UNICOURSE_PLATFORM_DATABASE_URL when it is
+// set; every other command, and create-university without it, uses UNICOURSE_OWNER_DATABASE_URL.
+// name is the variable chosen, for the "missing environment" error.
+func databaseURL(cmd string, env func(string) string) (url, name string) {
+	if cmd == "create-university" {
+		if u := env("UNICOURSE_PLATFORM_DATABASE_URL"); u != "" {
+			return u, "UNICOURSE_PLATFORM_DATABASE_URL"
+		}
+	}
+	return env("UNICOURSE_OWNER_DATABASE_URL"), "UNICOURSE_OWNER_DATABASE_URL"
+}
+
 func main() {
 	ctx := context.Background()
-	url := os.Getenv("UNICOURSE_OWNER_DATABASE_URL")
+	cmd := ""
+	if len(os.Args) > 1 {
+		cmd = os.Args[1]
+	}
+	url, name := databaseURL(cmd, os.Getenv)
 	open := func() (*sql.DB, error) {
 		if url == "" {
-			return nil, errors.New("missing environment: UNICOURSE_OWNER_DATABASE_URL")
+			return nil, errors.New("missing environment: " + name)
 		}
 		return pg.Open(ctx, url)
 	}

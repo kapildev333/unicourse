@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -419,5 +420,129 @@ func TestSeedDemo(t *testing.T) {
 	er.Reset()
 	if code := run(context.Background(), []string{"seed-demo"}, e, open, &o, &er); code != 2 || !strings.Contains(er.String(), "already exists; rerun with --reset") {
 		t.Fatalf("second run: code %d: %s", code, er.String())
+	}
+}
+
+func TestDatabaseURL(t *testing.T) {
+	both := mapEnv(map[string]string{"UNICOURSE_OWNER_DATABASE_URL": "o", "UNICOURSE_PLATFORM_DATABASE_URL": "p"})
+	owner := mapEnv(map[string]string{"UNICOURSE_OWNER_DATABASE_URL": "o"})
+	for _, c := range []struct {
+		cmd  string
+		env  func(string) string
+		want string
+		name string
+	}{
+		{"create-university", both, "p", "UNICOURSE_PLATFORM_DATABASE_URL"},
+		{"create-university", owner, "o", "UNICOURSE_OWNER_DATABASE_URL"},
+		{"migrate", both, "o", "UNICOURSE_OWNER_DATABASE_URL"},
+		{"prune-files", both, "o", "UNICOURSE_OWNER_DATABASE_URL"},
+		{"seed-demo", both, "o", "UNICOURSE_OWNER_DATABASE_URL"},
+		{"", both, "o", "UNICOURSE_OWNER_DATABASE_URL"},
+	} {
+		if u, n := databaseURL(c.cmd, c.env); u != c.want || n != c.name {
+			t.Errorf("%q: got %q %q, want %q %q", c.cmd, u, n, c.want, c.name)
+		}
+	}
+}
+
+// openPlatform connects as unicourse_platform: UNICOURSE_TEST_PLATFORM_DATABASE_URL, else the test owner
+// URL with its credentials replaced. Call it only after testdb.OpenWithOwner (migrated, lock held).
+func openPlatform(t *testing.T) *sql.DB {
+	t.Helper()
+	raw := os.Getenv("UNICOURSE_TEST_PLATFORM_DATABASE_URL")
+	if raw == "" {
+		u, err := url.Parse(os.Getenv("UNICOURSE_TEST_OWNER_DATABASE_URL"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		u.User = url.UserPassword("unicourse_platform", "unicourse_platform")
+		raw = u.String()
+	}
+	db, err := pg.Open(context.Background(), raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+func TestCreateUniversityAsPlatformRole(t *testing.T) {
+	_, owner := testdb.OpenWithOwner(t)
+	platform := openPlatform(t)
+	code, out, errOut := admin(t, platform, create()...)
+	if code != 0 {
+		t.Fatalf("code %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, baseURL+"/invite/") {
+		t.Fatalf("no invitation url in %q", out)
+	}
+	if n := count(t, owner, `select count(*) from grade_scales`); n != 12 {
+		t.Errorf("grade_scales rows = %d, want 12", n)
+	}
+	if n := count(t, owner, `select count(*) from invitations`); n != 1 {
+		t.Errorf("invitations = %d, want 1", n)
+	}
+	if n := count(t, owner, `select count(*) from audit_log where action = 'invitation.create'`); n != 1 {
+		t.Errorf("invitation.create audit rows = %d, want 1", n)
+	}
+}
+
+func sqlState(err error) string {
+	var pe interface{ SQLState() string }
+	if errors.As(err, &pe) {
+		return pe.SQLState()
+	}
+	return ""
+}
+
+func TestPlatformRoleCannotMigrate(t *testing.T) {
+	testdb.OpenWithOwner(t)
+	platform := openPlatform(t)
+	if err := pg.Migrate(context.Background(), platform); err == nil || sqlState(err) != "42501" {
+		t.Fatalf("Migrate as platform role: %v (state %q), want 42501", err, sqlState(err))
+	}
+}
+
+func TestPlatformRoleIsNotOwner(t *testing.T) {
+	testdb.OpenWithOwner(t)
+	platform := openPlatform(t)
+	if err := pg.CheckAPIRole(context.Background(), platform); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := platform.QueryRow(`select count(*) from departments`).Scan(&n); sqlState(err) != "42501" {
+		t.Fatalf("select departments as platform role: %v, want 42501", err)
+	}
+}
+
+// D135: even with app.university_id set to an existing university, the platform role sees no rows and
+// writes none in the tables create-university uses.
+var errRollback = errors.New("rollback")
+
+func TestPlatformRoleCannotActInExistingUniversity(t *testing.T) {
+	api, _ := testdb.OpenWithOwner(t)
+	fx := testdb.Seed(t, api)
+	platform := openPlatform(t)
+	uni := fx.UniversityA
+	err := pg.WithPlatformTx(context.Background(), platform, func(tx *sql.Tx) error {
+		if err := pg.SetUniversity(context.Background(), tx, uni); err != nil {
+			return err
+		}
+		var n int
+		if err := tx.QueryRow(`select count(*) from memberships`).Scan(&n); err != nil || n != 0 {
+			t.Errorf("memberships visible: %d, %v", n, err)
+		}
+		if err := tx.QueryRow(`select count(*) from invitations`).Scan(&n); err != nil || n != 0 {
+			t.Errorf("invitations visible: %d, %v", n, err)
+		}
+		_, err := tx.Exec(`insert into invitations (university_id, email, role, token_hash, expires_at)
+			values ($1, 'x@example.edu', 'admin', '\x01', now() + interval '1 day')`, uni)
+		if sqlState(err) != "42501" {
+			t.Errorf("invitation insert into existing university: %v, want 42501", err)
+		}
+		return errRollback // the failed insert aborted the transaction anyway
+	})
+	if err != errRollback {
+		t.Fatal(err)
 	}
 }
