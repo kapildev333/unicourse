@@ -14,9 +14,11 @@ import (
 
 var ctx = context.Background()
 
-type ids struct{ dept, term, course, section, user, inv, assessment, week string }
+type ids struct{ dept, term, course, section, user, inv, assessment, week, submission string }
 
 const weekInsert = "insert into weeks (university_id, section_id, title, position) values ('{U}', '{S}', 'Week 1', 1)"
+
+const submissionInsert = "insert into submissions (university_id, assessment_id, user_id, body) values ('{U}', '{A}', '{USR}', 'B')"
 
 const assessmentInsert = "insert into assessments (university_id, section_id, name, max_points, weight) values ('{U}', '{S}', 'Midterm', 100, 40)"
 
@@ -35,11 +37,14 @@ var rest = map[string]string{
 	"scores":                `insert into scores (university_id, assessment_id, user_id, points, graded_by) values ('{U}', '{A}', '{USR}', 1, '{USR}')`,
 	"announcements":         `insert into announcements (university_id, section_id, author_user_id, title, body) values ('{U}', '{S}', '{USR}', 'T', 'B')`,
 	"materials":             `insert into materials (university_id, section_id, week_id, title, file_name, content_type, size_bytes, sha256, position, uploaded_by_user_id) values ('{U}', '{S}', '{W}', 'T', 't.pdf', 'application/pdf', 1, repeat('a', 64), 1, '{USR}')`,
+	"questions":             `insert into questions (university_id, assessment_id, kind, prompt, points, position) values ('{U}', '{A}', 'blank', 'P', 1, 1)`,
+	"attempts":              `insert into attempts (university_id, assessment_id, user_id) values ('{U}', '{A}', '{USR}')`,
+	"submission_files":      `insert into submission_files (university_id, submission_id, file_name, content_type, size_bytes, sha256, position) values ('{U}', '{SUB}', 'a.pdf', 'application/pdf', 1, repeat('a', 64), 1)`,
 	"final_grades":          `insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ('{U}', '{S}', '{USR}', 'incomplete', 3, '{USR}')`,
 }
 
 func sub(q, uni string, i ids) string {
-	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment, "{W}", i.week).Replace(q)
+	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment, "{W}", i.week, "{SUB}", i.submission).Replace(q)
 }
 
 // populate fills every tenant table for uni inside an open WithTx(uni) transaction.
@@ -57,6 +62,7 @@ func populate(t *testing.T, tx *sql.Tx, uni, user string) ids {
 	q(&i.section, `insert into sections (university_id, course_id, term_id, number) values ('`+uni+`', '`+i.course+`', '`+i.term+`', '001') returning id`)
 	q(&i.assessment, sub(assessmentInsert, uni, i)+" returning id")
 	q(&i.week, sub(weekInsert, uni, i)+" returning id")
+	q(&i.submission, sub(submissionInsert, uni, i)+" returning id")
 	q(&i.inv, sub(rest["invitations"], uni, i)+` returning id`)
 	for name, stmt := range rest {
 		if name == "invitations" {
@@ -114,6 +120,7 @@ func TestWithTxIsolatesUniversities(t *testing.T) {
 		"sections":    `insert into sections (university_id, course_id, term_id, number) values ('{U}', (select id from courses limit 1), (select id from terms limit 1), '002')`,
 		"assessments": assessmentInsert,
 		"weeks":       weekInsert,
+		"submissions": submissionInsert,
 	}
 	for k, v := range rest {
 		attempts[k] = v
@@ -291,6 +298,10 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"assessments->sections":              assessmentInsert,
 		"announcements->sections":            rest["announcements"],
 		"weeks->sections":                    weekInsert,
+		"questions->assessments":             rest["questions"],
+		"attempts->assessments":              rest["attempts"],
+		"submissions->assessments":           submissionInsert,
+		"submission_files->submissions":      rest["submission_files"],
 		"materials->weeks":                   rest["materials"],
 		"scores->assessments":                rest["scores"],
 		"final_grades->sections":             rest["final_grades"],
@@ -415,5 +426,47 @@ func TestMaterialWeekInSection(t *testing.T) {
 	})
 	if !errors.Is(err, pg.ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+// Spec 11 section 3: manual assessments have no window; quizzes and assignments have an opening before the closing.
+func TestAssessmentWindowCheck(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	var section string
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		i := ids{}
+		q := func(dst *string, query string) {
+			if err := tx.QueryRow(query).Scan(dst); err != nil {
+				t.Fatal(err)
+			}
+		}
+		q(&i.course, `insert into courses (university_id, department_id, code, title) values ('`+f.UniversityA+`', '`+f.DeptA+`', 'W1', 'C') returning id`)
+		q(&section, `insert into sections (university_id, course_id, term_id, number) values ('`+f.UniversityA+`', '`+i.course+`', '`+f.TermA+`', '1') returning id`)
+		return nil
+	})
+	for name, cols := range map[string]string{
+		"manual with a window": `'manual', now(), now() + interval '1 day'`,
+		"quiz without closes":  `'quiz', now(), null`,
+		"quiz without opens":   `'quiz', null, now()`,
+		"opens equals closes":  `'assignment', '2026-10-12T09:00Z', '2026-10-12T09:00Z'`,
+		"closes before opens":  `'assignment', '2026-10-12T09:00Z', '2026-10-11T09:00Z'`,
+	} {
+		err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+			_, err := tx.Exec(`insert into assessments (university_id, section_id, name, max_points, weight, kind, opens_at, closes_at)
+				values ($1, $2, 'W', 1, 1, `+cols+`)`, f.UniversityA, section)
+			return err
+		})
+		var pe *pgconn.PgError
+		if !errors.As(err, &pe) || pe.Code != "23514" {
+			t.Errorf("%s: %v, want 23514", name, err)
+		}
+	}
+	if err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`insert into assessments (university_id, section_id, name, max_points, weight, kind, opens_at, closes_at)
+			values ($1, $2, 'OK', 1, 1, 'quiz', now(), now() + interval '1 day')`, f.UniversityA, section)
+		return err
+	}); err != nil {
+		t.Errorf("valid quiz: %v", err)
 	}
 }
