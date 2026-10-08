@@ -33,9 +33,12 @@ type NewInvitation struct {
 	DepartmentIDs             []string
 }
 
+// conflictMsg is the one 409 text for both cases (D132): the response must not tell an admin which one holds.
+const conflictMsg = "This email already has access or a pending invitation."
+
 var (
-	ErrAlreadyMember     = httpx.Conflict("user is already a member")
-	ErrInvitationPending = httpx.Conflict("invitation already pending for this email")
+	ErrAlreadyMember     = httpx.Conflict(conflictMsg)
+	ErrInvitationPending = httpx.Conflict(conflictMsg)
 )
 
 const invitationSelect = `select id, email, role, to_json(department_ids), expires_at, accepted_at, created_at from invitations `

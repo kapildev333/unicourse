@@ -15,7 +15,7 @@ func TestValidateMeetings(t *testing.T) {
 	rows := func(n int) []MeetingInput {
 		out := make([]MeetingInput, n)
 		for i := range out {
-			out[i] = ok
+			out[i] = MeetingInput{Weekday: 1 + i%7, StartsAt: []string{"08:00", "10:00", "12:00"}[i/7], EndsAt: []string{"09:00", "11:00", "13:00"}[i/7]} // distinct: no overlap
 		}
 		return out
 	}
@@ -63,6 +63,22 @@ func TestValidateMeetings(t *testing.T) {
 	_, d = validateMeetings([]MeetingInput{{Weekday: 5, StartsAt: "09:00", EndsAt: "10:00"}, {Weekday: 1, StartsAt: "11:00", EndsAt: "10:00"}})
 	if len(d) != 1 || d[0].Field != "meetings[1].endsAt" {
 		t.Errorf("input-order index: %+v", d)
+	}
+}
+
+func TestOverlappingMeetings(t *testing.T) {
+	mk := func(day int, a, b string) MeetingInput { return MeetingInput{Weekday: day, StartsAt: a, EndsAt: b} }
+	_, d := validateMeetings([]MeetingInput{mk(1, "10:00", "11:00"), mk(2, "10:00", "11:00"), mk(1, "10:30", "12:00")})
+	if len(d) != 1 || d[0].Field != "meetings" || d[0].Message != "Meeting 1 and meeting 3 overlap on Monday." {
+		t.Errorf("overlap: %+v", d)
+	}
+	for name, in := range map[string][]MeetingInput{
+		"touching":      {mk(1, "10:00", "11:00"), mk(1, "11:00", "12:00")},
+		"different day": {mk(1, "10:00", "11:00"), mk(2, "10:00", "11:00")},
+	} {
+		if _, d := validateMeetings(in); len(d) != 0 {
+			t.Errorf("%s: %+v", name, d)
+		}
 	}
 }
 
