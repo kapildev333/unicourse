@@ -733,13 +733,13 @@ export interface paths {
         };
         /**
          * List assessments
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published assessments only.
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section: every assessment; enrolled student: published manual assessments, and every quiz and assignment.
          */
         get: operations["listAssessments"];
         put?: never;
         /**
          * Create assessment
-         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Errors: name, maxPoints, weight, dueOn, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.
+         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Errors: kind, name, description, maxPoints, weight, dueOn, opensAt, closesAt, position. 409 when the section already has an assessment with this name. Weights may sum to anything until finalization.
          */
         post: operations["createAssessment"];
         delete?: never;
@@ -767,7 +767,7 @@ export interface paths {
         head?: never;
         /**
          * Update assessment
-         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Sets published, position (reorder), dueOn (null clears). Errors: name, maxPoints, weight, dueOn, position. Changing maxPoints does not re-check existing scores.
+         * @description Who: admin, dept_admin (own departments) and instructor of the section manage every kind; a TA of the section manages quizzes and assignments only. Sets published, position (reorder), dueOn (null clears). Errors: kind (unknown field: a kind cannot change), name, description, maxPoints, weight, dueOn, opensAt, closesAt, position. Changing maxPoints does not re-check existing scores.
          */
         patch: operations["updateAssessment"];
         trace?: never;
