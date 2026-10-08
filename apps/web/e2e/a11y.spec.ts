@@ -1,13 +1,13 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { pageAs, runId, sectionIds, seedDemo } from './helpers'
+import { pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
 
 const slug = `e2e-a11y-${runId}`
 const csv = { name: 'roster.csv', mimeType: 'text/csv', buffer: Buffer.from('email,displayName\nnew.student@' + slug + '.edu,New Student\n') }
-let P: ReturnType<typeof seedDemo>
+const P = personas(slug)
 
 test.beforeAll(() => {
-  P = seedDemo(slug)
+  seedDemo(slug)
 })
 
 const h1 = (page: Page) => page.getByRole('heading', { level: 1 }).first()
@@ -51,7 +51,7 @@ test('E-A11Y-01 signed out', async ({ page }) => {
     await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   }, page.getByRole('heading', { name: 'Check your email' }))
   await visit(page, role, '/sign-in?error=forbidden', () => page.goto('/sign-in?error=forbidden'))
-  await visit(page, role, 'API confirm page', () => page.goto('/api/v1/auth/magic-link/not-a-token'), page.locator('body'))
+  await visit(page, role, 'API confirm page', () => page.goto('/api/v1/auth/magic-link/not-a-token'))
 })
 
 test('E-A11Y-02 student', async ({ browser }) => {
