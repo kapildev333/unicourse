@@ -91,6 +91,7 @@ test('E-AUTH-05 a malformed token is refused', async ({ page }) => {
   await page.goto('/api/v1/auth/magic-link/not-a-token')
   await expect(page.getByRole('heading', { name: 'Sign in to UniCourse' }), 'signed out, confirm page: heading').toBeVisible()
   await page.getByRole('button', { name: 'Continue signing in' }).click()
+  await page.waitForURL((u) => u.pathname === '/sign-in' && u.searchParams.has('error'))
   await expect(page.getByRole('alert').filter({ hasText: expired }), 'signed out, malformed token: expired copy').toBeVisible()
 })
 
@@ -140,7 +141,7 @@ async function acceptInvite(browser: Parameters<typeof pageAs>[0], admin: Page, 
   const link = await latestMailLink(guest, 0, '/invite/')
   const page = await (await browser.newContext()).newPage()
   await page.goto(link)
-  await expect(page).toHaveURL(/\/sign-in/)
+  await expect(page, 'invitee, invite link: sign-in page').toHaveURL(/^[^?]*\/sign-in(\?|$)/)
   await expect(page.getByText(`You've been invited. Sign in as ${guest} to accept.`), 'invitee, invite page: banner').toBeVisible()
   await expect(field(page), 'invitee, invite page: prefilled email').toHaveValue(guest)
   await signIn(page, guest, slug)
