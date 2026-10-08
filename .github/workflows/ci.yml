@@ -132,7 +132,8 @@ jobs:
           (cd apps/api && go build -o "$RUNNER_TEMP/api" ./cmd/api && go build -o "$RUNNER_TEMP/admin" ./cmd/unicourse-admin)
           "$RUNNER_TEMP/admin" migrate
           nohup "$RUNNER_TEMP/api" > "$RUNNER_TEMP/api.log" 2>&1 &
-          (cd apps/web && npm ci && nohup npm run dev > "$RUNNER_TEMP/vite.log" 2>&1 &)
+          (cd apps/web && npm ci)
+          (cd apps/web && nohup npm run dev > "$RUNNER_TEMP/vite.log" 2>&1 &)
           for i in $(seq 60); do
             curl -s -o /dev/null http://localhost:8080/ && curl -s -o /dev/null http://localhost:5173/ && exit 0
             sleep 1
@@ -146,8 +147,6 @@ jobs:
           API_LOG: ${{ runner.temp }}/api.log
           ADMIN_BIN: ${{ runner.temp }}/admin
         run: npm run two-origin-check
-      - if: always() && steps.present.outputs.present == 'true'
-        run: pkill -f "$RUNNER_TEMP/api" || true; pkill -f vite || true
       - if: failure() && steps.present.outputs.present == 'true'
         uses: actions/upload-artifact@v4
         with:
