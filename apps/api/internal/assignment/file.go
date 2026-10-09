@@ -80,9 +80,9 @@ func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Reques
 		}
 		// the upsert also locks the submission row, so concurrent uploads count one at a time
 		var subID string
-		if err := tx.QueryRowContext(ctx, `insert into submissions (university_id, assessment_id, user_id) values ($1, $2, $3)
-			on conflict (university_id, assessment_id, user_id) do update set submitted_at = now() returning id`,
-			s.UniversityID, wk.ID, s.UserID).Scan(&subID); err != nil {
+		if err := tx.QueryRowContext(ctx, `insert into submissions (university_id, assessment_id, user_id, late) values ($1, $2, $3, $4)
+			on conflict (university_id, assessment_id, user_id) do update set submitted_at = now(), late = submissions.late or excluded.late returning id`,
+			s.UniversityID, wk.ID, s.UserID, wk.Late).Scan(&subID); err != nil {
 			return err
 		}
 		var n int
@@ -151,7 +151,7 @@ func deleteFile(d tenant.Deps) tenant.Handler {
 			where f.id = o.id and f.position <> o.n`, sub.id); err != nil {
 			return 0, nil, err
 		}
-		if _, err := tx.ExecContext(ctx, `update submissions set submitted_at = now() where id = $1`, sub.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `update submissions set submitted_at = now(), late = late or $2 where id = $1`, sub.id, w.Late); err != nil {
 			return 0, nil, err
 		}
 		// the "text or a file" rule: an emptied submission goes away (its scores row, if any, stays)

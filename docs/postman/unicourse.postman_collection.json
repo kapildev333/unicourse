@@ -3266,7 +3266,7 @@
                                   "request": {
                                     "name": "Grade a submission",
                                     "description": {
-                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller) and audits submission.grade. Errors: score (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <2 x maxPoints>\"), feedback (\"must not be null\", \"must not contain NUL\", \"must be at most 5000 characters\"). userId must be a uuid, else 404.",
+                                      "content": "Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller; for a late submission the score reduced by the assessment's latePenaltyPercent, rounded half up to 2 decimals, read at grading time and not recomputed until the grade is saved again) and audits submission.grade (after carries score and finalScore). Errors: score (\"is required\", \"must be a number\", \"must have at most 2 decimals\", \"must be between 0 and <2 x maxPoints>\"), feedback (\"must not be null\", \"must not contain NUL\", \"must be at most 5000 characters\"). userId must be a uuid, else 404.",
                                       "type": "text/plain"
                                     },
                                     "url": {
@@ -3431,7 +3431,7 @@
                                   "request": {
                                     "name": "Write own submission",
                                     "description": {
-                                      "content": "Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors: body (\"is required\", \"must not contain NUL\", \"must be at most 20000 characters\", \"a submission needs text or a file\"). Audits submission.update.",
+                                      "content": "Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict \"not open yet\" before opensAt and \"closed\" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Errors: body (\"is required\", \"must not contain NUL\", \"must be at most 20000 characters\", \"a submission needs text or a file\"). Audits submission.update.",
                                       "type": "text/plain"
                                     },
                                     "url": {
@@ -3508,7 +3508,7 @@
                                       "request": {
                                         "name": "Attach a file to own submission",
                                         "description": {
-                                          "content": "Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (see GET /upload-policy), \"invalid multipart upload: <reason>\", \"a submission holds at most 10 files\"). Audits submission.update.",
+                                          "content": "Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict \"not open yet\" before opensAt and \"closed\" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Errors (the first problem found): file (\"must be a multipart/form-data upload\", \"is required\", \"must be exactly one file\", \"must have a file name\", \"file name must be at most 255 characters\", \"file name must not contain control characters\", \"file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)\", \"is empty\", \"is larger than <limit>\" (see GET /upload-policy), \"invalid multipart upload: <reason>\", \"a submission holds at most 10 files\"). Audits submission.update.",
                                           "type": "text/plain"
                                         },
                                         "url": {
@@ -3584,7 +3584,7 @@
                                       "request": {
                                         "name": "Remove a file from own submission",
                                         "description": {
-                                          "content": "Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict \"not open yet\" before opensAt and \"closed\" from closesAt (database clock). Audits submission.update.",
+                                          "content": "Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict \"not open yet\" before opensAt and \"closed\" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Audits submission.update.",
                                           "type": "text/plain"
                                         },
                                         "url": {

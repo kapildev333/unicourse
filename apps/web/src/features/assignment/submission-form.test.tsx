@@ -23,7 +23,7 @@ const asg = (over: Partial<Assessment> = {}): Assessment => ({
   ...over,
 })
 const file = (id: string, name: string) => ({ id, fileName: name, contentType: 'application/pdf', sizeBytes: 1234, position: 1, uploadedAt: '2026-10-09T15:12:00Z' })
-const sub = (over: Partial<Submission> = {}): Submission => ({ userId: 'u0', body: 'My essay', submittedAt: '2026-10-09T15:12:00Z', files: [], ...over })
+const sub = (over: Partial<Submission> = {}): Submission => ({ userId: 'u0', body: 'My essay', submittedAt: '2026-10-09T15:12:00Z', files: [], late: false, penaltyPercent: 0, ...over })
 const err = (status: number, code: string, details: object[] = []) => ({ status, body: { error: { code, message: 'm', details } } })
 const M = `${S}/assessments/q1/submissions/me`
 const sent = (fn: ReturnType<typeof mockApi>, method: string) => fn.mock.calls.filter(([r]) => r.method === method)

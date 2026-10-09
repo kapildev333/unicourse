@@ -52,8 +52,9 @@ func allow(ok bool, err error) error {
 
 // work is the assignment of the path; wrong kind, other section or bad uuid -> 404 "assessment".
 type work struct {
-	ID, MaxPoints               string // MaxPoints numeric::text
-	Published, Upcoming, Closed bool   // Upcoming: now() < opens_at; Closed: now() >= closes_at
+	ID, MaxPoints, Penalty      string // MaxPoints, Penalty numeric::text
+	Published, Upcoming, Closed bool   // Upcoming: now() < opens_at; Closed: now() >= coalesce(late_until, closes_at)
+	Late                        bool   // now() >= closes_at: a student write is late
 }
 
 // loadWork reads the assignment; lock is "", "for share" or "for update". Window state is the database's now() (D30).
@@ -61,9 +62,9 @@ func loadWork(r *http.Request, tx *sql.Tx, secID, id, lock string) (w work, err 
 	if !tenant.IsUUID(id) {
 		return w, httpx.NotFound("assessment")
 	}
-	err = tx.QueryRowContext(r.Context(), `select id, max_points::text, published, now() < opens_at, now() >= closes_at
-		from assessments where id = $1 and section_id = $2 and kind = 'assignment' `+lock, id, secID).
-		Scan(&w.ID, &w.MaxPoints, &w.Published, &w.Upcoming, &w.Closed)
+	err = tx.QueryRowContext(r.Context(), `select id, max_points::text, published, now() < opens_at, now() >= coalesce(late_until, closes_at),
+		now() >= closes_at, late_penalty_percent::text from assessments where id = $1 and section_id = $2 and kind = 'assignment' `+lock, id, secID).
+		Scan(&w.ID, &w.MaxPoints, &w.Published, &w.Upcoming, &w.Closed, &w.Late, &w.Penalty)
 	if errors.Is(err, sql.ErrNoRows) {
 		return w, httpx.NotFound("assessment")
 	}
