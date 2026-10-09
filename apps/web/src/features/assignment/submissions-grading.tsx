@@ -190,6 +190,8 @@ function GradeForm({ slug, sectionId, a, name, sub }: { slug: string; sectionId:
     mutationFn: (points: number) => gradeSubmission(slug, sectionId, a.id, sub.userId, { score: points, feedback }),
     onSuccess: async (s) => {
       qc.setQueryData(submissionKey(slug, sectionId, a.id, sub.userId), s)
+      setScore(s.score === undefined ? '' : fmtNum(s.score)) // the server's normal form, so the panel is clean again
+      setFeedback(s.feedback ?? '')
       await refresh(submissionsKey(slug, sectionId, a.id))
       setNotice(`Grade saved. ${name}: ${fmtNum(s.score ?? 0)} / ${fmtNum(a.maxPoints)}.`)
     },

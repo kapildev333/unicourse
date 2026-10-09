@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi, type Routes } from '../../test-utils'
 import type { Assessment, Submission } from '../quiz/queries'
@@ -116,4 +116,18 @@ it('panel: server field error lands under Score', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save grade' }))
   expect(await screen.findByText('Must be at most 40.')).toBeInTheDocument()
   expect(screen.getByLabelText('Score for Dana Reyes')).toHaveAttribute('aria-invalid', 'true')
+})
+
+it('after saving "17.50" the panel is clean: leaving raises no discard dialog', async () => {
+  const fn = setup(
+    { [`GET ${S}/assessments/q1/submissions/u1`]: () => ({ body: full() }), [`PATCH ${S}/assessments/q1/submissions/u1`]: (r) => r.json().then((b) => ({ body: full({ ...b, score: 17.5 }) })) },
+    'u1',
+  )
+  fireEvent.change(await screen.findByLabelText('Score for Dana Reyes'), { target: { value: '17.50' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save grade' }))
+  await screen.findByText('Grade saved. Dana Reyes: 17.5 / 20.')
+  expect(screen.getByLabelText('Score for Dana Reyes')).toHaveValue('17.5')
+  fireEvent.click(screen.getByRole('link', { name: 'All submissions' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(sent(fn, 'PATCH')).toHaveLength(1)
 })

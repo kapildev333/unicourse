@@ -170,3 +170,11 @@ it('no grade block while unpublished', async () => {
   await screen.findByText('Your submission')
   expect(screen.queryByRole('heading', { name: 'Grade' })).toBeNull()
 })
+
+it('400 on body with another message shows the server sentence', async () => {
+  setup(asg(), null, { [`PUT ${M}`]: () => err(400, 'validation_failed', [{ field: 'body', message: 'a submission needs text or a file' }]) })
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Your answer' }), { target: { value: 'x' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect((await screen.findAllByText('A submission needs text or a file.')).length).toBeGreaterThan(0)
+  expect(screen.queryByText('Use at most 20,000 characters of plain text.')).toBeNull()
+})

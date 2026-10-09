@@ -23,6 +23,8 @@ import { finalLine, runUploads, type Failed } from '../section/upload'
 import { putSubmission, removeSubmissionFile, submissionFileHref, uploadSubmissionFile } from './queries'
 
 const MAX_FILES = 10
+const lengthCopy = { 'validation_failed:body': 'Use at most 20,000 characters of plain text.' }
+const noCopy = {}
 const backClass = 'mb-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline'
 const linkClass =
   'inline-flex items-center gap-1 text-sm text-accent underline hover:text-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
@@ -264,7 +266,8 @@ function Form({ slug, sectionId, a, submission, onLapsed }: { slug: string; sect
     },
     onError: (e) => closed(e) && lapse(),
   })
-  const fe = useFieldErrors(save.error, { 'validation_failed:body': 'Use at most 20,000 characters of plain text.' })
+  const tooLong = save.error instanceof ApiError && save.error.details.some((d) => d.field === 'body' && d.message.includes('20000'))
+  const fe = useFieldErrors(save.error, tooLong ? lengthCopy : noCopy)
 
   const remove = useMutation({
     mutationFn: (f: Submission['files'][number]) => removeSubmissionFile(slug, sectionId, a.id, f.id),
