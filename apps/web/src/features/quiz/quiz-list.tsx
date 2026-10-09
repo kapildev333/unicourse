@@ -60,8 +60,8 @@ function QuizRow(props: {
 
   let student: React.ReactNode = null
   if (!canEdit && !attempt.isPending) {
-    const start = state === 'open' && !mine && (a.questionCount ?? 0) > 0
-    const cont = state === 'open' && !!mine && !submitted
+    const start = state === 'open' && !attempt.isError && !mine && (a.questionCount ?? 0) > 0
+    const cont = state === 'open' && !attempt.isError && !!mine && !submitted
     student = (
       <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId" params={params as never} size="sm" variant={start || cont ? 'primary' : 'secondary'} aria-label={`${start ? 'Start' : cont ? 'Continue' : 'View'} ${a.name}`}>
         {start ? 'Start' : cont ? 'Continue' : 'View'}
@@ -238,7 +238,9 @@ function Quizzes({ slug, section, canEdit }: { slug: string; section: Section; c
           description={
             counting
               ? 'Checking attempts…'
-              : started === 0
+              : attempts.isError
+                ? "Their attempts and scores are deleted too. This can't be undone."
+                : started === 0
                 ? "No student has started it. Its questions are deleted too. This can't be undone."
                 : `${started} ${started === 1 ? 'student has' : 'students have'} started it. Their attempts and scores are deleted too. This can't be undone.`
           }

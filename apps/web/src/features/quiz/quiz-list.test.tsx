@@ -78,6 +78,12 @@ it('student: Start when open and not started; no Start without questions', async
   expect(screen.queryByRole('button', { name: /Edit|Delete/ })).toBeNull()
 })
 
+it('student: a failed attempts/me lookup shows View, never Start', async () => {
+  setup({ ...list(quiz('q1', 'Week 3 check')), [`GET ${S}/assessments/q1/attempts/me`]: () => err(500, 'internal') }, { staff: false })
+  expect(await screen.findByRole('link', { name: 'View Week 3 check' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Start Week 3 check' })).toBeNull()
+})
+
 it('student: Continue, View for upcoming, closed and submitted; score only when published', async () => {
   setup(
     {
@@ -122,6 +128,19 @@ it('delete names the attempt count, deletes, announces and focuses the heading',
   expect(await screen.findByText('Week 3 check deleted.')).toBeInTheDocument()
   expect(sent(fn, 'DELETE')).toHaveLength(1)
   await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Quizzes' })).toHaveFocus())
+})
+
+it('delete falls back to neutral text when the attempts count fails', async () => {
+  setup({ ...list(quiz('q1', 'Week 3 check')), [`GET ${S}/assessments/q1/attempts`]: () => err(500, 'internal') })
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete Week 3 check' }))
+  expect(await screen.findByText("Their attempts and scores are deleted too. This can't be undone.")).toBeInTheDocument()
+  expect(screen.queryByText(/No student has started it/)).toBeNull()
+})
+
+it('staff never request attempts/me', async () => {
+  const fn = setup({ ...list(quiz('q1', 'Week 3 check')) })
+  await screen.findByRole('heading', { level: 3, name: 'Week 3 check' })
+  expect(fn.mock.calls.filter(([r]) => r.url.endsWith('/attempts/me'))).toHaveLength(0)
 })
 
 it('delete with no attempts says no student has started it', async () => {
