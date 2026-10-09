@@ -40,7 +40,7 @@ func keyedQuestions(ctx context.Context, tx *sql.Tx, assessmentID string) ([]Que
 }
 
 // submit grades the stored answers of (assessmentID, userID), sets grading, score, submitted_at (now() for a
-// student, the quiz's closes_at when auto) and auto_submitted, upserts the scores row (graded_by = the student)
+// student, the effective deadline when auto) and auto_submitted, upserts the scores row (graded_by = the student)
 // and writes audit attempt.submit (actor: the student; after {userId, score, auto}). The caller holds the
 // attempt row lock. It returns errAlreadySubmitted when the attempt is missing or already submitted.
 func submit(ctx context.Context, tx *sql.Tx, universityID, assessmentID, userID string, auto bool) error {
@@ -65,9 +65,9 @@ func submit(ctx context.Context, tx *sql.Tx, universityID, assessmentID, userID 
 	if err != nil {
 		return err
 	}
-	res, err := tx.ExecContext(ctx, `update attempts set grading = $3::jsonb, score = $4::numeric, auto_submitted = $5::boolean,
-		submitted_at = case when $5::boolean then (select closes_at from assessments where id = $1) else now() end
-		where assessment_id = $1 and user_id = $2 and submitted_at is null`, assessmentID, userID, string(grading), total, auto)
+	res, err := tx.ExecContext(ctx, `update attempts a set grading = $3::jsonb, score = $4::numeric, auto_submitted = $5::boolean,
+		submitted_at = case when $5::boolean then (select `+deadlineSQL+` from assessments q where q.id = a.assessment_id) else now() end
+		where a.assessment_id = $1 and a.user_id = $2 and a.submitted_at is null`, assessmentID, userID, string(grading), total, auto)
 	if err != nil {
 		return err
 	}

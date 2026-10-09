@@ -10,7 +10,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
-// Sweeper submits the open attempts of closed quizzes (D140). Any number of processes may run one:
+// Sweeper submits the open attempts past their deadline (D140). Any number of processes may run one:
 // rows are claimed with FOR UPDATE SKIP LOCKED in per-university tenant transactions.
 type Sweeper struct {
 	DB    *sql.DB
@@ -86,9 +86,10 @@ func (s *Sweeper) sweepUniversity(ctx context.Context, uni string) (int, error) 
 		err := pg.WithTx(ctx, s.DB, uni, func(tx *sql.Tx) error {
 			type key struct{ assessment, user string }
 			var keys []key
+			// ponytail: the filter scans every unsubmitted attempt of the university each pass; an index on (submitted_at) where submitted_at is null if that grows
 			rows, err := tx.QueryContext(ctx, `select a.assessment_id::text, a.user_id::text from attempts a join assessments q on q.id = a.assessment_id
-				where a.submitted_at is null and q.closes_at <= now()
-				order by q.closes_at, a.id limit $1 for update of a skip locked`, s.Batch)
+				where a.submitted_at is null and `+deadlineSQL+` <= now()
+				order by `+deadlineSQL+`, a.id limit $1 for update of a skip locked`, s.Batch)
 			if err != nil {
 				return err
 			}

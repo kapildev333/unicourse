@@ -20,6 +20,7 @@ import (
 type Attempt struct {
 	UserID        string            `json:"userId"`
 	StartedAt     time.Time         `json:"startedAt"`
+	DeadlineAt    time.Time         `json:"deadlineAt"`
 	SubmittedAt   *time.Time        `json:"submittedAt,omitempty"`
 	AutoSubmitted bool              `json:"autoSubmitted"`
 	Answers       map[string]Answer `json:"answers"`
@@ -41,9 +42,12 @@ func loadAttempt(r *http.Request, tx *sql.Tx, assessmentID, userID, lock string)
 	var submitted, reviewed sql.NullTime
 	var score sql.NullString
 	var feedback string
-	err = tx.QueryRowContext(r.Context(), `select started_at, submitted_at, auto_submitted, answers, grading, score::text, feedback, reviewed_at
-		from attempts where assessment_id = $1 and user_id = $2 `+lock, assessmentID, userID).
-		Scan(&a.StartedAt, &submitted, &a.AutoSubmitted, &answers, &grading, &score, &feedback, &reviewed)
+	if lock != "" {
+		lock += " of a"
+	}
+	err = tx.QueryRowContext(r.Context(), `select a.started_at, `+deadlineSQL+`, a.submitted_at, a.auto_submitted, a.answers, a.grading, a.score::text, a.feedback, a.reviewed_at
+		from attempts a join assessments q on q.id = a.assessment_id where a.assessment_id = $1 and a.user_id = $2 `+lock, assessmentID, userID).
+		Scan(&a.StartedAt, &a.DeadlineAt, &submitted, &a.AutoSubmitted, &answers, &grading, &score, &feedback, &reviewed)
 	if errors.Is(err, sql.ErrNoRows) {
 		return a, false, nil
 	}
@@ -51,7 +55,7 @@ func loadAttempt(r *http.Request, tx *sql.Tx, assessmentID, userID, lock string)
 		return a, false, err
 	}
 	a.UserID = userID
-	a.StartedAt = a.StartedAt.UTC()
+	a.StartedAt, a.DeadlineAt = a.StartedAt.UTC(), a.DeadlineAt.UTC()
 	a.Answers = map[string]Answer{}
 	if err := json.Unmarshal(answers, &a.Answers); err != nil {
 		return a, false, err
@@ -206,6 +210,13 @@ func checkAnswers(qs []Question, in map[string]Answer) (map[string]Answer, []htt
 	return out, d
 }
 
+// pastDeadline reports whether clock (the constant "now()" or "clock_timestamp()") is at or past the attempt's effective deadline.
+func pastDeadline(r *http.Request, tx *sql.Tx, assessmentID, userID, clock string) (past bool, err error) {
+	err = tx.QueryRowContext(r.Context(), `select `+clock+` >= `+deadlineSQL+` from attempts a join assessments q on q.id = a.assessment_id
+		where a.assessment_id = $1 and a.user_id = $2`, assessmentID, userID).Scan(&past)
+	return past, err
+}
+
 func putAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	secID := r.PathValue("id")
 	if err := sectionExists(r, tx, secID); err != nil {
@@ -229,7 +240,9 @@ func putAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if a.SubmittedAt != nil {
 		return 0, nil, httpx.Conflict("already submitted")
 	}
-	if w.Closed {
+	if past, err := pastDeadline(r, tx, w.ID, s.UserID, "now()"); err != nil {
+		return 0, nil, err
+	} else if past {
 		return 0, nil, httpx.Conflict("closed; your answers as of the closing time were submitted")
 	}
 	var in struct {
@@ -239,12 +252,10 @@ func putAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
 	}
-	// The body may have taken a while: the close is authoritative against the live clock, not the transaction's now().
-	var late bool
-	if err := tx.QueryRowContext(r.Context(), `select clock_timestamp() >= closes_at from assessments where id = $1`, w.ID).Scan(&late); err != nil {
+	// The body may have taken a while: the deadline is authoritative against the live clock, not the transaction's now().
+	if late, err := pastDeadline(r, tx, w.ID, s.UserID, "clock_timestamp()"); err != nil {
 		return 0, nil, err
-	}
-	if late {
+	} else if late {
 		return 0, nil, httpx.Conflict("closed; your answers as of the closing time were submitted")
 	}
 	if in.Answers == nil {
