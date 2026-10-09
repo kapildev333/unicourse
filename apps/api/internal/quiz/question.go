@@ -84,15 +84,20 @@ func listQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		if err := allow(ok, err); err != nil {
 			return 0, nil, err
 		}
-		if err := tx.QueryRowContext(r.Context(), `select exists(select 1 from attempts where assessment_id = $1 and user_id = $2 and submitted_at is not null)`,
-			w.ID, s.UserID).Scan(&submitted); err != nil {
+		var started, timed, pastDeadline bool
+		if err := tx.QueryRowContext(r.Context(), `select a.user_id is not null, coalesce(a.submitted_at is not null, false), q.time_limit_minutes is not null, now() >= `+deadlineSQL+`
+			from assessments q left join attempts a on a.assessment_id = q.id and a.user_id = $2 where q.id = $1`,
+			w.ID, s.UserID).Scan(&started, &submitted, &timed, &pastDeadline); err != nil {
 			return 0, nil, err
 		}
-		if !submitted && w.Upcoming {
+		switch {
+		case submitted:
+		case w.Upcoming:
 			return 0, nil, httpx.Conflict("not open yet")
-		}
-		if !submitted && w.Closed {
+		case pastDeadline:
 			return 0, nil, httpx.Conflict("closed")
+		case timed && !started:
+			return 0, nil, httpx.Conflict("not started")
 		}
 	}
 	qs, err := loadQuestions(r, tx, w.ID)
