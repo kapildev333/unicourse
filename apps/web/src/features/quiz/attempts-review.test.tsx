@@ -43,6 +43,7 @@ const rows = [
 const attempt = {
   userId: 'u2',
   startedAt: '2026-10-12T13:05:00Z',
+  deadlineAt: '2099-01-01T09:00:00Z',
   submittedAt: '2026-10-12T14:00:00Z',
   autoSubmitted: false,
   answers: { k1: { choices: [0] }, k2: { text: 'Saturn' } },

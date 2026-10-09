@@ -23,7 +23,7 @@ const questions: Question[] = [
   { id: 'b', kind: 'choice', prompt: 'Pick the prime numbers', points: 1, position: 2, multiple: true, choices: [{ text: '2' }, { text: '4' }, { text: '5' }] },
   { id: 'c', kind: 'blank', prompt: 'Capital of France?', points: 1, position: 3, multiple: false, choices: [] },
 ]
-const attempt = (over: Partial<Attempt> = {}): Attempt => ({ userId: 'u0', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false, answers: {}, ...over })
+const attempt = (over: Partial<Attempt> = {}): Attempt => ({ userId: 'u0', startedAt: '2026-10-12T13:05:00Z', deadlineAt: '2099-01-01T09:00:00Z', autoSubmitted: false, answers: {}, ...over })
 
 type Setup = { assessment?: Assessment; attempt?: Attempt | null; routes?: Routes }
 function setup(o: Setup = {}) {
