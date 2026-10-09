@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 )
 
 func env(m map[string]string) func(string) string {
@@ -174,6 +175,29 @@ func TestLoadSignInIPLimit(t *testing.T) {
 		_, err := loadWith(map[string]string{"SIGNIN_IP_LIMIT": bad})
 		if want := `UNICOURSE_SIGNIN_IP_LIMIT must be a whole number from 1 to 1000000, got "` + bad + `"`; err == nil || err.Error() != want {
 			t.Errorf("%q: %v", bad, err)
+		}
+	}
+}
+
+func TestLoadTimeouts(t *testing.T) {
+	c, err := loadWith(nil)
+	if err != nil || c.ReadTimeout != 30*time.Second || c.UploadTimeout != 600*time.Second {
+		t.Errorf("defaults: %v %v %v", c.ReadTimeout, c.UploadTimeout, err)
+	}
+	c, err = loadWith(map[string]string{"READ_TIMEOUT": "3600", "UPLOAD_TIMEOUT": "86400"})
+	if err != nil || c.ReadTimeout != time.Hour || c.UploadTimeout != 24*time.Hour {
+		t.Errorf("max: %v %v %v", c.ReadTimeout, c.UploadTimeout, err)
+	}
+	c, err = loadWith(map[string]string{"READ_TIMEOUT": "1", "UPLOAD_TIMEOUT": "1"})
+	if err != nil || c.ReadTimeout != time.Second || c.UploadTimeout != time.Second {
+		t.Errorf("min: %v %v %v", c.ReadTimeout, c.UploadTimeout, err)
+	}
+	for name, hi := range map[string]string{"READ_TIMEOUT": "3600", "UPLOAD_TIMEOUT": "86400"} {
+		for _, bad := range []string{"0", "x", "-1", "1.5", "99999999"} {
+			_, err := loadWith(map[string]string{name: bad})
+			if want := "UNICOURSE_" + name + " must be a whole number of seconds from 1 to " + hi + `, got "` + bad + `"`; err == nil || err.Error() != want {
+				t.Errorf("%s %q: %v", name, bad, err)
+			}
 		}
 	}
 }

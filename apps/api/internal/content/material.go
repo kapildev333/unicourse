@@ -8,6 +8,7 @@ import (
 	"maps"
 	"mime"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -183,6 +184,9 @@ type uploadPolicyBody struct {
 }
 
 func uploadErr(err error, limit int64) error {
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return err // WriteError answers 499
+	}
 	var mb *http.MaxBytesError
 	if errors.As(err, &mb) {
 		return httpx.Validation(*fileErr("is larger than " + sizeText(limit)))
@@ -225,10 +229,13 @@ type Upload struct {
 // ReceiveFile reads a multipart/form-data request with exactly one "file" part (allowlist, files.Limit(),
 // non-empty), streaming it to a temp blob with no transaction open. Text parts named in fields are read
 // (<= 4096 bytes) into *fields[name]; other parts are ignored. On error nothing is left behind.
-func ReceiveFile(files blob.Dir, universityID string, w http.ResponseWriter, r *http.Request, fields map[string]*string) (Upload, error) {
+func ReceiveFile(files blob.Dir, timeout time.Duration, universityID string, w http.ResponseWriter, r *http.Request, fields map[string]*string) (Upload, error) {
 	notMultipart := httpx.Validation(*fileErr("must be a multipart/form-data upload"))
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
 		return Upload{}, notMultipart
+	}
+	if timeout > 0 { // uploads outlive the server ReadTimeout (D152); an unsupported writer (tests) is fine
+		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(timeout))
 	}
 	limit := files.Limit()
 	r.Body = http.MaxBytesReader(w, r.Body, limit+1<<20) // plus 1 MB of multipart overhead (spec 6 section 5)
@@ -303,7 +310,7 @@ func ReceiveFile(files blob.Dir, universityID string, w http.ResponseWriter, r *
 // to a temp file with no transaction open, then inserts, audits and renames in a second transaction.
 func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Request, secID, weekID string) error {
 	var title string
-	up, err := ReceiveFile(d.Files, s.UniversityID, w, r, map[string]*string{"title": &title})
+	up, err := ReceiveFile(d.Files, d.UploadTimeout, s.UniversityID, w, r, map[string]*string{"title": &title})
 	if err != nil {
 		return err
 	}

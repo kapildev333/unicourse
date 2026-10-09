@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -29,6 +30,9 @@ func DecodeJSON(r *http.Request, dst any) error {
 			return Validation(FieldError{Field: "body", Message: "must contain a single JSON value"})
 		}
 		return exactKeys(raw.Bytes(), dst)
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return err // WriteError answers 499
 	}
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {

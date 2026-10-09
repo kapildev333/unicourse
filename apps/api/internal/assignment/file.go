@@ -59,7 +59,7 @@ func uploadFile(d tenant.Deps) tenant.Handler {
 }
 
 func receive(d tenant.Deps, s authz.Scope, w http.ResponseWriter, r *http.Request) error {
-	up, err := content.ReceiveFile(d.Files, s.UniversityID, w, r, nil)
+	up, err := content.ReceiveFile(d.Files, d.UploadTimeout, s.UniversityID, w, r, nil)
 	if err != nil {
 		return err
 	}

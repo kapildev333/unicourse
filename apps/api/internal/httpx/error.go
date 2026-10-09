@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
@@ -75,6 +76,11 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		// Client closed the request (a commit then fails with ErrTxDone: database/sql rolled the tx back).
 		// Not a server fault: info log, no body, nobody to read it.
 		slog.Info("client aborted", "requestId", RequestID(r.Context()))
+		w.WriteHeader(499)
+		return
+	case errors.Is(err, os.ErrDeadlineExceeded):
+		// The server read deadline passed while the body trickled in (D152): same as an abandoned client.
+		slog.Info("client aborted", "requestId", RequestID(r.Context()), "reason", "read timeout")
 		w.WriteHeader(499)
 		return
 	case errors.As(err, &e) && e != nil:

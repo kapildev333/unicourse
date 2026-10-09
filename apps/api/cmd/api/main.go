@@ -111,7 +111,7 @@ func main() {
 		logger.Error("auth", "err", err)
 		os.Exit(1)
 	}
-	api := app.NewRouter(app.Deps{Auth: deps, BaseURL: cfg.BaseURL, Files: files})
+	api := app.NewRouter(app.Deps{Auth: deps, BaseURL: cfg.BaseURL, Files: files, UploadTimeout: cfg.UploadTimeout})
 
 	var web http.Handler
 	if cfg.WebDir != "" {
@@ -121,7 +121,7 @@ func main() {
 		}
 	}
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, cfg.TrustedProxies, func(ctx context.Context) error { return pg.CheckMigrated(ctx, db) }, api, web), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: cfg.Addr, Handler: newHandler(logger, cfg.TrustedProxies, func(ctx context.Context) error { return pg.CheckMigrated(ctx, db) }, api, web), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: cfg.ReadTimeout, IdleTimeout: 120 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
 	logger.Info("listening", "addr", cfg.Addr)
