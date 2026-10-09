@@ -178,3 +178,46 @@ it('400 on body with another message shows the server sentence', async () => {
   expect((await screen.findAllByText('A submission needs text or a file.')).length).toBeGreaterThan(0)
   expect(screen.queryByText('Use at most 20,000 characters of plain text.')).toBeNull()
 })
+
+const lateAsg = (over: Partial<Assessment> = {}) =>
+  asg({ closesAt: '2020-02-01T09:00:00Z', lateUntil: '2099-01-01T09:00:00Z', latePenaltyPercent: 20, ...over })
+
+it('late window: form open, Past due badge, the penalty sentence', async () => {
+  setup(lateAsg(), null)
+  expect(await screen.findByText('Past due')).toBeInTheDocument()
+  expect(screen.getByText(/^Late submissions are accepted until .* with a 20% penalty\.$/)).toBeInTheDocument()
+  expect(screen.getByRole('textbox')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+})
+
+it('late window with no penalty drops the penalty clause', async () => {
+  setup(lateAsg({ latePenaltyPercent: 0 }), null)
+  expect(await screen.findByText(/^Late submissions are accepted until [^%]*\.$/)).toBeInTheDocument()
+})
+
+it('a late submission reads Submitted late on', async () => {
+  setup(lateAsg(), sub({ late: true, penaltyPercent: 20 }))
+  expect(await screen.findByText(/^Submitted late on /)).toBeInTheDocument()
+})
+
+it('after the late window: closed copy', async () => {
+  setup(lateAsg({ lateUntil: '2020-03-01T09:00:00Z' }), sub({ late: true, penaltyPercent: 20 }))
+  expect(await screen.findByText('The late submission window has closed. Your submission can no longer be changed.')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+})
+
+it('a 409 in the late window says late submissions are closed', async () => {
+  setup(lateAsg(), sub({ late: true, penaltyPercent: 20 }), { [`PUT ${M}`]: () => err(409, 'conflict') })
+  fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Late submissions are closed')).toBeInTheDocument()
+})
+
+it('published late grade reads the penalised score', async () => {
+  setup(lateAsg({ published: true }), sub({ late: true, penaltyPercent: 20, score: 15, finalScore: 12 }))
+  expect(await screen.findByText('Score 15 / 20, 12.00 after the 20% late penalty')).toBeInTheDocument()
+})
+
+it('published on-time grade is unchanged', async () => {
+  setup(asg({ published: true }), sub({ score: 15, finalScore: 15, penaltyPercent: 20 }))
+  expect(await screen.findByText('Score 15 / 20')).toBeInTheDocument()
+})
