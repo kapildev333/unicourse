@@ -103,8 +103,26 @@ func TestLoadRejects(t *testing.T) {
 		}, "file"},
 		{"quiz window reversed", func(m map[string]any) { sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["closesIn"] = "-2h" }, "closesIn"},
 		{"attempt by a non-student", func(m map[string]any) {
-			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)[0].(map[string]any)["email"] = "ingrid.larsen@<domain>"
-		}, "invited"},
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)[0].(map[string]any)["email"] = "elena.marsh@<domain>"
+		}, "not in this section's roster"},
+		{"two attempts by one student", func(m map[string]any) {
+			a := sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)
+			a[1].(map[string]any)["email"] = a[0].(map[string]any)["email"]
+		}, "two attempts"},
+		{"two reviews of one student", func(m map[string]any) {
+			r := sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"].([]any)
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"] = append(r, r[0])
+		}, "reviewed twice"},
+		{"review without an attempt", func(m map[string]any) {
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"].([]any)[0].(map[string]any)["email"] = "lucas.moreau@<domain>"
+		}, "no submitted attempt"},
+		{"two submissions by one student", func(m map[string]any) {
+			a := sec(m, 0, 0)["assignments"].([]any)[0].(map[string]any)["submissions"].([]any)
+			a[1].(map[string]any)["email"] = a[0].(map[string]any)["email"]
+		}, "two submissions"},
+		{"grader not on staff", func(m map[string]any) {
+			sec(m, 0, 0)["assignments"].([]any)[0].(map[string]any)["submissions"].([]any)[0].(map[string]any)["grade"].(map[string]any)["as"] = "owen.park@<domain>"
+		}, "not staff"},
 		{"answer to no question", func(m map[string]any) {
 			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)[0].(map[string]any)["answers"] = map[string]any{"9": map[string]any{"text": "x"}}
 		}, "question index"},

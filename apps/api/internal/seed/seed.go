@@ -444,11 +444,19 @@ func (f *Fixture) validateWork(sp string, s *Section, inRoster map[string]bool, 
 		}
 		return e, err
 	}
+	staff := map[string]bool{}
+	for _, st := range s.Staff {
+		staff[st.Email] = true
+	}
 	actor := func(path, as string) (string, error) {
 		if as == "" {
 			return "", nil
 		}
-		return ref(path, as, true)
+		e, err := ref(path, as, true)
+		if err == nil && !staff[e] {
+			err = fmt.Errorf("%s: %q is not staff of this section", path, e)
+		}
+		return e, err
 	}
 	for qi := range s.Quizzes {
 		q := &s.Quizzes[qi]
@@ -456,12 +464,18 @@ func (f *Fixture) validateWork(sp string, s *Section, inRoster map[string]bool, 
 		if err := window(qp, q.OpensIn, q.ClosesIn); err != nil {
 			return err
 		}
+		submitted, reviewed := map[string]bool{}, map[string]bool{} // by email
+		attempted := map[string]bool{}
 		for i := range q.Attempts {
 			a := &q.Attempts[i]
 			var err error
 			if a.Email, err = student(fmt.Sprintf("%s.attempts[%d].email", qp, i), a.Email); err != nil {
 				return err
 			}
+			if attempted[a.Email] {
+				return fmt.Errorf("%s.attempts[%d].email: %q has two attempts (a student has one per quiz)", qp, i, a.Email)
+			}
+			attempted[a.Email], submitted[a.Email] = true, a.Submit
 			for k := range a.Answers {
 				if n, err := strconv.Atoi(k); err != nil || n < 0 || n >= len(q.Questions) {
 					return fmt.Errorf("%s.attempts[%d].answers: %q is not a question index", qp, i, k)
@@ -474,6 +488,13 @@ func (f *Fixture) validateWork(sp string, s *Section, inRoster map[string]bool, 
 			if r.Email, err = student(fmt.Sprintf("%s.reviews[%d].email", qp, i), r.Email); err != nil {
 				return err
 			}
+			if !submitted[r.Email] {
+				return fmt.Errorf("%s.reviews[%d].email: %q has no submitted attempt in this quiz", qp, i, r.Email)
+			}
+			if reviewed[r.Email] {
+				return fmt.Errorf("%s.reviews[%d].email: %q is reviewed twice", qp, i, r.Email)
+			}
+			reviewed[r.Email] = true
 			if r.As, err = actor(fmt.Sprintf("%s.reviews[%d].as", qp, i), r.As); err != nil {
 				return err
 			}
@@ -490,12 +511,17 @@ func (f *Fixture) validateWork(sp string, s *Section, inRoster map[string]bool, 
 		if err := window(ap, a.OpensIn, a.ClosesIn); err != nil {
 			return err
 		}
+		seen := map[string]bool{}
 		for i := range a.Submissions {
 			sub := &a.Submissions[i]
 			var err error
 			if sub.Email, err = student(fmt.Sprintf("%s.submissions[%d].email", ap, i), sub.Email); err != nil {
 				return err
 			}
+			if seen[sub.Email] {
+				return fmt.Errorf("%s.submissions[%d].email: %q has two submissions (a student has one per assignment)", ap, i, sub.Email)
+			}
+			seen[sub.Email] = true
 			for _, name := range sub.Files {
 				if st, err := fs.Stat(f.files, name); err != nil || st.IsDir() || strings.Contains(name, "/") {
 					return fmt.Errorf("%s.submissions[%d].files: no bare file %q in the fixture's files", ap, i, name)
