@@ -178,6 +178,13 @@ func reviewAttempt(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		} else {
 			got, _ := new(big.Rat).SetString(pts)
 			full, _ := new(big.Rat).SetString(string(q.Points))
+			prev, _ := new(big.Rat).SetString(string(mark.Points)) // an absent mark counts as 0
+			if prev == nil {
+				prev = new(big.Rat)
+			}
+			if got.Cmp(prev) != 0 {
+				mark.Manual = true
+			}
 			mark.Points, mark.Correct = json.Number(pts), got.Cmp(full) == 0
 		}
 		if m.Feedback != nil {

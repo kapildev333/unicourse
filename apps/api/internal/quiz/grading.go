@@ -36,6 +36,7 @@ type Mark struct {
 	Points   json.Number `json:"points"`
 	Correct  bool        `json:"correct"`
 	Feedback string      `json:"feedback"`
+	Manual   bool        `json:"manual,omitempty"` // set when a review changed the points; a regrade keeps the entry
 }
 
 func normalize(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
@@ -86,4 +87,31 @@ func isRight(q Question, a Answer) bool {
 		}
 	}
 	return false
+}
+
+// regradeMarks recomputes old against the current keys: a Manual entry keeps its points (capped at the question's new points, then correct) and feedback; every other question takes
+// autoGrade's points and correct and keeps the old entry's feedback. total is the sum of the returned points (2 decimals).
+func regradeMarks(qs []Question, answers map[string]Answer, old map[string]Mark) (map[string]Mark, string) {
+	auto, _ := autoGrade(qs, answers)
+	sum := new(big.Rat)
+	for _, q := range qs {
+		m := auto[q.ID]
+		if o, ok := old[q.ID]; ok {
+			if o.Manual {
+				m = o
+				// capped at the new points (D149 amended); a capped entry is fully right
+				op, _ := new(big.Rat).SetString(string(o.Points))
+				np, _ := new(big.Rat).SetString(string(q.Points))
+				if op != nil && np != nil && op.Cmp(np) > 0 {
+					m.Points, m.Correct = json.Number(np.FloatString(2)), true
+				}
+			} else {
+				m.Feedback = o.Feedback
+			}
+		}
+		auto[q.ID] = m
+		p, _ := new(big.Rat).SetString(string(m.Points))
+		sum.Add(sum, p)
+	}
+	return auto, sum.FloatString(2)
 }

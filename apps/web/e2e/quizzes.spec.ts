@@ -191,8 +191,8 @@ test('E-QUIZ-08 questions are locked once an attempt exists', async ({ browser }
     headers: { 'Sec-Fetch-Site': 'same-origin' },
     data: { items: [{ kind: 'blank', prompt: 'x', points: 1, answers: ['x'] }] },
   })
-  expect(res.status(), 'instructor, API: questions PUT after an attempt').toBe(409)
-  expect((await res.json()).error.message, 'instructor, API: 409 copy').toBe('questions are locked once a student has started')
+  expect(res.status(), 'instructor, API: id-less questions PUT after an attempt').toBe(400)
+  expect((await res.json()).error.details[0].field, 'instructor, API: 400 on the missing id').toBe('items[0].id')
   await page.context().close()
 })
 

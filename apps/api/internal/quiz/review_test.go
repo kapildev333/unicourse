@@ -3,6 +3,7 @@ package quiz
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -200,5 +201,39 @@ func TestAttemptsList(t *testing.T) {
 		if st, b := e.raw(e.as(who), "GET", e.apath(id), nil); st != 403 {
 			t.Fatalf("%s %d %s", who, st, b)
 		}
+	}
+}
+
+func TestReviewSetsManual(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.submitted("stud") // q1 2.00, q2 3.25
+	manual := func() map[string]bool {
+		var raw []byte
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			return tx.QueryRow(`select grading from attempts where assessment_id = $1`, id).Scan(&raw)
+		})
+		g := map[string]Mark{}
+		json.Unmarshal(raw, &g)
+		return map[string]bool{qs[0]: g[qs[0]].Manual, qs[1]: g[qs[1]].Manual}
+	}
+	// same points + feedback: no manual
+	if st, b := e.call(e.Inst, "PATCH", e.review(id, "stud"), map[string]any{"grading": map[string]any{qs[0]: map[string]any{"points": 2, "feedback": "ok"}}}); st != 200 {
+		t.Fatalf("%d %s", st, b)
+	}
+	if m := manual(); m[qs[0]] || m[qs[1]] {
+		t.Fatalf("manual after feedback only %v", m)
+	}
+	if st, b := e.call(e.Inst, "PATCH", e.review(id, "stud"), map[string]any{"grading": map[string]any{qs[1]: map[string]any{"points": 1}}}); st != 200 {
+		t.Fatalf("%d %s", st, b)
+	}
+	if m := manual(); m[qs[0]] || !m[qs[1]] {
+		t.Fatalf("manual after change %v", m)
+	}
+	// a second review with the same points keeps it
+	if st, b := e.call(e.Inst, "PATCH", e.review(id, "stud"), map[string]any{"grading": map[string]any{qs[1]: map[string]any{"points": 1, "feedback": "x"}}}); st != 200 {
+		t.Fatalf("%d %s", st, b)
+	}
+	if m := manual(); !m[qs[1]] {
+		t.Fatalf("manual cleared %v", m)
 	}
 }

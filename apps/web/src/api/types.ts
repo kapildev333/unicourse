@@ -1238,7 +1238,7 @@ export interface paths {
         get: operations["listQuestions"];
         /**
          * Replace quiz questions
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the whole list (0 to 100 questions) and sets the quiz's maxPoints to the sum of the points (1 when empty). Errors: items ("is required", "must have at most 100 questions", "total points must be at most 10000"), items[<i>].kind, .prompt, .points (0.01 to 1000, 2 decimals), .choices ("must have 2 to 10 choices", "must have at least one correct choice", "only for multiple choice"), .choices[<j>].text, .answers ("must have 1 to 20 accepted answers", "only for fill in the blank"), .answers[<j>]; 409 "questions are locked once a student has started".
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Replaces the whole list (0 to 100 questions) and sets the quiz's maxPoints to the sum of the points (1 when empty). Once a student has started, the same call regrades: every item must carry the id of the question at its position, the list must keep its count, order, kinds and choice counts, and prompts, points, choice texts, correct flags and accepted answers may change; every submitted attempt is regraded with the new keys (entries a reviewer changed keep their points, every feedback is kept), attempts in progress are untouched and graded with the new keys when they are submitted. Errors: items ("is required", "must have at most 100 questions", "total points must be at most 10000"), items[<i>].kind, .prompt, .points (0.01 to 1000, 2 decimals), .choices ("must have 2 to 10 choices", "must have at least one correct choice", "only for multiple choice"), .choices[<j>].text, .answers ("must have 1 to 20 accepted answers", "only for fill in the blank"), .answers[<j>], and items[<i>].id ("is required once a student has started"); 409 "questions are locked once a student has started" (count, order, kind or choice count changed, or an unknown id).
          */
         put: operations["putQuestions"];
         post?: never;
@@ -2887,6 +2887,11 @@ export interface components {
         };
         QuestionInput: {
             /**
+             * Format: uuid
+             * @description Required once a student has started: the id of the question at this position. Ignored before.
+             */
+            id?: string;
+            /**
              * @example choice
              * @enum {string}
              */
@@ -2920,6 +2925,8 @@ export interface components {
             correct: boolean;
             /** @example  */
             feedback: string;
+            /** @description Set when a review changed the points; a regrade keeps such an entry. */
+            manual?: boolean;
         };
         Attempt: {
             /**

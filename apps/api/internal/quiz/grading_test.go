@@ -79,3 +79,45 @@ func TestNormalize(t *testing.T) {
 		}
 	}
 }
+
+func TestRegradeMarks(t *testing.T) {
+	yes, no := true, false
+	qs := []Question{
+		{ID: "a", Kind: "choice", Points: "0.10", Choices: []Choice{{Text: "x", Correct: &yes}, {Text: "y", Correct: &no}}},
+		{ID: "b", Kind: "blank", Points: "0.20", Answers: &[]string{"p"}},
+		{ID: "c", Kind: "blank", Points: "0.30", Answers: &[]string{"p"}},
+		{ID: "d", Kind: "blank", Points: "0.40", Answers: &[]string{"p"}},
+	}
+	ans := map[string]Answer{"a": {Choices: []int{0}}, "b": {Text: "p"}, "c": {Text: "p"}, "d": {Text: "q"}}
+	old := map[string]Mark{
+		"a": {Points: "0.00", Feedback: "fa"},
+		"b": {Points: "0.05", Feedback: "fb", Manual: true},
+		"c": {Points: "0.00", Feedback: "fc"},
+	}
+	got, total := regradeMarks(qs, ans, old)
+	if got["a"].Points != "0.10" || !got["a"].Correct || got["a"].Feedback != "fa" || got["a"].Manual {
+		t.Errorf("a %+v", got["a"])
+	}
+	if got["b"] != old["b"] {
+		t.Errorf("b %+v", got["b"])
+	}
+	if got["c"].Points != "0.30" || got["c"].Feedback != "fc" {
+		t.Errorf("c %+v", got["c"])
+	}
+	if got["d"].Points != "0.00" || got["d"].Feedback != "" {
+		t.Errorf("d %+v", got["d"])
+	}
+	if total != "0.45" {
+		t.Errorf("total %s", total)
+	}
+	// lowered below the reviewed value: capped, correct, still manual; raised: untouched
+	qs[1].Points = "0.04"
+	got, total = regradeMarks(qs, ans, old)
+	if b := got["b"]; b.Points != "0.04" || !b.Correct || !b.Manual || b.Feedback != "fb" || total != "0.44" {
+		t.Errorf("capped %+v total %s", b, total)
+	}
+	qs[1].Points = "9.00"
+	if got, _ = regradeMarks(qs, ans, old); got["b"] != old["b"] {
+		t.Errorf("raised %+v", got["b"])
+	}
+}
