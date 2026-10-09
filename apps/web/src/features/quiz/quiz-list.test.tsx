@@ -37,7 +37,7 @@ function setup(routes: Routes, o: { staff?: boolean } = {}) {
   return fn
 }
 const list = (...items: Assessment[]) => ({ [`GET ${S}/assessments`]: () => ({ body: { items } }) })
-const attempt = (over: object = {}) => ({ userId: 'u0', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false, answers: {}, ...over })
+const attempt = (over: object = {}) => ({ userId: 'u0', startedAt: '2026-10-12T13:05:00Z', deadlineAt: '2099-01-01T09:00:00Z', autoSubmitted: false, answers: {}, ...over })
 const attemptMe = (id: string, a: object | null) => ({
   [`GET ${S}/assessments/${id}/attempts/me`]: () => (a ? { body: a } : err(404, 'not_found')),
 })

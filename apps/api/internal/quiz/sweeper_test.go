@@ -198,3 +198,79 @@ func TestSweepEachUniversity(t *testing.T) {
 		t.Fatalf("B scores %d", b)
 	}
 }
+
+// swept reads whether the attempt is submitted, auto-submitted, and at the close or at started_at+limit.
+func (e *env) swept(id string) (submitted, auto, atClose, atLimit bool) {
+	e.T.Helper()
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select a.submitted_at is not null, a.auto_submitted, coalesce(a.submitted_at = q.closes_at, false),
+			coalesce(a.submitted_at = a.started_at + make_interval(mins => q.time_limit_minutes), false)
+			from attempts a join assessments q on q.id = a.assessment_id where a.assessment_id = $1`, id).Scan(&submitted, &auto, &atClose, &atLimit)
+	})
+	return
+}
+
+func TestSweepSubmitsAtDeadline(t *testing.T) {
+	e := newEnv(t)
+	id, _ := e.openQuiz()
+	e.limit(id, 10)
+	e.startedAgo(id, "stud@a.edu", "11 minutes")
+	if n, err := e.sweeper(0).Sweep(context.Background()); n != 1 || err != nil {
+		t.Fatalf("swept %d %v", n, err)
+	}
+	if sub, auto, _, atLimit := e.swept(id); !sub || !auto || !atLimit {
+		t.Fatalf("submitted %v auto %v atLimit %v", sub, auto, atLimit)
+	}
+	if n, _, _ := e.audit("attempt.submit", id); n != 1 {
+		t.Fatalf("audit rows %d", n)
+	}
+}
+
+func TestSweepLeavesWithinLimit(t *testing.T) {
+	e := newEnv(t)
+	id, _ := e.openQuiz()
+	e.limit(id, 10)
+	e.startedAgo(id, "stud@a.edu", "5 minutes")
+	if n, err := e.sweeper(0).Sweep(context.Background()); n != 0 || err != nil {
+		t.Fatalf("swept %d %v", n, err)
+	}
+	if sub, _, _, _ := e.swept(id); sub {
+		t.Fatal("submitted within the limit")
+	}
+}
+
+func TestSweepClampsToClose(t *testing.T) {
+	e := newEnv(t)
+	id, _ := e.openQuiz()
+	e.setWindow(id, "-2 hours", "-5 minutes")
+	e.limit(id, 60)
+	e.startedAgo(id, "stud@a.edu", "30 minutes")
+	if n, err := e.sweeper(0).Sweep(context.Background()); n != 1 || err != nil {
+		t.Fatalf("swept %d %v", n, err)
+	}
+	if sub, auto, atClose, _ := e.swept(id); !sub || !auto || !atClose {
+		t.Fatalf("submitted %v auto %v atClose %v", sub, auto, atClose)
+	}
+}
+
+func TestSweepMixedDeadlines(t *testing.T) {
+	e := newEnv(t)
+	timed := e.quiz("-1 hour", "1 hour")
+	e.limit(timed, 10)
+	e.startedAgo(timed, "stud@a.edu", "11 minutes")
+	closed := e.quiz("-3 hours", "-2 hours")
+	e.startedAgo(closed, "stud@a.edu", "150 minutes")
+	e.startedAgo(closed, "stud2@a.edu", "150 minutes")
+	if n, err := e.sweeper(1).Sweep(context.Background()); n != 3 || err != nil {
+		t.Fatalf("swept %d %v", n, err)
+	}
+	var rows int
+	var atOwn bool
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select count(*), bool_and(a.submitted_at = `+deadlineSQL+`) from attempts a join assessments q on q.id = a.assessment_id
+			where a.submitted_at is not null and a.auto_submitted`).Scan(&rows, &atOwn)
+	})
+	if rows != 3 || !atOwn {
+		t.Fatalf("rows %d atOwn %v", rows, atOwn)
+	}
+}

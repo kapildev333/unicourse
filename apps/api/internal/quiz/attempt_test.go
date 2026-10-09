@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func (e *env) apath(id string) string {
@@ -279,7 +280,10 @@ func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
 	}()
 	pw.Write([]byte(`{"submit": true, "answers": {"` + qs[1] + `": `))
 	// the handler holds the attempt row lock while it reads the rest of the body
-	for locked := false; !locked; {
+	for stop, locked := time.Now().Add(10*time.Second), false; !locked; {
+		if time.Now().After(stop) {
+			t.Fatal("the handler never took the attempt row lock")
+		}
 		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 			var n int
 			err := tx.QueryRow(`select count(*) from (select 1 from attempts where assessment_id = $1 for update skip locked) x`, id).Scan(&n)
@@ -287,7 +291,12 @@ func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
 			return err
 		})
 	}
-	e.closeQuiz(id)
+	// the close falls just after the early check: only the clock_timestamp() re-check can see it
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set closes_at = clock_timestamp() + interval '1 second' where id = $1`, id)
+		return err
+	})
+	time.Sleep(1100 * time.Millisecond)
 	pw.Write([]byte(`{"text": "Rome"}}}`))
 	pw.Close()
 	r := <-done
@@ -300,5 +309,93 @@ func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
 	})
 	if strings.Contains(answers, "Rome") {
 		t.Fatalf("changed: %s", answers)
+	}
+}
+
+func TestAttemptDeadlineAt(t *testing.T) {
+	e := newEnv(t)
+	id, _ := e.openQuiz()
+	var closes, started time.Time
+	read := func(c *http.Cookie, method, path string) map[string]any {
+		st, b := e.call(c, method, path, nil)
+		if st != 200 && st != 201 {
+			t.Fatalf("%s %s: %d %s", method, path, st, b)
+		}
+		return jmap(t, b)
+	}
+	deadline := func(m map[string]any) time.Time {
+		d, err := time.Parse(time.RFC3339Nano, m["deadlineAt"].(string))
+		if err != nil {
+			t.Fatalf("deadlineAt %v", m["deadlineAt"])
+		}
+		return d
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select closes_at from assessments where id = $1`, id).Scan(&closes)
+	})
+	if d := deadline(read(e.Stud, "POST", e.apath(id))); !d.Equal(closes) {
+		t.Fatalf("untimed start: %v, want closesAt %v", d, closes)
+	}
+	e.limit(id, 10)
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select started_at from attempts where assessment_id = $1`, id).Scan(&started)
+	})
+	if d := deadline(read(e.Stud, "GET", e.apath(id)+"/me")); !d.Equal(started.Add(10 * time.Minute)) {
+		t.Fatalf("limit 10: %v, want startedAt+10m", d)
+	}
+	staff := read(e.Inst, "GET", e.apath(id)+"/"+e.UserID["stud@a.edu"])
+	if d := deadline(staff); !d.Equal(started.Add(10 * time.Minute)) {
+		t.Fatalf("staff read: %v", d)
+	}
+}
+
+func TestAttemptDeadlineClampsToClose(t *testing.T) {
+	e := newEnv(t)
+	id, _ := e.openQuiz()
+	e.setWindow(id, "-1 hour", "30 minutes")
+	e.limit(id, 120)
+	st, b := e.call(e.Stud, "POST", e.apath(id), nil)
+	m := jmap(t, b)
+	if st != 201 || m["deadlineAt"] == nil {
+		t.Fatalf("start %d %s", st, b)
+	}
+	var same bool
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select $2::timestamptz = closes_at from assessments where id = $1`, id, m["deadlineAt"]).Scan(&same)
+	})
+	if !same {
+		t.Fatalf("deadlineAt %v is not closesAt", m["deadlineAt"])
+	}
+}
+
+func TestAttemptPutAfterDeadline(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.openQuiz()
+	e.limit(id, 10)
+	e.startedAgo(id, "stud@a.edu", "11 minutes")
+	st, b := e.raw(e.Stud, "PUT", e.apath(id)+"/me", map[string]any{"answers": map[string]any{qs[1]: map[string]any{"text": "Paris"}}})
+	if st != 409 || !strings.Contains(b, "closed; your answers as of the closing time were submitted") {
+		t.Fatalf("put %d %s", st, b)
+	}
+	var answers string
+	var submitted bool
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select answers::text, submitted_at is not null from attempts where assessment_id = $1`, id).Scan(&answers, &submitted)
+	})
+	if answers != "{}" || submitted {
+		t.Fatalf("changed: %s %v", answers, submitted)
+	}
+	if st, b := e.raw(e.Stud, "GET", e.apath(id)+"/me", nil); st != 200 {
+		t.Fatalf("get %d %s", st, b)
+	}
+}
+
+func TestAttemptPutBeforeDeadline(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.openQuiz()
+	e.limit(id, 10)
+	e.startedAgo(id, "stud@a.edu", "9 minutes")
+	if st, b := e.raw(e.Stud, "PUT", e.apath(id)+"/me", map[string]any{"answers": map[string]any{qs[1]: map[string]any{"text": "Paris"}}}); st != 200 {
+		t.Fatalf("put %d %s", st, b)
 	}
 }

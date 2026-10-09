@@ -11,7 +11,7 @@ const questions: Question[] = [
   { id: 'b', kind: 'blank', prompt: 'Capital of France?', points: 1, position: 2, multiple: false, choices: [], answers: ['paris', 'paris france'] },
 ]
 const attempt = (over: Partial<Attempt> = {}): Attempt => ({
-  userId: 'u0', startedAt: '2026-10-12T13:05:00Z', submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: false,
+  userId: 'u0', startedAt: '2026-10-12T13:05:00Z', deadlineAt: '2099-01-01T09:00:00Z', submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: false,
   answers: { a: { choices: [0] }, b: { text: 'Lyon' } },
   grading: { a: { points: 0, correct: false, feedback: 'Review chapter 2' }, b: { points: 1, correct: true, feedback: '' } },
   score: 1, feedback: 'Good effort', ...over,
