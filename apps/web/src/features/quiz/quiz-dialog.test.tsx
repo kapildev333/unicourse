@@ -118,3 +118,128 @@ it('edit sends only the changed fields; unchanged closes without a request', asy
   await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Week 3 check saved.'))
   expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ weight: 35 })
 })
+
+const asg: Assessment = { ...quiz, id: 'a1', kind: 'assignment', maxPoints: 20, closesAt: '2026-10-19T20:00:00Z' }
+
+it('quiz has Time limit, assignment has no Time limit', () => {
+  setup('quiz', {})
+  expect(screen.getByLabelText('Time limit (minutes)')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Late submissions until')).toBeNull()
+})
+
+it('assignment shows the penalty only once Late submissions until is filled', () => {
+  setup('assignment', {})
+  expect(screen.queryByLabelText('Time limit (minutes)')).toBeNull()
+  expect(screen.queryByLabelText('Late penalty (%)')).toBeNull()
+  type('Late submissions until', '2026-10-21T09:00')
+  expect(screen.getByLabelText('Late penalty (%)')).toHaveValue('0')
+})
+
+it('creates a quiz with the time limit', async () => {
+  const { fn, onSaved } = setup('quiz', { [`POST ${A}`]: created })
+  type('Title', 'T')
+  type('Weight (%)', '40')
+  type('Time limit (minutes)', '10')
+  fireEvent.click(screen.getByRole('button', { name: 'Create quiz' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(fn, 'POST')[0][0].text())).toMatchObject({ timeLimitMinutes: 10 })
+})
+
+it('creates an assignment with a late window and penalty', async () => {
+  const { fn, onSaved } = setup('assignment', { [`POST ${A}`]: created })
+  type('Title', 'Essay')
+  type('Opens', '2026-10-12T09:00')
+  type('Due', '2026-10-19T23:59')
+  type('Late submissions until', '2026-10-21T09:00')
+  type('Late penalty (%)', '20')
+  type('Max points', '20')
+  type('Weight (%)', '20')
+  fireEvent.click(screen.getByRole('button', { name: 'Create assignment' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(fn, 'POST')[0][0].text())).toMatchObject({
+    lateUntil: fromLocalInput('2026-10-21T09:00'),
+    latePenaltyPercent: 20,
+  })
+})
+
+it('an unfilled late time sends neither lateUntil nor a penalty', async () => {
+  const { fn, onSaved } = setup('assignment', { [`POST ${A}`]: created })
+  type('Title', 'Essay')
+  type('Max points', '20')
+  type('Weight (%)', '20')
+  fireEvent.click(screen.getByRole('button', { name: 'Create assignment' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  const body = JSON.parse(await sent(fn, 'POST')[0][0].text())
+  expect(body).not.toHaveProperty('lateUntil')
+  expect(body).not.toHaveProperty('latePenaltyPercent')
+  expect(body).not.toHaveProperty('timeLimitMinutes')
+})
+
+it.each([
+  ['quiz', 'Time limit (minutes)', '0', 'Enter whole minutes from 1 to 1,440.'],
+  ['quiz', 'Time limit (minutes)', '1441', 'Enter whole minutes from 1 to 1,440.'],
+  ['quiz', 'Time limit (minutes)', '1.5', 'Enter whole minutes from 1 to 1,440.'],
+] as const)('refuses %s %s=%s without a request', async (kind, label, value, message) => {
+  const { fn } = setup(kind, {})
+  type('Title', 'T')
+  type('Weight (%)', '40')
+  type(label, value)
+  fireEvent.click(screen.getByRole('button', { name: 'Create quiz' }))
+  expect(await screen.findByText(message)).toBeInTheDocument()
+  expect(sent(fn, 'POST')).toHaveLength(0)
+})
+
+it('refuses a late time not after Due and a penalty over 100 without a request', async () => {
+  const { fn } = setup('assignment', {})
+  type('Title', 'Essay')
+  type('Due', '2026-10-19T23:59')
+  type('Late submissions until', '2026-10-19T23:59')
+  type('Max points', '20')
+  type('Weight (%)', '20')
+  type('Late penalty (%)', '101')
+  fireEvent.click(screen.getByRole('button', { name: 'Create assignment' }))
+  expect(await screen.findByText('Late submissions until must be after Due.')).toBeInTheDocument()
+  expect(screen.getByText('Enter a penalty from 0 to 100.')).toBeInTheDocument()
+  expect(sent(fn, 'POST')).toHaveLength(0)
+})
+
+it('maps a server lateUntil error under its field', async () => {
+  setup('assignment', {
+    [`POST ${A}`]: () => ({
+      status: 400,
+      body: { error: { code: 'validation_failed', message: 'bad', details: [{ field: 'lateUntil', message: 'must be after closesAt' }] } },
+    }),
+  })
+  type('Title', 'Essay')
+  type('Max points', '20')
+  type('Weight (%)', '20')
+  fireEvent.click(screen.getByRole('button', { name: 'Create assignment' }))
+  expect(await screen.findByText('Late submissions until must be after Due.')).toBeInTheDocument()
+})
+
+it('clearing the limit sends null; clearing the late time sends null and no penalty', async () => {
+  const timed = { ...quiz, timeLimitMinutes: 10 }
+  const one = setup('quiz', { [`PATCH ${A}/q1`]: (r) => r.json().then((b) => ({ body: { ...timed, ...b } })) }, timed)
+  type('Time limit (minutes)', '')
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(one.onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(one.fn, 'PATCH')[0][0].text())).toEqual({ timeLimitMinutes: null })
+})
+
+it('clearing the late time sends null', async () => {
+  const withLate = { ...asg, lateUntil: '2026-10-21T09:00:00Z', latePenaltyPercent: 20 }
+  const { fn, onSaved } = setup('assignment', { [`PATCH ${A}/a1`]: (r) => r.json().then((b) => ({ body: { ...withLate, ...b } })) }, withLate)
+  type('Late submissions until', '')
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ lateUntil: null })
+})
+
+it('changing only the penalty sends only the penalty', async () => {
+  const withLate = { ...asg, lateUntil: '2026-10-21T09:00:00Z', latePenaltyPercent: 20 }
+  const { fn, onSaved } = setup('assignment', { [`PATCH ${A}/a1`]: (r) => r.json().then((b) => ({ body: { ...withLate, ...b } })) }, withLate)
+  type('Late penalty (%)', '25')
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ latePenaltyPercent: 25 })
+})
