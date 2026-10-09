@@ -260,7 +260,6 @@ function Review(props: { slug: string; sectionId: string; quiz: Assessment; row:
   const [local, setLocal] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
-  const bannerRef = useRef<HTMLDivElement>(null)
 
   const changed = (q: Question) => form.points[q.id] !== initial.points[q.id] || form.feedback[q.id] !== initial.feedback[q.id]
   const dirty = form.overall !== initial.overall || questions.some(changed)
@@ -297,7 +296,7 @@ function Review(props: { slug: string; sectionId: string; quiz: Assessment; row:
   const server = useFieldErrors(m.error)
   const conflict = m.error instanceof ApiError && m.error.status === 409
   const fieldErr = (f: string) => local[f] ?? server[f]
-  const hasFieldErr = Object.keys(local).length > 0 || (m.error instanceof ApiError && m.error.status === 400 && Object.keys(server).length > 0)
+  const hasFieldErr = Object.keys(local).length > 0 || (m.error instanceof ApiError && m.error.status === 400 && m.error.details.length > 0 && m.error.details.every((d) => /^(grading\.[^.]+\.(points|feedback)|feedback)$/.test(d.field)))
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -328,7 +327,7 @@ function Review(props: { slug: string; sectionId: string; quiz: Assessment; row:
   return (
     <>
       <UnsavedChangesGuard when={dirty} />
-      <h3 tabIndex={-1} className="text-lg font-bold focus:outline-none">
+      <h3 className="text-lg font-bold">
         {name}
       </h3>
       <p className="text-sm text-ink-muted">{times}</p>
@@ -351,7 +350,7 @@ function Review(props: { slug: string; sectionId: string; quiz: Assessment; row:
           )}
           {m.error && !conflict && !hasFieldErr && (
             <div className="mb-4">
-              <ErrorBanner ref={bannerRef}>{errorMessage(m.error)}</ErrorBanner>
+              <ErrorBanner>{errorMessage(m.error)}</ErrorBanner>
             </div>
           )}
           <form ref={formRef} noValidate onSubmit={submit}>
@@ -432,7 +431,7 @@ function QuestionReview(props: {
           <dd className="inline">{answerText(q, attempt)}</dd>
         </div>
         <div>
-          <dt className="inline font-bold">{q.kind === 'blank' ? 'Accepted answers: ' : 'Correct answer: '}</dt>
+          <dt className="inline font-bold">{q.kind === 'blank' ? 'Accepted answers: ' : q.multiple ? 'Correct answers: ' : 'Correct answer: '}</dt>
           <dd className="inline">{key}</dd>
         </div>
         {mark && (

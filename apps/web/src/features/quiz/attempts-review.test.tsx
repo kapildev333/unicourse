@@ -163,3 +163,11 @@ it('an unsubmitted attempt has a notice and no inputs', async () => {
   expect(screen.queryByRole('button', { name: 'Save review' })).toBeNull()
   expect(screen.queryByLabelText('Points for question 1')).toBeNull()
 })
+
+it('changing only points sends only points', async () => {
+  const fn = setup(panel, { [`PATCH ${A}/attempts/u2`]: () => ({ body: { ...attempt, score: 3 } }) })
+  fireEvent.change(await screen.findByLabelText('Points for question 1'), { target: { value: '2' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save review' }))
+  await screen.findByText(/Review saved\./)
+  expect(await sent(fn, 'PATCH')[0][0].json()).toEqual({ grading: { k1: { points: 2 } } })
+})
