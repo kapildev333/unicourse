@@ -97,7 +97,7 @@ it('empty answer and no files: local error, no request', async () => {
 })
 
 it('400 on body shows the field copy', async () => {
-  setup(asg(), null, { [`PUT ${M}`]: () => err(400, 'validation_failed', [{ field: 'body', message: 'too long' }]) })
+  setup(asg(), null, { [`PUT ${M}`]: () => err(400, 'validation_failed', [{ field: 'body', message: 'must be at most 20000 characters' }]) })
   fireEvent.change(await screen.findByRole('textbox', { name: 'Your answer' }), { target: { value: 'x' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByText('Use at most 20,000 characters of plain text.')).toBeInTheDocument()
