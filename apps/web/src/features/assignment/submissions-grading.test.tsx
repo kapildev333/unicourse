@@ -27,6 +27,7 @@ const row = (userId: string, displayName: string, over: object = {}) => ({
   displayName,
   submittedAt: '2026-10-09T15:12:00Z',
   fileCount: 2,
+  late: false,
   ...over,
 })
 const rows = [row('u1', 'Dana Reyes', { score: 17, gradedAt: '2026-10-10T10:00:00Z' }), row('u2', 'Tomás Ibarra')]
@@ -36,6 +37,8 @@ const full = (over: Partial<Submission> = {}): Submission => ({
   submittedAt: '2026-10-09T15:12:00Z',
   files: [{ id: 'f1', fileName: 'essay.pdf', contentType: 'application/pdf', sizeBytes: 2048, position: 1, uploadedAt: '2026-10-09T15:12:00Z' }],
   feedback: '',
+  late: false,
+  penaltyPercent: 0,
   ...over,
 })
 const sent = (fn: ReturnType<typeof mockApi>, method: string) => fn.mock.calls.filter(([r]) => r.method === method)
