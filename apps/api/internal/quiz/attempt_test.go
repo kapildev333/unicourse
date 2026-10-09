@@ -280,7 +280,10 @@ func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
 	}()
 	pw.Write([]byte(`{"submit": true, "answers": {"` + qs[1] + `": `))
 	// the handler holds the attempt row lock while it reads the rest of the body
-	for locked := false; !locked; {
+	for stop, locked := time.Now().Add(10*time.Second), false; !locked; {
+		if time.Now().After(stop) {
+			t.Fatal("the handler never took the attempt row lock")
+		}
 		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 			var n int
 			err := tx.QueryRow(`select count(*) from (select 1 from attempts where assessment_id = $1 for update skip locked) x`, id).Scan(&n)
@@ -288,7 +291,12 @@ func TestAttemptPutBodyArrivesAfterClose(t *testing.T) {
 			return err
 		})
 	}
-	e.closeQuiz(id)
+	// the close falls just after the early check: only the clock_timestamp() re-check can see it
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set closes_at = clock_timestamp() + interval '1 second' where id = $1`, id)
+		return err
+	})
+	time.Sleep(1100 * time.Millisecond)
 	pw.Write([]byte(`{"text": "Rome"}}}`))
 	pw.Close()
 	r := <-done
