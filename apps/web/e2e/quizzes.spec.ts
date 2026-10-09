@@ -258,6 +258,12 @@ test('E-QUIZ-12 the instructor fixes a key and every submitted attempt is regrad
   await expect(page.getByRole('textbox', { name: `Score for Amara Okafor, ${NAME}` }), 'instructor, gradebook: amara keeps the reviewed question 3').toHaveValue('5')
   await page.context().close()
 
+  const admin = await pageAs(browser, P.admin.email, slug)
+  await admin.goto(`/${slug}/admin/audit`)
+  await admin.getByLabel('Entity').selectOption({ label: 'Assessment' })
+  await expect(admin.getByRole('row').filter({ hasText: 'Assessment regrade' }), 'admin, Audit log: one regrade row (only priya changed)').toHaveCount(1)
+  await admin.context().close()
+
   await quizzes(amara)
   await amara.getByRole('link', { name: `View ${NAME}` }).click()
   await expect(question(amara, 3).getByText('3 / 3 points'), 'student amara, results: reviewed points kept').toBeVisible()
@@ -293,7 +299,7 @@ test('E-QUIZ-11 a time-limited attempt is submitted by the server long before th
   await expect(page.getByText(/1 min each/), 'student, Quizzes: time limit on the row').toBeVisible()
   await page.getByRole('link', { name: 'Start Timed check' }).click()
   await page.getByRole('button', { name: 'Start quiz' }).click()
-  await expect(page.getByText(/Time left:/), 'student, take page: countdown').toBeVisible()
+  await expect(page.getByText(/^Time left: (1 min|\d+ s)$/), 'student, take page: countdown').toBeVisible()
   await group(page, 'Type yes').getByLabel('Your answer').fill('yes')
   await expect(status(page, 'Saved'), 'student, take page: Saved').toBeVisible()
   await expect(page.getByText(/^Submitted automatically at /), 'student, results: submitted at the limit').toBeVisible({ timeout: 110_000 })
