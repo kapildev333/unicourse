@@ -63,7 +63,7 @@ function QuizRow(props: {
     const start = state === 'open' && !attempt.isError && !mine && (a.questionCount ?? 0) > 0
     const cont = state === 'open' && !attempt.isError && !!mine && !submitted
     student = (
-      <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId" params={params as never} size="sm" variant={start || cont ? 'primary' : 'secondary'} aria-label={`${start ? 'Start' : cont ? 'Continue' : 'View'} ${a.name}`}>
+      <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId" params={params} size="sm" variant={start || cont ? 'primary' : 'secondary'} aria-label={`${start ? 'Start' : cont ? 'Continue' : 'View'} ${a.name}`}>
         {start ? 'Start' : cont ? 'Continue' : 'View'}
       </ButtonLink>
     )
@@ -91,10 +91,10 @@ function QuizRow(props: {
         {canEdit ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId/questions" params={params as never} variant="ghost" size="sm" aria-label={`Questions for ${a.name}`}>
+              <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId/questions" params={params} variant="ghost" size="sm" aria-label={`Questions for ${a.name}`}>
                 Questions
               </ButtonLink>
-              <ButtonLink to={attemptsTo} params={params as never} variant="ghost" size="sm" aria-label={`Attempts for ${a.name}`}>
+              <ButtonLink to={attemptsTo} params={params} variant="ghost" size="sm" aria-label={`Attempts for ${a.name}`}>
                 Attempts
               </ButtonLink>
               <ReleaseButton slug={slug} sectionId={sectionId} a={a} onDone={onDone} onError={onError} />
