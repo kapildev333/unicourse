@@ -112,6 +112,11 @@ func TestSchemaMatchesLoad(t *testing.T) {
 	need("courses.sections", "term", "number")
 	need("courses.sections.staff", "email", "role")
 	need("courses.sections.weeks.materials", "file")
+	need("courses.sections.quizzes", "name", "weight", "opensIn", "closesIn", "published", "questions")
+	need("courses.sections.quizzes.questions", "kind", "prompt", "points")
+	need("courses.sections.quizzes.attempts", "email", "submit")
+	need("courses.sections.assignments", "name", "maxPoints", "weight", "opensIn", "closesIn", "published")
+	need("courses.sections.assignments.submissions", "email", "body")
 
 	var walk func(path string, node map[string]any, data any)
 	walk = func(path string, node map[string]any, data any) {
@@ -131,6 +136,9 @@ func TestSchemaMatchesLoad(t *testing.T) {
 			props, _ := node["properties"].(map[string]any)
 			for k, v := range d {
 				p, ok := props[k].(map[string]any)
+				if !ok {
+					p, ok = node["additionalProperties"].(map[string]any) // a map keyed by free names
+				}
 				if !ok {
 					t.Errorf("demo.json key %s.%s is not declared in the schema", path, k)
 					continue

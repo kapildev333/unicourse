@@ -83,7 +83,9 @@
         "assessments": {"type": "array", "items": {"$ref": "#/$defs/assessment"}, "description": "Needs an active instructor in staff."},
         "finalize": {"$ref": "#/$defs/finalize"},
         "announcements": {"type": "array", "items": {"$ref": "#/$defs/announcement"}},
-        "weeks": {"type": "array", "items": {"$ref": "#/$defs/week"}}
+        "weeks": {"type": "array", "items": {"$ref": "#/$defs/week"}},
+        "quizzes": {"type": "array", "items": {"$ref": "#/$defs/quiz"}, "description": "Needs an active instructor in staff. Created by the instructor, attempted by rostered students, reviewed by staff."},
+        "assignments": {"type": "array", "items": {"$ref": "#/$defs/assignment"}, "description": "Needs an active instructor in staff."}
       }
     },
     "meeting": {
@@ -165,6 +167,108 @@
       "properties": {
         "file": {"type": "string", "pattern": "^[^/]+$", "description": "Bare file name in the fixture's directory (the embedded demo: internal/seed/files)."},
         "title": {"type": "string"}
+      }
+    },
+    "quiz": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "weight", "opensIn", "closesIn", "published", "questions"],
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "weight": {"type": "number"},
+        "opensIn": {"type": "string", "description": "Go duration from seed time, e.g. \"-1h\": the quiz is open when seeded."},
+        "closesIn": {"type": "string", "description": "Go duration from seed time, after opensIn, e.g. \"168h\"."},
+        "published": {"type": "boolean"},
+        "questions": {"type": "array", "items": {"$ref": "#/$defs/quizQuestion"}},
+        "attempts": {"type": "array", "items": {"$ref": "#/$defs/quizAttempt"}, "description": "Rostered students, written as themselves after the questions."},
+        "reviews": {"type": "array", "items": {"$ref": "#/$defs/quizReview"}}
+      }
+    },
+    "quizQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prompt", "points"],
+      "properties": {
+        "kind": {"enum": ["choice", "blank"]},
+        "prompt": {"type": "string"},
+        "points": {"type": "number"},
+        "choices": {"type": "array", "items": {"$ref": "#/$defs/quizChoice"}, "description": "Multiple choice only."},
+        "answers": {"type": "array", "items": {"type": "string"}, "description": "Accepted answers; fill in the blank only."}
+      }
+    },
+    "quizChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "correct"],
+      "properties": {"text": {"type": "string"}, "correct": {"type": "boolean"}}
+    },
+    "quizAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "submit"],
+      "properties": {
+        "email": {"type": "string"},
+        "submit": {"type": "boolean", "description": "false leaves the attempt in progress."},
+        "answers": {"type": "object", "description": "By question index (\"0\"): {choices: [indexes]} or {text}.", "additionalProperties": {"$ref": "#/$defs/quizAnswer"}}
+      }
+    },
+    "quizAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"choices": {"type": "array", "items": {"type": "integer"}}, "text": {"type": "string"}}
+    },
+    "quizReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email"],
+      "properties": {
+        "as": {"type": "string", "description": "Default: the first instructor of the section."},
+        "email": {"type": "string", "description": "The student whose submitted attempt is reviewed."},
+        "feedback": {"type": "string"},
+        "grading": {"type": "object", "description": "By question index (\"0\").", "additionalProperties": {"$ref": "#/$defs/quizMark"}}
+      }
+    },
+    "quizMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points"],
+      "properties": {"points": {"type": "number"}, "feedback": {"type": "string"}}
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "maxPoints", "weight", "opensIn", "closesIn", "published"],
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "maxPoints": {"type": "number"},
+        "weight": {"type": "number"},
+        "opensIn": {"type": "string", "description": "Go duration from seed time, e.g. \"-24h\"."},
+        "closesIn": {"type": "string", "description": "Go duration from seed time, after opensIn, e.g. \"168h\"."},
+        "published": {"type": "boolean"},
+        "submissions": {"type": "array", "items": {"$ref": "#/$defs/submission"}}
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "body"],
+      "properties": {
+        "email": {"type": "string"},
+        "body": {"type": "string"},
+        "files": {"type": "array", "items": {"type": "string", "pattern": "^[^/]+$"}, "description": "Bare file names, as for materials."},
+        "grade": {"$ref": "#/$defs/submissionGrade"}
+      }
+    },
+    "submissionGrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score"],
+      "properties": {
+        "as": {"type": "string", "description": "Default: the first instructor of the section."},
+        "score": {"type": "number"},
+        "feedback": {"type": "string"}
       }
     }
   }

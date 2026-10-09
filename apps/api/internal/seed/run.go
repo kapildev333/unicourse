@@ -16,7 +16,9 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/app"
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
@@ -478,7 +480,13 @@ func (w *writer) section(c Course, s Section, courseID, a string) error {
 			return err
 		}
 	}
-	return w.content(s, label, base, cmp.Or(grader, a))
+	if err := w.content(s, label, base, cmp.Or(grader, a)); err != nil {
+		return err
+	}
+	if grader == "" {
+		return nil
+	}
+	return w.work(s, label, base, grader)
 }
 
 func (w *writer) grade(s Section, label, base, i string) error {
@@ -568,6 +576,117 @@ func (w *writer) content(s Section, label, base, cActor string) error {
 			parts = append(parts, part{"file", m.File, "application/octet-stream", data})
 			if err := w.upload(fmt.Sprintf("material %s in %s", m.File, label), cActor, base+"/weeks/"+wid.ID+"/materials", parts, nil); err != nil {
 				return err
+			}
+		}
+	}
+	return nil
+}
+
+// work writes the section's quizzes and assignments: staff create, students attempt and submit, staff review
+// and grade. The windows are relative to now, so they are open while this runs.
+func (w *writer) work(s Section, label, base, inst string) error {
+	now := time.Now().UTC()
+	win := func(opens, closes string) (string, string) {
+		o, _ := time.ParseDuration(opens)
+		c, _ := time.ParseDuration(closes)
+		return now.Add(o).Format(time.RFC3339), now.Add(c).Format(time.RFC3339)
+	}
+	for _, q := range s.Quizzes {
+		what := fmt.Sprintf("quiz %q of %s", q.Name, label)
+		o, c := win(q.OpensIn, q.ClosesIn)
+		var aid idOnly
+		err := w.post(what, inst, http.MethodPost, base+"/assessments", struct {
+			Kind        string      `json:"kind"`
+			Name        string      `json:"name"`
+			Description string      `json:"description"`
+			Weight      json.Number `json:"weight"`
+			OpensAt     string      `json:"opensAt"`
+			ClosesAt    string      `json:"closesAt"`
+			Published   bool        `json:"published"`
+		}{"quiz", q.Name, q.Description, q.Weight, o, c, q.Published}, &aid)
+		if err != nil {
+			return err
+		}
+		qbase := base + "/assessments/" + aid.ID
+		var qs struct {
+			Items []idOnly `json:"items"`
+		}
+		if err := w.post("questions of "+what, inst, http.MethodPut, qbase+"/questions", struct {
+			Items []Question `json:"items"`
+		}{q.Questions}, &qs); err != nil {
+			return err
+		}
+		ids := func(m map[string]QuizAnswer) map[string]QuizAnswer {
+			out := map[string]QuizAnswer{}
+			for k, v := range m {
+				n, _ := strconv.Atoi(k)
+				out[qs.Items[n].ID] = v
+			}
+			return out
+		}
+		for _, a := range q.Attempts {
+			if err := w.post("attempt start on "+what, a.Email, http.MethodPost, qbase+"/attempts", struct{}{}, nil); err != nil {
+				return err
+			}
+			if err := w.post("attempt save on "+what, a.Email, http.MethodPut, qbase+"/attempts/me", struct {
+				Answers map[string]QuizAnswer `json:"answers"`
+				Submit  bool                  `json:"submit"`
+			}{ids(a.Answers), a.Submit}, nil); err != nil {
+				return err
+			}
+		}
+		for _, r := range q.Reviews {
+			grading := map[string]QuizMark{}
+			for k, v := range r.Grading {
+				n, _ := strconv.Atoi(k)
+				grading[qs.Items[n].ID] = v
+			}
+			if err := w.post("review on "+what, cmp.Or(r.As, inst), http.MethodPatch, qbase+"/attempts/"+w.users[r.Email], struct {
+				Grading  map[string]QuizMark `json:"grading,omitempty"`
+				Feedback string              `json:"feedback,omitempty"`
+			}{grading, r.Feedback}, nil); err != nil {
+				return err
+			}
+		}
+	}
+	for _, a := range s.Assignments {
+		what := fmt.Sprintf("assignment %q of %s", a.Name, label)
+		o, c := win(a.OpensIn, a.ClosesIn)
+		var aid idOnly
+		err := w.post(what, inst, http.MethodPost, base+"/assessments", struct {
+			Kind        string      `json:"kind"`
+			Name        string      `json:"name"`
+			Description string      `json:"description"`
+			MaxPoints   json.Number `json:"maxPoints"`
+			Weight      json.Number `json:"weight"`
+			OpensAt     string      `json:"opensAt"`
+			ClosesAt    string      `json:"closesAt"`
+			Published   bool        `json:"published"`
+		}{"assignment", a.Name, a.Description, a.MaxPoints, a.Weight, o, c, a.Published}, &aid)
+		if err != nil {
+			return err
+		}
+		abase := base + "/assessments/" + aid.ID + "/submissions"
+		for _, sub := range a.Submissions {
+			if err := w.post("submission to "+what, sub.Email, http.MethodPut, abase+"/me", map[string]string{"body": sub.Body}, nil); err != nil {
+				return err
+			}
+			for _, name := range sub.Files {
+				data, err := fs.ReadFile(w.files, name)
+				if err != nil {
+					return err
+				}
+				if err := w.upload(fmt.Sprintf("file %s of a submission to %s", name, what), sub.Email, abase+"/me/files", []part{{"file", name, "application/octet-stream", data}}, nil); err != nil {
+					return err
+				}
+			}
+			if g := sub.Grade; g != nil {
+				if err := w.post("grade of a submission to "+what, cmp.Or(g.As, inst), http.MethodPatch, abase+"/"+w.users[sub.Email], struct {
+					Score    json.Number `json:"score"`
+					Feedback string      `json:"feedback,omitempty"`
+				}{g.Score, g.Feedback}, nil); err != nil {
+					return err
+				}
 			}
 		}
 	}

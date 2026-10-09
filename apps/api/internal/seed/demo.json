@@ -81,6 +81,31 @@
               {"file": "code-samples.zip", "title": "Code samples"}
             ]},
             {"title": "Week 3: Functions", "notes": "Problem set 3 is due Friday."}
+          ],
+          "quizzes": [
+            {"name": "Week 3 check", "description": "Ten minutes on functions. Not graded yet; the grades follow after review.", "weight": 0, "opensIn": "-1h", "closesIn": "168h", "published": false,
+              "questions": [
+                {"kind": "choice", "prompt": "Which keyword defines a function in Python?", "points": 2, "choices": [
+                  {"text": "def", "correct": true}, {"text": "func", "correct": false}, {"text": "lambda only", "correct": false}]},
+                {"kind": "choice", "prompt": "Which of these values does a function return when it has no return statement?", "points": 2, "choices": [
+                  {"text": "0", "correct": false}, {"text": "None", "correct": true}, {"text": "An empty string", "correct": false}]},
+                {"kind": "blank", "prompt": "The values a function receives when it is called are its ____.", "points": 1, "answers": ["arguments", "parameters"]}
+              ],
+              "attempts": [
+                {"email": "amara.okafor@<domain>", "submit": true, "answers": {"0": {"choices": [0]}, "1": {"choices": [1]}, "2": {"text": "Arguments"}}},
+                {"email": "jonas.berg@<domain>", "submit": true, "answers": {"0": {"choices": [0]}, "1": {"choices": [0]}, "2": {"text": "inputs"}}}
+              ],
+              "reviews": [
+                {"as": "sofia.alvarez@<domain>", "email": "jonas.berg@<domain>", "grading": {"2": {"points": 0.5, "feedback": "Close: inputs are called arguments or parameters."}}, "feedback": "Good start. Re-read the section on return values."}
+              ]}
+          ],
+          "assignments": [
+            {"name": "Essay 1", "description": "Write about one programming idea you found surprising this month, in 500 words or fewer. Attach your notes if you like.", "maxPoints": 20, "weight": 0, "opensIn": "-24h", "closesIn": "168h", "published": false,
+              "submissions": [
+                {"email": "priya.raman@<domain>", "body": "Recursion surprised me most: a function that calls itself felt like a trick until I drew the call stack on paper.", "files": ["syllabus.pdf"],
+                  "grade": {"score": 17, "feedback": "Clear and well argued. Your call-stack drawing is the best part; say more about the base case."}},
+                {"email": "daniel.reyes@<domain>", "body": "Dictionaries replaced three of my lists. I did not expect a lookup by name to make the program shorter."}
+              ]}
           ]
         },
         {
