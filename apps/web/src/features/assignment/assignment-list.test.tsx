@@ -140,5 +140,5 @@ it('shows the late window in the line and a warning Past due badge', async () =>
   const art = await screen.findByRole('article')
   expect(within(art).getByText(/ · Due .*, late until /)).toBeInTheDocument()
   expect(within(art).getByText('Past due')).toBeInTheDocument()
-  expect(within(art).getByRole('link', { name: 'View Essay 1' })).toBeInTheDocument()
+  expect(await within(art).findByRole('link', { name: 'View Essay 1' })).toBeInTheDocument()
 })
