@@ -1263,7 +1263,7 @@ export interface paths {
         put?: never;
         /**
          * Start a quiz attempt
-         * @description Who: a student enrolled in the section. Idempotent: 201 when the attempt is created, 200 with the existing attempt. Errors: 409 "not open yet", 409 "closed", 409 "the quiz has no questions".
+         * @description Who: a student enrolled in the section. Idempotent: 201 when the attempt is created, 200 with the existing attempt. Errors: 409 "not open yet", 409 "closed", 409 "the quiz has no questions". The response carries deadlineAt, the effective deadline of the attempt.
          */
         post: operations["startAttempt"];
         delete?: never;
@@ -1306,7 +1306,7 @@ export interface paths {
         get?: never;
         /**
          * Save or submit a quiz attempt
-         * @description Who: a student enrolled in the section, for their own attempt. Replaces the saved answers; submit true also grades and submits. Errors: 404 "attempt" when not started, 409 "already submitted", 409 "closed; your answers as of the closing time were submitted", answers ("is required"), answers.<questionId> ("is not a question of this quiz"), answers.<questionId>.choices ("must be distinct indexes from 0 to <n>", "only for multiple choice"), answers.<questionId>.text ("only for fill in the blank", "must be at most 1000 characters", "must not contain NUL").
+         * @description Who: a student enrolled in the section, for their own attempt. Replaces the saved answers; submit true also grades and submits. Errors: 404 "attempt" when not started, 409 "already submitted", 409 "closed; your answers as of the closing time were submitted" (also after the attempt deadline, startedAt plus the time limit), answers ("is required"), answers.<questionId> ("is not a question of this quiz"), answers.<questionId>.choices ("must be distinct indexes from 0 to <n>", "only for multiple choice"), answers.<questionId>.text ("only for fill in the blank", "must be at most 1000 characters", "must not contain NUL").
          */
         put: operations["putAttempt"];
         post?: never;
@@ -2934,12 +2934,18 @@ export interface components {
             startedAt: string;
             /**
              * Format: date-time
+             * @description The effective deadline: startedAt plus the quiz time limit, never after closesAt; closesAt when the quiz has no limit. Answers saved after it are refused (409) and a sweeper submits the attempt at it.
+             * @example 2026-10-12T13:35:00Z
+             */
+            deadlineAt: string;
+            /**
+             * Format: date-time
              * @description Omitted until submitted.
              * @example 2026-10-12T13:40:00Z
              */
             submittedAt?: string;
             /**
-             * @description True when the quiz closed and the saved answers were submitted for the student (submittedAt is then closesAt).
+             * @description True when the attempt reached its deadline and the saved answers were submitted for the student (submittedAt is then deadlineAt).
              * @example false
              */
             autoSubmitted: boolean;

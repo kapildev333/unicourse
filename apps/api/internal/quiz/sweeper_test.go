@@ -203,8 +203,8 @@ func TestSweepEachUniversity(t *testing.T) {
 func (e *env) swept(id string) (submitted, auto, atClose, atLimit bool) {
 	e.T.Helper()
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-		return tx.QueryRow(`select a.submitted_at is not null, a.auto_submitted, a.submitted_at = q.closes_at,
-			a.submitted_at = a.started_at + make_interval(mins => q.time_limit_minutes)
+		return tx.QueryRow(`select a.submitted_at is not null, a.auto_submitted, coalesce(a.submitted_at = q.closes_at, false),
+			coalesce(a.submitted_at = a.started_at + make_interval(mins => q.time_limit_minutes), false)
 			from attempts a join assessments q on q.id = a.assessment_id where a.assessment_id = $1`, id).Scan(&submitted, &auto, &atClose, &atLimit)
 	})
 	return
