@@ -112,6 +112,9 @@ export function mapItemErrors(details: { field: string; message: string }[]) {
   return { errors, rest }
 }
 
+/** 409, or 400 on items[i].id: a student started while the form was open (new questions carry no id). */
+const startedConflict = (e: ApiError) => e.status === 409 || (e.status === 400 && e.details.some((d) => /^items\[\d+\]\.id$/.test(d.field)))
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 const totalLine = (n: number, points: number) => `${plural(n, 'question', 'questions')}, ${plural(Number(points.toFixed(2)), 'point', 'points')}`
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0)
@@ -227,7 +230,7 @@ function Editor(props: {
     onError: async (e) => {
       setConfirm(false)
       setNotice('')
-      if (e instanceof ApiError && e.status === 409) {
+      if (e instanceof ApiError && startedConflict(e)) {
         // a student started, or the structure changed, while this form was open: show the server's questions
         setStructLocked(true)
         void qc.invalidateQueries({ queryKey: attemptsKey(slug, sectionId, quiz.id) })
@@ -320,7 +323,7 @@ function Editor(props: {
       </Button>
     </div>
   )
-  const conflict = m.error instanceof ApiError && m.error.status === 409
+  const conflict = m.error instanceof ApiError && startedConflict(m.error)
   const unmapped = m.error && (!(m.error instanceof ApiError) || m.error.status !== 400 || mapped.rest.length > 0 || Object.keys(mapped.errors).length === 0) && !conflict
 
   return (

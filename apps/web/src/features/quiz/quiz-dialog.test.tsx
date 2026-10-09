@@ -217,7 +217,7 @@ it('maps a server lateUntil error under its field', async () => {
   expect(await screen.findByText('Late submissions until must be after Due.')).toBeInTheDocument()
 })
 
-it('clearing the limit sends null; clearing the late time sends null and no penalty', async () => {
+it('clearing the limit sends null', async () => {
   const timed = { ...quiz, timeLimitMinutes: 10 }
   const one = setup('quiz', { [`PATCH ${A}/q1`]: (r) => r.json().then((b) => ({ body: { ...timed, ...b } })) }, timed)
   type('Time limit (minutes)', '')

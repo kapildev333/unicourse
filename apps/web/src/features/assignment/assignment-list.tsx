@@ -51,7 +51,11 @@ function AssignmentRow(props: {
   const sub = useSubmission(slug, sectionId, a.id, 'me', !canEdit)
   const state = assignmentState(a, now)
   const mine = sub.data
-  const score = a.published && mine?.score !== undefined ? ` Score ${fmtNum(mine.score)} / ${fmtNum(a.maxPoints)}.` : ''
+  const penalised = mine?.late && mine.penaltyPercent > 0 && mine.finalScore !== undefined
+  const score =
+    a.published && mine?.score !== undefined
+      ? ` Score ${fmtNum(mine.score)} / ${fmtNum(a.maxPoints)}${penalised ? `, ${mine.finalScore!.toFixed(2)} after the ${fmtNum(mine.penaltyPercent)}% late penalty` : ''}.`
+      : ''
   const params = { slug, id: sectionId, assessmentId: a.id }
 
   return (

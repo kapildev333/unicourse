@@ -231,13 +231,28 @@ it('a 409 while editing shows the note in a banner, reloads the questions and lo
   expect(put(fn)).toHaveLength(1)
 })
 
-it('a 400 on items[i].id goes to the banner', async () => {
-  setup({ [PUT]: () => err(400, 'validation_failed', [{ field: 'items[1].id', message: 'is required once a student has started' }]) }, { attempts: 1 })
-  await screen.findByText(NOTE)
-  fireEvent.change(screen.getAllByLabelText('Choice 2')[0], { target: { value: 'Net' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Save and regrade' }))
-  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Save and regrade?' })).getByRole('button', { name: 'Save and regrade' }))
-  expect(await screen.findByText('Is required once a student has started.')).toBeInTheDocument()
+it('a 400 on items[i].id (a question added before a student started) switches to regrade mode', async () => {
+  let started = false
+  setup({
+    [PUT]: () => {
+      started = true
+      return err(400, 'validation_failed', [{ field: 'items[2].id', message: 'is required once a student has started' }])
+    },
+    [`GET ${S}/assessments/q1/attempts`]: () => ({
+      body: { items: started ? [{ userId: 'u0', email: 'a@a.edu', displayName: 'Dana Reyes', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false }] : [] },
+    }),
+  })
+  await screen.findByText('Question 2')
+  fireEvent.click(screen.getByRole('button', { name: 'Add fill in the blank' }))
+  fireEvent.change(within(cards()[2]).getByLabelText('Prompt'), { target: { value: 'New' } })
+  fireEvent.change(within(cards()[2]).getByLabelText('Accepted answers'), { target: { value: 'x' } })
+  save()
+  const banner = await screen.findByRole('alert')
+  expect(banner).toHaveTextContent('Questions not saved')
+  expect(banner).toHaveTextContent(NOTE)
+  await waitFor(() => expect(cards()).toHaveLength(2))
+  expect(screen.getByRole('button', { name: 'Add multiple choice' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Save and regrade' })).toBeInTheDocument()
 })
 
 it('reports a quiz that is not in the list', async () => {

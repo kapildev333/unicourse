@@ -386,5 +386,5 @@ it('the Start intro of a timed quiz states the limit; it adds the clamp when the
 it('the timed intro names the close when it comes before the limit would run out', async () => {
   setup({ assessment: quiz({ timeLimitMinutes: 60, closesAt: new Date(Date.now() + 20 * 60_000).toISOString() }) })
   expect(await screen.findByText(/before your time would run out\.$/)).toBeInTheDocument()
-  expect(screen.getByText(/^You have one attempt and 1 hour|^You have one attempt and 60 minutes/)).toBeInTheDocument()
+  expect(screen.getByText(/^You have one attempt and 60 minutes/)).toBeInTheDocument()
 })
