@@ -1139,7 +1139,7 @@ export interface paths {
         head?: never;
         /**
          * Grade a submission
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller) and audits submission.grade. Errors: score ("is required", "must be a number", "must have at most 2 decimals", "must be between 0 and <2 x maxPoints>"), feedback ("must not be null", "must not contain NUL", "must be at most 5000 characters"). userId must be a uuid, else 404.
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section. Allowed any time after a submission exists, also after closesAt. Sets score and feedback, upserts the gradebook score of the student (graded by the caller; for a late submission the score reduced by the assessment's latePenaltyPercent, rounded half up to 2 decimals, read at grading time and not recomputed until the grade is saved again) and audits submission.grade (after carries score and finalScore). Errors: score ("is required", "must be a number", "must have at most 2 decimals", "must be between 0 and <2 x maxPoints>"), feedback ("must not be null", "must not contain NUL", "must be at most 5000 characters"). userId must be a uuid, else 404.
          */
         patch: operations["gradeSubmission"];
         trace?: never;
@@ -1154,7 +1154,7 @@ export interface paths {
         get?: never;
         /**
          * Write own submission
-         * @description Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Errors: body ("is required", "must not contain NUL", "must be at most 20000 characters", "a submission needs text or a file"). Audits submission.update.
+         * @description Who: enrolled student. Creates or replaces the text of the caller's submission and moves submittedAt; files are kept. 409 conflict "not open yet" before opensAt and "closed" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Errors: body ("is required", "must not contain NUL", "must be at most 20000 characters", "a submission needs text or a file"). Audits submission.update.
          */
         put: operations["putSubmission"];
         post?: never;
@@ -1175,7 +1175,7 @@ export interface paths {
         put?: never;
         /**
          * Attach a file to own submission
-         * @description Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than <limit>" (see GET /upload-policy), "invalid multipart upload: <reason>", "a submission holds at most 10 files"). Audits submission.update.
+         * @description Who: enrolled student. multipart/form-data with one part file; other parts are ignored. Creates the submission when none. 409 conflict "not open yet" before opensAt and "closed" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Errors (the first problem found): file ("must be a multipart/form-data upload", "is required", "must be exactly one file", "must have a file name", "file name must be at most 255 characters", "file name must not contain control characters", "file type not allowed (allowed: csv, doc, docx, gif, jpeg, jpg, md, pdf, png, ppt, pptx, txt, webp, xls, xlsx, zip)", "is empty", "is larger than <limit>" (see GET /upload-policy), "invalid multipart upload: <reason>", "a submission holds at most 10 files"). Audits submission.update.
          */
         post: operations["uploadSubmissionFile"];
         delete?: never;
@@ -1196,7 +1196,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a file from own submission
-         * @description Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict "not open yet" before opensAt and "closed" from closesAt (database clock). Audits submission.update.
+         * @description Who: enrolled student. The file is removed after the deletion commits. Removing the last file of a submission without text deletes the submission (its gradebook score stays). 409 conflict "not open yet" before opensAt and "closed" from lateUntil, or from closesAt when the assignment has no late window (database clock). A write from closesAt on, while the late window is open, succeeds and sets late (never cleared). Audits submission.update.
          */
         delete: operations["deleteSubmissionFile"];
         options?: never;
@@ -2760,6 +2760,18 @@ export interface components {
              * @example 2026-10-21T03:30:00Z
              */
             gradedAt?: string;
+            /** @description True once any write by the student happened at or after closesAt (inside the late window); never cleared. */
+            late: boolean;
+            /**
+             * @description The assessment's latePenaltyPercent now; always present.
+             * @example 10
+             */
+            penaltyPercent: number;
+            /**
+             * @description The gradebook score after the late penalty, read from the scores row; omitted until graded or when a gradebook edit deleted the cell; for a student also omitted until published. Equals score when not late or the penalty is 0.
+             * @example 78.75
+             */
+            finalScore?: number;
         };
         SubmissionRow: {
             /**
@@ -2792,6 +2804,13 @@ export interface components {
              * @example 2026-10-21T03:30:00Z
              */
             gradedAt?: string;
+            /** @description True once the student wrote at or after closesAt. */
+            late: boolean;
+            /**
+             * @description The gradebook score after the late penalty; omitted until graded.
+             * @example 78.75
+             */
+            finalScore?: number;
         };
         SubmissionList: {
             /** @description Submissions of students still enrolled, ordered by display name (email when blank), then email. */
