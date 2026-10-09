@@ -114,7 +114,7 @@ func TestGradeAudit(t *testing.T) {
 		return tx.QueryRow(`select before::text, after::text, actor_user_id::text from audit_log where action = 'submission.grade' and entity_id = $1 order by created_at desc, id desc limit 1`, a).Scan(&before, &after, &actor)
 	})
 	norm := func(s string) string { return strings.ReplaceAll(s, " ", "") }
-	if n != 2 || norm(before) != `{"score":50.00,"userId":"`+stud+`"}` || norm(after) != `{"score":60.50,"userId":"`+stud+`"}` || actor != e.UserID["inst@a.edu"] {
+	if n != 2 || norm(before) != `{"score":50.00,"userId":"`+stud+`"}` || norm(after) != `{"score":60.50,"userId":"`+stud+`","finalScore":60.50}` || actor != e.UserID["inst@a.edu"] {
 		t.Fatalf("n %d before %s after %s actor %s", n, before, after, actor)
 	}
 }

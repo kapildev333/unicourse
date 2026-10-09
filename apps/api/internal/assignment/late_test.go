@@ -126,33 +126,39 @@ func TestGradeLate(t *testing.T) {
 		want       string
 		final      float64
 	}{{"20", "15", "12.00", 12}, {"11", "12.50", "11.13", 11.13}, {"0", "15", "15.00", 15}} {
+		t.Run(c.pct, func(t *testing.T) { testGradeLate(t, c.pct, c.score, c.want, c.final) })
+	}
+}
+
+func testGradeLate(t *testing.T, pct, score, want string, final float64) {
+	{
 		e := newEnv(t)
 		a := e.open()
-		e.setLate(a, "1 hour", "2 hours", c.pct)
+		e.setLate(a, "1 hour", "2 hours", pct)
 		stud := e.UserID["stud@a.edu"]
 		e.put(e.Stud, a, "x")
-		e.setLate(a, "-1 hour", "1 hour", c.pct)
+		e.setLate(a, "-1 hour", "1 hour", pct)
 		e.put(e.Stud, a, "y")
 		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 			_, err := tx.Exec(`update assessments set published = true where id = $1`, a)
 			return err
 		})
-		st, raw := e.call(e.Inst, "PATCH", e.subPath(a, "/"+stud), map[string]any{"score": num(c.score)})
+		st, raw := e.call(e.Inst, "PATCH", e.subPath(a, "/"+stud), map[string]any{"score": num(score)})
 		m := jmap(t, raw)
 		var pts, rawScore string
 		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
 			return tx.QueryRow(`select s.points::text, b.score::text from scores s, submissions b where s.assessment_id = $1 and s.user_id = $2 and b.assessment_id = s.assessment_id and b.user_id = s.user_id`, a, stud).Scan(&pts, &rawScore)
 		})
-		if st != 200 || pts != c.want || m["finalScore"] != c.final || m["late"] != true || rawScore != fixed2(c.score) {
-			t.Fatalf("%s%%: %d %s pts %s raw %s", c.pct, st, raw, pts, rawScore)
+		if st != 200 || pts != want || m["finalScore"] != final || m["late"] != true || rawScore != fixed2(score) {
+			t.Fatalf("%s%%: %d %s pts %s raw %s", pct, st, raw, pts, rawScore)
 		}
 		n, _, after := e.audit("submission.grade", a)
-		if n != 1 || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"finalScore":`+c.want) || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"score":`+fixed2(c.score)) {
+		if n != 1 || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"finalScore":`+want) || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"score":`+fixed2(score)) {
 			t.Fatalf("audit %d %s", n, after.String)
 		}
 		// the student sees finalScore only when published
 		_, raw = e.call(e.Stud, "GET", e.subPath(a, "/me"), nil)
-		if m = jmap(t, raw); m["finalScore"] != c.final || m["late"] != true || m["penaltyPercent"] == nil {
+		if m = jmap(t, raw); m["finalScore"] != final || m["late"] != true || m["penaltyPercent"] == nil {
 			t.Fatalf("student published: %s", raw)
 		}
 		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
@@ -166,7 +172,7 @@ func TestGradeLate(t *testing.T) {
 		// the staff list carries late and finalScore
 		_, raw = e.call(e.Inst, "GET", e.subPath(a, ""), nil)
 		row := jmap(t, raw)["items"].([]any)[0].(map[string]any)
-		if row["late"] != true || row["finalScore"] != c.final {
+		if row["late"] != true || row["finalScore"] != final {
 			t.Fatalf("list row: %s", raw)
 		}
 	}

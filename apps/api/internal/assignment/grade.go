@@ -18,6 +18,16 @@ import (
 type gradeAudit struct {
 	UserID string      `json:"userId"`
 	Score  json.Number `json:"score,omitempty"`
+	// FinalScore is the score after the late penalty (after only).
+	FinalScore json.Number `json:"finalScore,omitempty"`
+}
+
+// penalise returns score x (100 - percent) / 100 rounded half up to 2 decimals; score and percent are canonical
+// non-negative decimals. big.Rat.FloatString rounds halves away from zero, which is half up for these values.
+func penalise(score, percent string) string {
+	f := new(big.Rat).Sub(big.NewRat(100, 1), mustRat(percent))
+	f.Quo(f, big.NewRat(100, 1))
+	return f.Mul(f, mustRat(score)).FloatString(2)
 }
 
 // gradeSubmission sets score and feedback (D141) and upserts the scores row; allowed any time after a
@@ -80,7 +90,11 @@ func gradeSubmission(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, erro
 		before.id, score, feedback, s.UserID); err != nil {
 		return 0, nil, err
 	}
-	if err := grade.UpsertScore(ctx, tx, s.UniversityID, w.ID, userID, score, s.UserID); err != nil {
+	points := score
+	if before.Late {
+		points = penalise(score, w.Penalty)
+	}
+	if err := grade.UpsertScore(ctx, tx, s.UniversityID, w.ID, userID, points, s.UserID); err != nil {
 		return 0, nil, err
 	}
 	after, err := loadSubmission(ctx, tx, w.ID, userID, "")
@@ -88,7 +102,7 @@ func gradeSubmission(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, erro
 		return 0, nil, err
 	}
 	if err := audit.Write(ctx, tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "submission.grade", EntityType: "assessment", EntityID: w.ID,
-		Before: gradeAudit{userID, before.Score}, After: gradeAudit{userID, after.Score}}); err != nil {
+		Before: gradeAudit{UserID: userID, Score: before.Score}, After: gradeAudit{userID, after.Score, after.FinalScore}}); err != nil {
 		return 0, nil, err
 	}
 	return http.StatusOK, after, nil

@@ -33,11 +33,14 @@ type Submission struct {
 	Score       json.Number `json:"score,omitempty"`
 	Feedback    *string     `json:"feedback,omitempty"`
 	GradedAt    *time.Time  `json:"gradedAt,omitempty"`
+	Late        bool        `json:"late"`
+	Penalty     json.Number `json:"penaltyPercent"`
+	FinalScore  json.Number `json:"finalScore,omitempty"` // the scores row, after the late penalty
 	id          string
 }
 
 // hideGrade is the student projection of an unpublished assignment.
-func (s *Submission) hideGrade() { s.Score, s.Feedback, s.GradedAt = "", nil, nil }
+func (s *Submission) hideGrade() { s.Score, s.Feedback, s.GradedAt, s.FinalScore = "", nil, nil, "" }
 
 type SubmissionRow struct {
 	UserID      string      `json:"userId"`
@@ -47,7 +50,13 @@ type SubmissionRow struct {
 	FileCount   int         `json:"fileCount"`
 	Score       json.Number `json:"score,omitempty"`
 	GradedAt    *time.Time  `json:"gradedAt,omitempty"`
+	Late        bool        `json:"late"`
+	FinalScore  json.Number `json:"finalScore,omitempty"`
 }
+
+// finalSQL reads the scores cell of a graded submission s (empty when ungraded or the cell was deleted).
+const finalSQL = `case when s.score is not null then coalesce((select sc.points::text from scores sc
+	where sc.assessment_id = s.assessment_id and sc.user_id = s.user_id), '') else '' end`
 
 const (
 	maxBody  = 20000
@@ -60,9 +69,10 @@ func loadSubmission(ctx context.Context, tx *sql.Tx, assessmentID, userID, lock 
 	var s Submission
 	var fb string
 	var graded sql.NullTime
-	err := tx.QueryRowContext(ctx, `select id, user_id, body, submitted_at, coalesce(score::text, ''), feedback, graded_at
-		from submissions where assessment_id = $1 and user_id = $2 `+lock, assessmentID, userID).
-		Scan(&s.id, &s.UserID, &s.Body, &s.SubmittedAt, &s.Score, &fb, &graded)
+	err := tx.QueryRowContext(ctx, `select s.id, s.user_id, s.body, s.submitted_at, coalesce(s.score::text, ''), s.feedback, s.graded_at,
+		s.late, a.late_penalty_percent::text, `+finalSQL+`
+		from submissions s join assessments a on a.id = s.assessment_id where s.assessment_id = $1 and s.user_id = $2 `+lock, assessmentID, userID).
+		Scan(&s.id, &s.UserID, &s.Body, &s.SubmittedAt, &s.Score, &fb, &graded, &s.Late, &s.Penalty, &s.FinalScore)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s, httpx.NotFound("submission")
 	}
@@ -136,7 +146,7 @@ func listSubmissions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, erro
 		return 0, nil, err
 	}
 	rows, err := tx.QueryContext(r.Context(), `select s.user_id, u.email, u.display_name, s.submitted_at,
-		(select count(*) from submission_files f where f.submission_id = s.id)::int, coalesce(s.score::text, ''), s.graded_at
+		(select count(*) from submission_files f where f.submission_id = s.id)::int, coalesce(s.score::text, ''), s.graded_at, s.late, `+finalSQL+`
 		from submissions s join enrollments e on e.section_id = $2 and e.user_id = s.user_id join users u on u.id = s.user_id
 		where s.assessment_id = $1 order by coalesce(nullif(u.display_name, ''), u.email), u.email`, w.ID, secID)
 	if err != nil {
@@ -147,7 +157,7 @@ func listSubmissions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, erro
 	for rows.Next() {
 		var x SubmissionRow
 		var graded sql.NullTime
-		if err := rows.Scan(&x.UserID, &x.Email, &x.DisplayName, &x.SubmittedAt, &x.FileCount, &x.Score, &graded); err != nil {
+		if err := rows.Scan(&x.UserID, &x.Email, &x.DisplayName, &x.SubmittedAt, &x.FileCount, &x.Score, &graded, &x.Late, &x.FinalScore); err != nil {
 			return 0, nil, err
 		}
 		x.SubmittedAt = x.SubmittedAt.UTC()
@@ -217,9 +227,9 @@ func putSubmission(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error)
 		return 0, nil, bad("must be at most 20000 characters")
 	}
 	// upsert first: it locks the row, so the file count below cannot race a file delete; the 400 rolls it back
-	if _, err := tx.ExecContext(ctx, `insert into submissions (university_id, assessment_id, user_id, body) values ($1, $2, $3, $4)
-		on conflict (university_id, assessment_id, user_id) do update set body = excluded.body, submitted_at = now()`,
-		s.UniversityID, w.ID, s.UserID, body); err != nil {
+	if _, err := tx.ExecContext(ctx, `insert into submissions (university_id, assessment_id, user_id, body, late) values ($1, $2, $3, $4, $5)
+		on conflict (university_id, assessment_id, user_id) do update set body = excluded.body, submitted_at = now(), late = submissions.late or excluded.late`,
+		s.UniversityID, w.ID, s.UserID, body, w.Late); err != nil {
 		return 0, nil, err
 	}
 	files, err := fileCount(r, tx, w.ID, s.UserID)
