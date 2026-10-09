@@ -39,14 +39,14 @@ const err = (status: number, code: string, details: unknown[] = []) => ({ status
 const items = [q1, q2]
 
 let router: ReturnType<typeof renderSection>['router']
-function setup(routes: Routes, o: { questions?: Question[]; attempts?: number; student?: boolean } = {}) {
+function setup(routes: Routes, o: { questions?: Question[]; attempts?: number; submitted?: number; student?: boolean } = {}) {
   const fn = mockApi({
     [`GET ${S}`]: () => ({ body: sectionFixture() }),
     'GET /universities/a/me/sections': () => ({ body: mine(o.student ? 'student' : undefined) }),
     [`GET ${S}/assessments`]: () => ({ body: { items: [quiz] } }),
     [`GET ${S}/assessments/q1/questions`]: () => ({ body: { items: o.questions ?? items } }),
     [`GET ${S}/assessments/q1/attempts`]: () => ({
-      body: { items: Array.from({ length: o.attempts ?? 0 }, (_, i) => ({ userId: `u${i}`, email: 'a@a.edu', displayName: 'Dana Reyes', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false })) },
+      body: { items: Array.from({ length: o.attempts ?? 0 }, (_, i) => ({ userId: `u${i}`, email: 'a@a.edu', displayName: 'Dana Reyes', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false, ...(i < (o.submitted ?? 0) && { submittedAt: '2026-10-12T13:30:00Z' }) })) },
     }),
     ...routes,
   })
@@ -150,28 +150,94 @@ it('mapItemErrors collapses sub-paths and keeps the rest', () => {
 
 it('toDrafts and toBody round-trip', () => {
   const body = toBody(toDrafts(items))
-  expect(body.items[0]).toEqual({ kind: 'choice', prompt: q1.prompt, points: 2, choices: q1.choices.map((c) => ({ text: c.text, correct: !!c.correct })) })
-  expect(body.items[1]).toEqual({ kind: 'blank', prompt: q2.prompt, points: 1, answers: ['Paris', 'paris france'] })
+  expect(body.items[0]).toEqual({ id: 'k1', kind: 'choice', prompt: q1.prompt, points: 2, choices: q1.choices.map((c) => ({ text: c.text, correct: !!c.correct })) })
+  expect(body.items[1]).toEqual({ id: 'k2', kind: 'blank', prompt: q2.prompt, points: 1, answers: ['Paris', 'paris france'] })
 })
 
-it('a 409 switches to the locked view and drops the form', async () => {
-  setup({ [PUT]: () => err(409, 'conflict') })
+const NOTE = 'Students have started: you can fix prompts, points and answer keys; every submitted attempt is regraded when you save.'
+const echo = (r: Request) => r.json().then((b: { items: object[] }) => ({ body: { items: b.items.map((it, i) => ({ position: i, multiple: false, choices: [], ...it })) } }))
+
+it('with attempts: note shown, structure disabled, inputs enabled, ids sent, confirm names the count, status names the regrade', async () => {
+  const fn = setup({ [PUT]: echo }, { attempts: 3, submitted: 2 })
+  expect(await screen.findByText(NOTE)).toBeInTheDocument()
+  expect(cards()).toHaveLength(2)
+  for (const name of ['Add multiple choice', 'Add fill in the blank', 'Move question 1 down', 'Move question 2 up', 'Remove question 1', 'Remove choice 1', 'Remove choice 2']) {
+    const b = screen.getAllByRole('button', { name })[0]
+    expect(b).toBeDisabled()
+    expect(b).toHaveAttribute('title', NOTE)
+  }
+  expect(screen.getByRole('button', { name: 'Add choice' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Save questions' })).toBeNull()
+  const save = screen.getByRole('button', { name: 'Save and regrade' })
+  expect(save).toBeDisabled()
+  fireEvent.change(within(cards()[0]).getByLabelText('Points'), { target: { value: '3' } })
+  fireEvent.change(screen.getAllByLabelText('Choice 2')[0], { target: { value: 'Net' } })
+  fireEvent.click(screen.getByLabelText('Correct (choice 1)'))
+  fireEvent.click(save)
+  const dialog = await screen.findByRole('dialog', { name: 'Save and regrade?' })
+  expect(dialog).toHaveTextContent('2 submitted attempts will be regraded with these answer keys and points. Points changed in a review are kept.')
+  expect(put(fn)).toHaveLength(0)
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save and regrade' }))
+  expect(await screen.findByText('Saved. 2 attempts regraded.')).toBeInTheDocument()
+  const sent = (await body(fn)) as { items: { id: string; points: number }[] }
+  expect(sent.items.map((i) => i.id)).toEqual(['k1', 'k2'])
+  expect(sent.items[0].points).toBe(3)
+})
+
+it('the confirm dialog with no submitted attempt says nothing is regraded; one attempt is singular', async () => {
+  setup({ [PUT]: echo }, { attempts: 1 })
+  await screen.findByText(NOTE)
+  fireEvent.change(screen.getAllByLabelText('Choice 2')[0], { target: { value: 'Net' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save and regrade' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save and regrade?' })
+  expect(dialog).toHaveTextContent('No attempt is submitted yet, so nothing is regraded. Attempts in progress are graded with these keys when they are submitted.')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save and regrade' }))
+  expect(await screen.findByText('Saved. 0 attempts regraded.')).toBeInTheDocument()
+})
+
+it('Cancel in the confirm dialog sends nothing', async () => {
+  const fn = setup({ [PUT]: echo }, { attempts: 1, submitted: 1 })
+  await screen.findByText(NOTE)
+  fireEvent.change(screen.getAllByLabelText('Choice 2')[0], { target: { value: 'Net' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save and regrade' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save and regrade?' })
+  expect(dialog).toHaveTextContent('1 submitted attempt will be regraded')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Save and regrade?' })).toBeNull())
+  expect(put(fn)).toHaveLength(0)
+})
+
+it('a 409 while editing shows the note in a banner, reloads the questions and locks the structure', async () => {
+  let started = false
+  const fn = setup({
+    [PUT]: () => {
+      started = true
+      return err(409, 'conflict')
+    },
+    [`GET ${S}/assessments/q1/questions`]: () => ({ body: { items: started ? [{ ...q1, prompt: 'Server prompt' }, q2] : items } }),
+    [`GET ${S}/assessments/q1/attempts`]: () => ({
+      body: { items: started ? [{ userId: 'u0', email: 'a@a.edu', displayName: 'Dana Reyes', startedAt: '2026-10-12T13:05:00Z', autoSubmitted: false }] : [] },
+    }),
+  })
   await screen.findByText('Question 2')
   fireEvent.change(screen.getByLabelText('Choice 1'), { target: { value: 'Link' } })
   save()
-  expect(await screen.findByText(/Questions are locked because a student has started this quiz/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Save questions' })).toBeNull()
-  expect(screen.queryByLabelText('Prompt')).toBeNull()
+  const banner = await screen.findByRole('alert')
+  expect(banner).toHaveTextContent('Questions not saved')
+  expect(banner).toHaveTextContent(NOTE)
+  expect(await screen.findByDisplayValue('Server prompt')).toBeInTheDocument()
+  expect(screen.queryByDisplayValue('Link')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Add multiple choice' })).toBeDisabled()
+  expect(put(fn)).toHaveLength(1)
 })
 
-it('is locked on load when attempts exist: read-only cards with answers', async () => {
-  setup({}, { attempts: 1 })
-  expect(await screen.findByText(/Questions are locked because a student has started this quiz/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Save questions' })).toBeNull()
-  expect(screen.queryByRole('button', { name: /^Add/ })).toBeNull()
-  expect(screen.getByText('Accepted answers: Paris, paris france')).toBeInTheDocument()
-  expect(within(cards()[0]).getByText('Correct')).toBeInTheDocument()
-  expect(screen.getByText('2 points')).toBeInTheDocument()
+it('a 400 on items[i].id goes to the banner', async () => {
+  setup({ [PUT]: () => err(400, 'validation_failed', [{ field: 'items[1].id', message: 'is required once a student has started' }]) }, { attempts: 1 })
+  await screen.findByText(NOTE)
+  fireEvent.change(screen.getAllByLabelText('Choice 2')[0], { target: { value: 'Net' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save and regrade' }))
+  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Save and regrade?' })).getByRole('button', { name: 'Save and regrade' }))
+  expect(await screen.findByText('Is required once a student has started.')).toBeInTheDocument()
 })
 
 it('reports a quiz that is not in the list', async () => {

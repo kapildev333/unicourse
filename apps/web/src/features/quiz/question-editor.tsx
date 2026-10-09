@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
 import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
+import { Dialog, DialogFooter } from '../../components/dialog'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage, useFocusFirstError } from '../../components/form-errors'
@@ -13,7 +14,7 @@ import { Loading } from '../../components/loading'
 import { StatusMessage } from '../../components/status-message'
 import { UnsavedChangesGuard } from '../../components/unsaved-changes'
 import { fmtNum, parseDecimal, sentence } from '../grades/grade'
-import { PlainText, countHint } from '../section/plain-text'
+import { countHint } from '../section/plain-text'
 import { SectionFrame } from '../section/section-frame'
 import {
   attemptsKey,
@@ -29,7 +30,7 @@ import {
 } from './queries'
 
 export type ChoiceDraft = { key: string; text: string; correct: boolean }
-export type Draft = { key: string; kind: 'choice' | 'blank'; prompt: string; points: string; choices: ChoiceDraft[]; answers: string }
+export type Draft = { id?: string; key: string; kind: 'choice' | 'blank'; prompt: string; points: string; choices: ChoiceDraft[]; answers: string }
 export type ItemErrors = Partial<Record<'prompt' | 'points' | 'choices' | 'answers', string>>
 
 const newKey = () => crypto.randomUUID()
@@ -39,12 +40,13 @@ const msg = {
   choices: 'Give 2 to 10 choices, each with text of at most 500 characters, and check at least one as correct.',
   answers: 'Give 1 to 20 accepted answers, one per line, each at most 200 characters.',
   count: 'A quiz can have at most 100 questions.',
-  locked: "Questions are locked because a student has started this quiz. Changing questions after that isn't supported yet.",
+  regrade: 'Students have started: you can fix prompts, points and answer keys; every submitted attempt is regraded when you save.',
 }
 const MAX_QUESTIONS = 100
 
 export function toDrafts(items: Question[]): Draft[] {
   return items.map((q) => ({
+    id: q.id,
     key: newKey(),
     kind: q.kind,
     prompt: q.prompt,
@@ -59,6 +61,7 @@ const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
 export function toBody(drafts: Draft[]): QuestionsPut {
   return {
     items: drafts.map((d) => ({
+      ...(d.id && { id: d.id }),
       kind: d.kind,
       prompt: d.prompt.trim(),
       points: Number(d.points.trim()),
@@ -170,6 +173,8 @@ function Questions({ slug, sectionId, assessmentId }: { slug: string; sectionId:
         quiz={quiz}
         serverItems={qs.data!.items}
         started={(attempts.data?.items.length ?? 0) > 0}
+        submitted={(attempts.data?.items ?? []).filter((a) => a.submittedAt).length}
+        reload={async () => (await qs.refetch()).data?.items}
       />
     )
   }
@@ -181,36 +186,58 @@ function Questions({ slug, sectionId, assessmentId }: { slug: string; sectionId:
   )
 }
 
-function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serverItems: Question[]; started: boolean }) {
-  const { slug, sectionId, quiz, serverItems, started } = props
+function Editor(props: {
+  slug: string
+  sectionId: string
+  quiz: Assessment
+  serverItems: Question[]
+  started: boolean
+  submitted: number
+  reload: () => Promise<Question[] | undefined>
+}) {
+  const { slug, sectionId, quiz, serverItems, started, submitted, reload } = props
   const qc = useQueryClient()
   const refresh = useAssessmentRefresh(slug, sectionId)
   const [initial, setInitial] = useState(() => toDrafts(serverItems))
   const [drafts, setDrafts] = useState(initial)
   const [local, setLocal] = useState<Record<number, ItemErrors>>({})
-  const [locked, setLocked] = useState(false)
+  const [structLocked, setStructLocked] = useState(false)
+  const [confirm, setConfirm] = useState(false)
   const [notice, setNotice] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
   const bannerRef = useRef<HTMLDivElement>(null)
   const focusNext = useRef('')
-  const isLocked = started || locked
+  const regrade = started || structLocked
 
   const m = useMutation({
-    mutationFn: () => putQuestions(slug, sectionId, quiz.id, toBody(drafts)),
-    onSuccess: async (saved) => {
-      await refresh(questionsKey(slug, sectionId, quiz.id))
+    // the argument is the number of submitted attempts being regraded (the status line names it)
+    mutationFn: (_regraded: number) => putQuestions(slug, sectionId, quiz.id, toBody(drafts)),
+    onSuccess: async (saved, regraded) => {
+      setConfirm(false)
+      await refresh(questionsKey(slug, sectionId, quiz.id), attemptsKey(slug, sectionId, quiz.id))
       const next = toDrafts(saved.items)
       setInitial(next)
       setDrafts(next)
       setLocal({})
-      setNotice(`Questions saved: ${totalLine(saved.items.length, sum(saved.items.map((q) => q.points)))}.`)
+      setNotice(
+        regrade
+          ? `Saved. ${plural(regraded, 'attempt', 'attempts')} regraded.`
+          : `Questions saved: ${totalLine(saved.items.length, sum(saved.items.map((q) => q.points)))}.`,
+      )
     },
-    onError: (e) => {
+    onError: async (e) => {
+      setConfirm(false)
       setNotice('')
       if (e instanceof ApiError && e.status === 409) {
-        setLocked(true)
-        void qc.invalidateQueries({ queryKey: questionsKey(slug, sectionId, quiz.id) })
+        // a student started, or the structure changed, while this form was open: show the server's questions
+        setStructLocked(true)
         void qc.invalidateQueries({ queryKey: attemptsKey(slug, sectionId, quiz.id) })
+        const fresh = await reload()
+        if (fresh) {
+          const next = toDrafts(fresh)
+          setInitial(next)
+          setDrafts(next)
+        }
       }
     },
   })
@@ -278,45 +305,43 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
     const v = validate(drafts)
     setLocal(v)
     if (Object.keys(v).length > 0) return
-    m.mutate()
-  }
-
-  if (isLocked) {
-    return (
-      <>
-        <Header quiz={quiz} total={totalLine(serverItems.length, sum(serverItems.map((q) => q.points)))} />
-        <p className="mb-4 flex items-start gap-2 rounded border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
-          <Lock className="mt-0.5 shrink-0" aria-hidden="true" />
-          {msg.locked}
-        </p>
-        <ol className="flex flex-col gap-4">
-          {serverItems.map((q, i) => (
-            <ReadOnlyCard key={q.id} q={q} n={i + 1} />
-          ))}
-        </ol>
-      </>
-    )
+    if (regrade) setConfirm(true)
+    else m.mutate(0)
   }
 
   const addButtons = (
     <div className="flex flex-wrap gap-2">
-      <Button id="add-choice-question" variant="secondary" disabled={atMax} title={atMax ? msg.count : undefined} onClick={() => add('choice')}>
+      <Button id="add-choice-question" variant="secondary" disabled={atMax || regrade} title={regrade ? msg.regrade : atMax ? msg.count : undefined} onClick={() => add('choice')}>
         <Plus aria-hidden="true" />
         Add multiple choice
       </Button>
-      <Button variant="secondary" disabled={atMax} title={atMax ? msg.count : undefined} onClick={() => add('blank')}>
+      <Button variant="secondary" disabled={atMax || regrade} title={regrade ? msg.regrade : atMax ? msg.count : undefined} onClick={() => add('blank')}>
         <Plus aria-hidden="true" />
         Add fill in the blank
       </Button>
     </div>
   )
-  const unmapped = m.error && (!(m.error instanceof ApiError) || m.error.status !== 400 || mapped.rest.length > 0 || Object.keys(mapped.errors).length === 0) && !(m.error instanceof ApiError && m.error.status === 409)
+  const conflict = m.error instanceof ApiError && m.error.status === 409
+  const unmapped = m.error && (!(m.error instanceof ApiError) || m.error.status !== 400 || mapped.rest.length > 0 || Object.keys(mapped.errors).length === 0) && !conflict
 
   return (
     <>
       <UnsavedChangesGuard when={dirty} />
       <Header quiz={quiz} total={totalLine(drafts.length, sum(valid))} />
-      {m.error instanceof ApiError && m.error.status === 409 ? null : unmapped && (
+      {regrade && (
+        <p className="mb-4 flex items-start gap-2 rounded border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
+          <Lock className="mt-0.5 shrink-0" aria-hidden="true" />
+          {msg.regrade}
+        </p>
+      )}
+      {conflict && (
+        <div className="mb-4">
+          <ErrorBanner ref={bannerRef} title="Questions not saved">
+            {msg.regrade}
+          </ErrorBanner>
+        </div>
+      )}
+      {unmapped && (
         <div className="mb-4">
           <ErrorBanner ref={bannerRef}>
             {errorMessage(m.error)}
@@ -349,6 +374,7 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
                         d={d}
                         i={i}
                         last={i === drafts.length - 1}
+                        regrade={regrade}
                         errors={errs[i] ?? {}}
                         update={(patch) => update(i, patch)}
                         move={(dir) => move(i, dir)}
@@ -367,10 +393,29 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
             <StatusMessage message={notice} />
           </div>
           <Button type="submit" disabled={!dirty || m.isPending}>
-            {m.isPending ? 'Saving…' : 'Save questions'}
+            {m.isPending ? 'Saving…' : regrade ? 'Save and regrade' : 'Save questions'}
           </Button>
         </div>
       </form>
+      <Dialog
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        title="Save and regrade?"
+        description={
+          submitted > 0
+            ? `${plural(submitted, 'submitted attempt', 'submitted attempts')} will be regraded with these answer keys and points. Points changed in a review are kept.`
+            : 'No attempt is submitted yet, so nothing is regraded. Attempts in progress are graded with these keys when they are submitted.'
+        }
+      >
+        <DialogFooter>
+          <Button variant="secondary" disabled={m.isPending} onClick={() => setConfirm(false)}>
+            Cancel
+          </Button>
+          <Button disabled={m.isPending} onClick={() => m.mutate(submitted)}>
+            {m.isPending ? 'Saving…' : 'Save and regrade'}
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </>
   )
 }
@@ -390,12 +435,13 @@ function QuestionCard(props: {
   d: Draft
   i: number
   last: boolean
+  regrade: boolean
   errors: ItemErrors
   update: (patch: Partial<Draft>) => void
   move: (dir: 'up' | 'down') => void
   remove: () => void
 }) {
-  const { d, i, last, errors, update, move, remove } = props
+  const { d, i, last, regrade, errors, update, move, remove } = props
   const n = i + 1
   const setChoice = (j: number, patch: Partial<ChoiceDraft>) =>
     update({ choices: d.choices.map((c, k) => (k === j ? { ...c, ...patch } : c)) })
@@ -410,13 +456,13 @@ function QuestionCard(props: {
           <Badge tone="neutral">{kindLabel[d.kind]}</Badge>
         </div>
         <div className="flex items-center gap-1">
-          <Button id={`move-up-${d.key}`} variant="ghost-neutral" size="sm" disabled={i === 0} aria-label={`Move question ${n} up`} title={`Move question ${n} up`} onClick={() => move('up')}>
+          <Button id={`move-up-${d.key}`} variant="ghost-neutral" size="sm" disabled={i === 0 || regrade} aria-label={`Move question ${n} up`} title={regrade ? msg.regrade : `Move question ${n} up`} onClick={() => move('up')}>
             <ArrowUp aria-hidden="true" />
           </Button>
-          <Button id={`move-down-${d.key}`} variant="ghost-neutral" size="sm" disabled={last} aria-label={`Move question ${n} down`} title={`Move question ${n} down`} onClick={() => move('down')}>
+          <Button id={`move-down-${d.key}`} variant="ghost-neutral" size="sm" disabled={last || regrade} aria-label={`Move question ${n} down`} title={regrade ? msg.regrade : `Move question ${n} down`} onClick={() => move('down')}>
             <ArrowDown aria-hidden="true" />
           </Button>
-          <Button variant="ghost-danger" size="sm" aria-label={`Remove question ${n}`} onClick={remove}>
+          <Button variant="ghost-danger" size="sm" disabled={regrade} title={regrade ? msg.regrade : undefined} aria-label={`Remove question ${n}`} onClick={remove}>
             Remove
           </Button>
         </div>
@@ -460,9 +506,9 @@ function QuestionCard(props: {
                 <Button
                   variant="ghost-danger"
                   size="sm"
-                  disabled={d.choices.length <= 2}
+                  disabled={d.choices.length <= 2 || regrade}
                   aria-label={`Remove choice ${j + 1}`}
-                  title={`Remove choice ${j + 1}`}
+                  title={regrade ? msg.regrade : `Remove choice ${j + 1}`}
                   onClick={() => update({ choices: d.choices.filter((_, k) => k !== j) })}
                 >
                   <X aria-hidden="true" />
@@ -471,7 +517,7 @@ function QuestionCard(props: {
             ))}
             {d.choices.length < 10 && (
               <div>
-                <Button variant="ghost" size="sm" onClick={() => update({ choices: [...d.choices, { key: newKey(), text: '', correct: false }] })}>
+                <Button variant="ghost" size="sm" disabled={regrade} title={regrade ? msg.regrade : undefined} onClick={() => update({ choices: [...d.choices, { key: newKey(), text: '', correct: false }] })}>
                   <Plus aria-hidden="true" />
                   Add choice
                 </Button>
@@ -496,34 +542,5 @@ function QuestionCard(props: {
         )}
       </div>
     </>
-  )
-}
-
-function ReadOnlyCard({ q, n }: { q: Question; n: number }) {
-  return (
-    <li>
-      <article aria-labelledby={`ro-${q.id}`} className="rounded border border-line bg-surface p-4 sm:p-6">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h3 id={`ro-${q.id}`} className="text-base font-bold">
-            Question {n}
-          </h3>
-          <Badge tone="neutral">{kindLabel[q.kind]}</Badge>
-          <span className="text-sm text-ink-muted">{plural(q.points, 'point', 'points')}</span>
-        </div>
-        <PlainText text={q.prompt} className="max-w-prose text-base text-ink" />
-        {q.kind === 'choice' ? (
-          <ul className="mt-3 flex flex-col gap-1 text-sm">
-            {q.choices.map((c, j) => (
-              <li key={j} className="flex flex-wrap items-center gap-2">
-                <span>{c.text}</span>
-                {c.correct && <Badge tone="neutral">Correct</Badge>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-ink-muted">Accepted answers: {(q.answers ?? []).join(', ')}</p>
-        )}
-      </article>
-    </li>
   )
 }
