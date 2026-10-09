@@ -188,3 +188,8 @@ it('shows the 403 copy', async () => {
   setup({ [`GET ${S}/assessments`]: () => err(403, 'forbidden') }, { staff: false })
   expect(await screen.findByText("Only this section's staff and enrolled students can open its quizzes.")).toBeInTheDocument()
 })
+
+it('names the time limit in the window line', async () => {
+  setup({ ...list(quiz('q1', 'Week 3 check', { timeLimitMinutes: 10 })) })
+  expect(await screen.findByText(/^Opens .* · Closes .*, 10 min each$/)).toBeInTheDocument()
+})

@@ -131,3 +131,14 @@ it('shows the 403 copy', async () => {
   setup({ [`GET ${S}/assessments`]: () => err(403, 'forbidden') }, { staff: false })
   expect(await screen.findByText("Only this section's staff and enrolled students can open its assignments.")).toBeInTheDocument()
 })
+
+it('shows the late window in the line and a warning Past due badge', async () => {
+  setup(
+    { ...list(asg('a1', 'Essay 1', { closesAt: '2020-02-01T09:00:00Z', lateUntil: '2099-01-01T09:00:00Z', latePenaltyPercent: 20 })), ...subMe('a1', null) },
+    { staff: false },
+  )
+  const art = await screen.findByRole('article')
+  expect(within(art).getByText(/ · Due .*, late until /)).toBeInTheDocument()
+  expect(within(art).getByText('Past due')).toBeInTheDocument()
+  expect(within(art).getByRole('link', { name: 'View Essay 1' })).toBeInTheDocument()
+})
