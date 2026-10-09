@@ -1,9 +1,13 @@
 package assignment
 
 import (
+	"context"
 	"database/sql"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 )
 
 // setLate moves the window by SQL: closes at closes, late until lateUntil ("" = none), penalty percent pct.
@@ -131,50 +135,48 @@ func TestGradeLate(t *testing.T) {
 }
 
 func testGradeLate(t *testing.T, pct, score, want string, final float64) {
-	{
-		e := newEnv(t)
-		a := e.open()
-		e.setLate(a, "1 hour", "2 hours", pct)
-		stud := e.UserID["stud@a.edu"]
-		e.put(e.Stud, a, "x")
-		e.setLate(a, "-1 hour", "1 hour", pct)
-		e.put(e.Stud, a, "y")
-		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-			_, err := tx.Exec(`update assessments set published = true where id = $1`, a)
-			return err
-		})
-		st, raw := e.call(e.Inst, "PATCH", e.subPath(a, "/"+stud), map[string]any{"score": num(score)})
-		m := jmap(t, raw)
-		var pts, rawScore string
-		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-			return tx.QueryRow(`select s.points::text, b.score::text from scores s, submissions b where s.assessment_id = $1 and s.user_id = $2 and b.assessment_id = s.assessment_id and b.user_id = s.user_id`, a, stud).Scan(&pts, &rawScore)
-		})
-		if st != 200 || pts != want || m["finalScore"] != final || m["late"] != true || rawScore != fixed2(score) {
-			t.Fatalf("%s%%: %d %s pts %s raw %s", pct, st, raw, pts, rawScore)
-		}
-		n, _, after := e.audit("submission.grade", a)
-		if n != 1 || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"finalScore":`+want) || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"score":`+fixed2(score)) {
-			t.Fatalf("audit %d %s", n, after.String)
-		}
-		// the student sees finalScore only when published
-		_, raw = e.call(e.Stud, "GET", e.subPath(a, "/me"), nil)
-		if m = jmap(t, raw); m["finalScore"] != final || m["late"] != true || m["penaltyPercent"] == nil {
-			t.Fatalf("student published: %s", raw)
-		}
-		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-			_, err := tx.Exec(`update assessments set published = false where id = $1`, a)
-			return err
-		})
-		_, raw = e.call(e.Stud, "GET", e.subPath(a, "/me"), nil)
-		if m = jmap(t, raw); m["finalScore"] != nil || m["score"] != nil || m["late"] != true || m["penaltyPercent"] == nil {
-			t.Fatalf("student unpublished: %s", raw)
-		}
-		// the staff list carries late and finalScore
-		_, raw = e.call(e.Inst, "GET", e.subPath(a, ""), nil)
-		row := jmap(t, raw)["items"].([]any)[0].(map[string]any)
-		if row["late"] != true || row["finalScore"] != final {
-			t.Fatalf("list row: %s", raw)
-		}
+	e := newEnv(t)
+	a := e.open()
+	e.setLate(a, "1 hour", "2 hours", pct)
+	stud := e.UserID["stud@a.edu"]
+	e.put(e.Stud, a, "x")
+	e.setLate(a, "-1 hour", "1 hour", pct)
+	e.put(e.Stud, a, "y")
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set published = true where id = $1`, a)
+		return err
+	})
+	st, raw := e.call(e.Inst, "PATCH", e.subPath(a, "/"+stud), map[string]any{"score": num(score)})
+	m := jmap(t, raw)
+	var pts, rawScore string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return tx.QueryRow(`select s.points::text, b.score::text from scores s, submissions b where s.assessment_id = $1 and s.user_id = $2 and b.assessment_id = s.assessment_id and b.user_id = s.user_id`, a, stud).Scan(&pts, &rawScore)
+	})
+	if st != 200 || pts != want || m["finalScore"] != final || m["late"] != true || rawScore != fixed2(score) {
+		t.Fatalf("%s%%: %d %s pts %s raw %s", pct, st, raw, pts, rawScore)
+	}
+	n, _, after := e.audit("submission.grade", a)
+	if n != 1 || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"finalScore":`+want) || !strings.Contains(strings.ReplaceAll(after.String, " ", ""), `"score":`+fixed2(score)) {
+		t.Fatalf("audit %d %s", n, after.String)
+	}
+	// the student sees finalScore only when published
+	_, raw = e.call(e.Stud, "GET", e.subPath(a, "/me"), nil)
+	if m = jmap(t, raw); m["finalScore"] != final || m["late"] != true || m["penaltyPercent"] == nil {
+		t.Fatalf("student published: %s", raw)
+	}
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`update assessments set published = false where id = $1`, a)
+		return err
+	})
+	_, raw = e.call(e.Stud, "GET", e.subPath(a, "/me"), nil)
+	if m = jmap(t, raw); m["finalScore"] != nil || m["score"] != nil || m["late"] != true || m["penaltyPercent"] == nil {
+		t.Fatalf("student unpublished: %s", raw)
+	}
+	// the staff list carries late and finalScore
+	_, raw = e.call(e.Inst, "GET", e.subPath(a, ""), nil)
+	row := jmap(t, raw)["items"].([]any)[0].(map[string]any)
+	if row["late"] != true || row["finalScore"] != final {
+		t.Fatalf("list row: %s", raw)
 	}
 }
 
@@ -238,4 +240,34 @@ func fixed2(s string) string {
 		return s + "0"
 	}
 	return s
+}
+
+// TestLoadSubmissionLockNoDeadlock: graders and file deletes hold the assessment row for share and then lock the
+// submission for update; the lock must not extend to the assessment row (SQLSTATE 40P01).
+func TestLoadSubmissionLockNoDeadlock(t *testing.T) {
+	e := newEnv(t)
+	a := e.open()
+	e.put(e.Stud, a, "x")
+	stud := e.UserID["stud@a.edu"]
+	var shared sync.WaitGroup
+	shared.Add(2)
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			errs <- pg.WithTx(context.Background(), e.DB, e.Fx.UniversityA, func(tx *sql.Tx) error {
+				if _, err := tx.Exec(`select 1 from assessments where id = $1 for share`, a); err != nil {
+					return err
+				}
+				shared.Done()
+				shared.Wait() // both hold the share lock before either locks the submission
+				_, err := loadSubmission(context.Background(), tx, a, stud, "for update")
+				return err
+			})
+		}()
+	}
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Error(err)
+		}
+	}
 }

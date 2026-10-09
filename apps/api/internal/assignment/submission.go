@@ -69,6 +69,9 @@ func loadSubmission(ctx context.Context, tx *sql.Tx, assessmentID, userID, lock 
 	var s Submission
 	var fb string
 	var graded sql.NullTime
+	if lock != "" {
+		lock += " of s" // lock the submission only: callers hold the assessment row for share
+	}
 	err := tx.QueryRowContext(ctx, `select s.id, s.user_id, s.body, s.submitted_at, coalesce(s.score::text, ''), s.feedback, s.graded_at,
 		s.late, a.late_penalty_percent::text, `+finalSQL+`
 		from submissions s join assessments a on a.id = s.assessment_id where s.assessment_id = $1 and s.user_id = $2 `+lock, assessmentID, userID).
