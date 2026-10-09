@@ -1233,7 +1233,7 @@ export interface paths {
         };
         /**
          * List quiz questions
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 "not open yet" before opensAt and 409 "closed" after closesAt unless they have submitted an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 "not open yet" before opensAt and 409 "closed" after the attempt's deadline (closesAt, or startedAt plus timeLimitMinutes when earlier) unless they have submitted an attempt, and on a quiz with timeLimitMinutes 409 "not started" until they have started an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.
          */
         get: operations["listQuestions"];
         /**
@@ -2030,6 +2030,22 @@ export interface components {
              * @example 5
              */
             questionCount?: number;
+            /**
+             * @description Quizzes only; absent means no limit. Minutes each student gets from starting an attempt, never past closesAt.
+             * @example 30
+             */
+            timeLimitMinutes?: number;
+            /**
+             * Format: date-time
+             * @description Assignments only; absent means no late window. UTC.
+             * @example 2026-10-14T03:30:00Z
+             */
+            lateUntil?: string;
+            /**
+             * @description Assignments only, always present for them (0 when none). Percent taken off a late submission's grade.
+             * @example 10
+             */
+            latePenaltyPercent?: number;
         };
         AssessmentCreate: {
             /**
@@ -2083,6 +2099,22 @@ export interface components {
              * @example 0
              */
             position?: number;
+            /**
+             * @description Quiz only (1 to 1440, whole minutes); null or omitted means no limit. Errors: "only for quizzes" (field timeLimitMinutes), "must be between 1 and 1440".
+             * @example 30
+             */
+            timeLimitMinutes?: number | null;
+            /**
+             * Format: date-time
+             * @description Assignment only; null or omitted means no late window. RFC 3339, after closesAt. Errors: "only for assignments", "must be an RFC 3339 time", "must be after closesAt" (field lateUntil).
+             * @example 2026-10-14T03:30:00Z
+             */
+            lateUntil?: string | null;
+            /**
+             * @description Assignment only; omitted means 0. At most 2 decimals. Errors: "only for assignments", "must be between 0 and 100" (field latePenaltyPercent).
+             * @example 10
+             */
+            latePenaltyPercent?: number;
         };
         AssessmentUpdate: {
             /** @example Midterm */
@@ -2110,7 +2142,7 @@ export interface components {
             opensAt?: string;
             /**
              * Format: date-time
-             * @description Quizzes and assignments only; after opensAt. Recomputes dueOn.
+             * @description Quizzes and assignments only; after opensAt. Recomputes dueOn. Errors: "must be before lateUntil" (field closesAt) when it is not before the stored or given lateUntil.
              * @example 2026-10-13T03:30:00Z
              */
             closesAt?: string;
@@ -2118,6 +2150,22 @@ export interface components {
             published?: boolean;
             /** @example 1 */
             position?: number;
+            /**
+             * @description Quiz only; null clears the limit. Applies to running attempts at once. Errors: "only for quizzes", "must be between 1 and 1440" (field timeLimitMinutes).
+             * @example 30
+             */
+            timeLimitMinutes?: number | null;
+            /**
+             * Format: date-time
+             * @description Assignment only; null clears the late window. Errors: "only for assignments", "must be an RFC 3339 time", "must be after closesAt" (field lateUntil).
+             * @example 2026-10-14T03:30:00Z
+             */
+            lateUntil?: string | null;
+            /**
+             * @description Assignment only; not null. Errors: "only for assignments", "must be between 0 and 100" (field latePenaltyPercent).
+             * @example 10
+             */
+            latePenaltyPercent?: number;
         };
         AssessmentList: {
             /** @description Ordered by position, then creation. */

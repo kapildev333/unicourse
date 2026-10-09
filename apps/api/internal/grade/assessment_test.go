@@ -376,3 +376,97 @@ func TestAssessmentStudentListKinds(t *testing.T) {
 		t.Errorf("staff misses manual: %s", raw)
 	}
 }
+
+func TestAssessmentTimeLimit(t *testing.T) {
+	e := newEnv(t)
+	st, raw := e.post(e.Inst, win(map[string]any{"timeLimitMinutes": 10}))
+	m := jmap(t, []byte(raw))
+	if st != 201 || m["timeLimitMinutes"] != 10.0 {
+		t.Fatalf("create: %d %s", st, raw)
+	}
+	id := m["id"].(string)
+	for _, v := range []any{0, 1441, 10.5} {
+		if st, raw := e.post(e.Inst, win(map[string]any{"name": "B", "timeLimitMinutes": v})); st != 400 || !strings.Contains(raw, "must be between 1 and 1440") {
+			t.Errorf("limit %v: %d %s", v, st, raw)
+		}
+	}
+	for _, b := range []map[string]any{win(map[string]any{"kind": "assignment", "maxPoints": 5, "timeLimitMinutes": 5}), {"name": "M", "maxPoints": 1, "weight": 1, "timeLimitMinutes": 5}} {
+		if st, raw := e.post(e.Inst, b); st != 400 || !strings.Contains(raw, "only for quizzes") {
+			t.Errorf("kind %v: %d %s", b["kind"], st, raw)
+		}
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"timeLimitMinutes": 30}); st != 200 || !strings.Contains(raw, `"timeLimitMinutes":30`) {
+		t.Fatalf("patch: %d %s", st, raw)
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"timeLimitMinutes": nil}); st != 200 || strings.Contains(raw, "timeLimitMinutes") {
+		t.Fatalf("clear: %d %s", st, raw)
+	}
+}
+
+func TestAssessmentLateWindow(t *testing.T) {
+	e := newEnv(t)
+	asg := func(extra map[string]any) map[string]any {
+		b := win(map[string]any{"kind": "assignment", "maxPoints": 10})
+		for k, v := range extra {
+			b[k] = v
+		}
+		return b
+	}
+	st, raw := e.post(e.Inst, asg(nil))
+	if m := jmap(t, []byte(raw)); st != 201 || m["latePenaltyPercent"] != 0.0 || strings.Contains(raw, "lateUntil") {
+		t.Fatalf("defaults: %d %s", st, raw)
+	}
+	st, raw = e.post(e.Inst, asg(map[string]any{"name": "L", "lateUntil": "2026-10-14T03:30:00Z", "latePenaltyPercent": 20}))
+	m := jmap(t, []byte(raw))
+	if st != 201 || m["lateUntil"] != "2026-10-14T03:30:00Z" || m["latePenaltyPercent"] != 20.0 {
+		t.Fatalf("create: %d %s", st, raw)
+	}
+	id := m["id"].(string)
+	for name, c := range map[string]struct {
+		body map[string]any
+		msg  string
+	}{
+		"equal closes":   {asg(map[string]any{"lateUntil": "2026-10-13T03:30:00Z"}), "must be after closesAt"},
+		"bad time":       {asg(map[string]any{"lateUntil": "x"}), "must be an RFC 3339 time"},
+		"penalty big":    {asg(map[string]any{"latePenaltyPercent": 100.01}), "must be between 0 and 100"},
+		"penalty neg":    {asg(map[string]any{"latePenaltyPercent": -1}), "must be between 0 and 100"},
+		"quiz until":     {win(map[string]any{"lateUntil": "2026-10-14T03:30:00Z"}), "only for assignments"},
+		"quiz penalty":   {win(map[string]any{"latePenaltyPercent": 5}), "only for assignments"},
+		"manual until":   {map[string]any{"name": "M", "maxPoints": 1, "weight": 1, "lateUntil": "2026-10-14T03:30:00Z"}, "only for assignments"},
+		"manual penalty": {map[string]any{"name": "M", "maxPoints": 1, "weight": 1, "latePenaltyPercent": 5}, "only for assignments"},
+	} {
+		if st, raw := e.post(e.Inst, c.body); st != 400 || !strings.Contains(raw, c.msg) {
+			t.Errorf("%s: %d %s", name, st, raw)
+		}
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"lateUntil": nil}); st != 200 || strings.Contains(raw, "lateUntil") {
+		t.Fatalf("clear: %d %s", st, raw)
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"latePenaltyPercent": nil}); st != 400 || !strings.Contains(raw, "must not be null") {
+		t.Fatalf("null penalty: %d %s", st, raw)
+	}
+}
+
+func TestAssessmentCloseAfterLate(t *testing.T) {
+	e := newEnv(t)
+	st, raw := e.post(e.Inst, win(map[string]any{"kind": "assignment", "maxPoints": 10, "lateUntil": "2026-10-14T03:30:00Z"}))
+	id := jmap(t, []byte(raw))["id"].(string)
+	if st != 201 {
+		t.Fatalf("create: %d %s", st, raw)
+	}
+	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-15T00:00:00Z"})
+	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"closesAt"}) || !strings.Contains(raw, "must be before lateUntil") {
+		t.Fatalf("close past late: %d %s", st, raw)
+	}
+	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"lateUntil": "2026-10-13T03:30:00Z"})
+	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"lateUntil"}) || !strings.Contains(raw, "must be after closesAt") {
+		t.Fatalf("late at closes: %d %s", st, raw)
+	}
+	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-16T00:00:00Z", "lateUntil": "2026-10-15T00:00:00Z"})
+	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"lateUntil"}) {
+		t.Fatalf("both wrong: %d %s", st, raw)
+	}
+	if st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-15T00:00:00Z", "lateUntil": "2026-10-16T00:00:00Z"}); st != 200 {
+		t.Fatalf("both right: %d %s", st, raw)
+	}
+}

@@ -2737,7 +2737,7 @@
                         "method": "POST",
                         "body": {
                           "mode": "raw",
-                          "raw": "{\n  \"name\": \"<string>\",\n  \"weight\": \"<number>\",\n  \"kind\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"dueOn\": \"<date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                          "raw": "{\n  \"name\": \"<string>\",\n  \"weight\": \"<number>\",\n  \"kind\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"dueOn\": \"<date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\",\n  \"timeLimitMinutes\": \"<integer,null>\",\n  \"lateUntil\": \"<string,null-date-time>\",\n  \"latePenaltyPercent\": \"<number>\"\n}",
                           "options": {
                             "raw": {
                               "language": "json"
@@ -2812,7 +2812,7 @@
                             "method": "PATCH",
                             "body": {
                               "mode": "raw",
-                              "raw": "{\n  \"name\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<string,null-date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\"\n}",
+                              "raw": "{\n  \"name\": \"<string>\",\n  \"description\": \"<string>\",\n  \"maxPoints\": \"<number>\",\n  \"weight\": \"<number>\",\n  \"dueOn\": \"<string,null-date>\",\n  \"opensAt\": \"<dateTime>\",\n  \"closesAt\": \"<dateTime>\",\n  \"published\": \"<boolean>\",\n  \"position\": \"<integer>\",\n  \"timeLimitMinutes\": \"<integer,null>\",\n  \"lateUntil\": \"<string,null-date-time>\",\n  \"latePenaltyPercent\": \"<number>\"\n}",
                               "options": {
                                 "raw": {
                                   "language": "json"
@@ -3666,7 +3666,7 @@
                               "request": {
                                 "name": "List quiz questions",
                                 "description": {
-                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 \"not open yet\" before opensAt and 409 \"closed\" after closesAt unless they have submitted an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.",
+                                  "content": "Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 \"not open yet\" before opensAt and 409 \"closed\" after the attempt's deadline (closesAt, or startedAt plus timeLimitMinutes when earlier) unless they have submitted an attempt, and on a quiz with timeLimitMinutes 409 \"not started\" until they have started an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.",
                                   "type": "text/plain"
                                 },
                                 "url": {
