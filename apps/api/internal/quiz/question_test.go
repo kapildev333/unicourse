@@ -247,13 +247,15 @@ func TestQuestionsLockedAfterAttempt(t *testing.T) {
 	id := e.quiz("-1 hour", "1 hour")
 	e.putQuestions(id, []qm{blankQ("1", "a")})
 	e.attempt(id, "stud@a.edu", false)
-	st, b := e.raw(e.Admin, "PUT", e.qpath(id), qm{"items": []qm{}})
-	if st != 409 || !strings.Contains(b, "questions are locked once a student has started") {
+	// E6: items without ids are a malformed request
+	st, b := e.raw(e.Admin, "PUT", e.qpath(id), qm{"items": []qm{blankQ("1", "a")}})
+	if c, f := errDetails([]byte(b)); st != 400 || c != "validation_failed" || !reflect.DeepEqual(f, []string{"items[0].id"}) {
 		t.Fatalf("%d %s", st, b)
 	}
-	// the lock is checked before the body: an invalid body is still 409
-	if st, _ := e.raw(e.Admin, "PUT", e.qpath(id), qm{"items": []qm{{"kind": "x"}}}); st != 409 {
-		t.Errorf("invalid body %d", st)
+	// a structural change is 409 with the old text
+	st, b = e.raw(e.Admin, "PUT", e.qpath(id), qm{"items": []qm{}})
+	if st != 409 || !strings.Contains(b, "questions are locked once a student has started") {
+		t.Fatalf("%d %s", st, b)
 	}
 	if n := e.questionCount(id); n != 1 {
 		t.Errorf("rows %d", n)

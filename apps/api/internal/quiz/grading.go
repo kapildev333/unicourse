@@ -36,6 +36,7 @@ type Mark struct {
 	Points   json.Number `json:"points"`
 	Correct  bool        `json:"correct"`
 	Feedback string      `json:"feedback"`
+	Manual   bool        `json:"manual,omitempty"` // set when a review changed the points; a regrade keeps the entry
 }
 
 func normalize(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
