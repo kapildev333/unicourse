@@ -133,3 +133,33 @@ it('shows the other assessments total in the weight hint and sizes the inputs af
   expect(screen.getByLabelText('Weight (%)').className).toMatch(/^(?!.*w-full).*w-32/)
   expect(screen.getByLabelText('Due date').className).toMatch(/^(?!.*w-full).*w-48/)
 })
+
+const quiz: Assessment = { ...mid, id: 'q1', kind: 'quiz', name: 'Week 3 check', maxPoints: 10, dueOn: '2026-10-12', opensAt: '2026-10-12T13:00:00Z', closesAt: '2026-10-12T14:00:00Z' }
+
+it('quiz: max points and due date are read-only text and never sent', async () => {
+  const { fn, onSaved } = setup({ [`PATCH ${A}/q1`]: (r) => r.json().then((b) => ({ body: { ...quiz, ...b } })) }, quiz)
+  expect(screen.queryByLabelText('Max points')).toBeNull()
+  expect(screen.queryByLabelText('Due date')).toBeNull()
+  expect(screen.getByText('Max points: 10, derived from its questions.')).toBeInTheDocument()
+  expect(screen.getByText(/^Due Oct 12, 2026, from its closing time\. Change the window on the Quizzes tab\.$/)).toBeInTheDocument()
+  type('Weight (%)', '35')
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalled())
+  expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ weight: 35 })
+})
+
+it('assignment: no due date input, max points still editable', async () => {
+  const { fn } = setup({ [`PATCH ${A}/s2`]: (r) => r.json().then((b) => ({ body: { ...mid, ...b } })) }, { ...quiz, id: 's2', kind: 'assignment' })
+  expect(screen.queryByLabelText('Due date')).toBeNull()
+  expect(screen.getByText(/Change the window on the Assignments tab\./)).toBeInTheDocument()
+  type('Max points', '20')
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+  await waitFor(() => expect(sent(fn, 'PATCH')).toHaveLength(1))
+  expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ maxPoints: 20 })
+})
+
+it('deleting a quiz names its attempts', () => {
+  setup({}, quiz)
+  fireEvent.click(screen.getByRole('button', { name: 'Delete assessment' }))
+  expect(screen.getByText(/Its 3 scores and every student attempt are deleted too/)).toBeInTheDocument()
+})
