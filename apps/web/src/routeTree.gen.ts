@@ -35,6 +35,7 @@ import { Route as SlugSectionsIdMaterialsRouteImport } from './routes/$slug/sect
 import { Route as SlugSectionsIdParticipantsRouteImport } from './routes/$slug/sections_.$id.participants'
 import { Route as SlugSectionsIdQuizzesRouteImport } from './routes/$slug/sections_.$id.quizzes'
 import { Route as SlugSectionsIdQuizzesAssessmentIdRouteImport } from './routes/$slug/sections_.$id.quizzes_.$assessmentId'
+import { Route as SlugSectionsIdQuizzesAssessmentIdAttemptsRouteImport } from './routes/$slug/sections_.$id.quizzes_.$assessmentId_.attempts'
 import { Route as SlugSectionsIdQuizzesAssessmentIdQuestionsRouteImport } from './routes/$slug/sections_.$id.quizzes_.$assessmentId_.questions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -170,6 +171,12 @@ const SlugSectionsIdQuizzesAssessmentIdRoute =
     path: '/sections/$id/quizzes/$assessmentId',
     getParentRoute: () => SlugRouteRoute,
   } as any)
+const SlugSectionsIdQuizzesAssessmentIdAttemptsRoute =
+  SlugSectionsIdQuizzesAssessmentIdAttemptsRouteImport.update({
+    id: '/sections_/$id/quizzes_/$assessmentId_/attempts',
+    path: '/sections/$id/quizzes/$assessmentId/attempts',
+    getParentRoute: () => SlugRouteRoute,
+  } as any)
 const SlugSectionsIdQuizzesAssessmentIdQuestionsRoute =
   SlugSectionsIdQuizzesAssessmentIdQuestionsRouteImport.update({
     id: '/sections_/$id/quizzes_/$assessmentId_/questions',
@@ -204,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/$slug/sections/$id/participants': typeof SlugSectionsIdParticipantsRoute
   '/$slug/sections/$id/quizzes': typeof SlugSectionsIdQuizzesRoute
   '/$slug/sections/$id/quizzes/$assessmentId': typeof SlugSectionsIdQuizzesAssessmentIdRoute
+  '/$slug/sections/$id/quizzes/$assessmentId/attempts': typeof SlugSectionsIdQuizzesAssessmentIdAttemptsRoute
   '/$slug/sections/$id/quizzes/$assessmentId/questions': typeof SlugSectionsIdQuizzesAssessmentIdQuestionsRoute
 }
 export interface FileRoutesByTo {
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
   '/$slug/sections/$id/participants': typeof SlugSectionsIdParticipantsRoute
   '/$slug/sections/$id/quizzes': typeof SlugSectionsIdQuizzesRoute
   '/$slug/sections/$id/quizzes/$assessmentId': typeof SlugSectionsIdQuizzesAssessmentIdRoute
+  '/$slug/sections/$id/quizzes/$assessmentId/attempts': typeof SlugSectionsIdQuizzesAssessmentIdAttemptsRoute
   '/$slug/sections/$id/quizzes/$assessmentId/questions': typeof SlugSectionsIdQuizzesAssessmentIdQuestionsRoute
 }
 export interface FileRoutesById {
@@ -260,6 +269,7 @@ export interface FileRoutesById {
   '/$slug/sections_/$id/participants': typeof SlugSectionsIdParticipantsRoute
   '/$slug/sections_/$id/quizzes': typeof SlugSectionsIdQuizzesRoute
   '/$slug/sections_/$id/quizzes_/$assessmentId': typeof SlugSectionsIdQuizzesAssessmentIdRoute
+  '/$slug/sections_/$id/quizzes_/$assessmentId_/attempts': typeof SlugSectionsIdQuizzesAssessmentIdAttemptsRoute
   '/$slug/sections_/$id/quizzes_/$assessmentId_/questions': typeof SlugSectionsIdQuizzesAssessmentIdQuestionsRoute
 }
 export interface FileRouteTypes {
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id/participants'
     | '/$slug/sections/$id/quizzes'
     | '/$slug/sections/$id/quizzes/$assessmentId'
+    | '/$slug/sections/$id/quizzes/$assessmentId/attempts'
     | '/$slug/sections/$id/quizzes/$assessmentId/questions'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/$slug/sections/$id/participants'
     | '/$slug/sections/$id/quizzes'
     | '/$slug/sections/$id/quizzes/$assessmentId'
+    | '/$slug/sections/$id/quizzes/$assessmentId/attempts'
     | '/$slug/sections/$id/quizzes/$assessmentId/questions'
   id:
     | '__root__'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
     | '/$slug/sections_/$id/participants'
     | '/$slug/sections_/$id/quizzes'
     | '/$slug/sections_/$id/quizzes_/$assessmentId'
+    | '/$slug/sections_/$id/quizzes_/$assessmentId_/attempts'
     | '/$slug/sections_/$id/quizzes_/$assessmentId_/questions'
   fileRoutesById: FileRoutesById
 }
@@ -540,6 +553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugSectionsIdQuizzesAssessmentIdRouteImport
       parentRoute: typeof SlugRouteRoute
     }
+    '/$slug/sections_/$id/quizzes_/$assessmentId_/attempts': {
+      id: '/$slug/sections_/$id/quizzes_/$assessmentId_/attempts'
+      path: '/sections/$id/quizzes/$assessmentId/attempts'
+      fullPath: '/$slug/sections/$id/quizzes/$assessmentId/attempts'
+      preLoaderRoute: typeof SlugSectionsIdQuizzesAssessmentIdAttemptsRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
     '/$slug/sections_/$id/quizzes_/$assessmentId_/questions': {
       id: '/$slug/sections_/$id/quizzes_/$assessmentId_/questions'
       path: '/sections/$id/quizzes/$assessmentId/questions'
@@ -601,6 +621,7 @@ interface SlugRouteRouteChildren {
   SlugSectionsIdParticipantsRoute: typeof SlugSectionsIdParticipantsRoute
   SlugSectionsIdQuizzesRoute: typeof SlugSectionsIdQuizzesRoute
   SlugSectionsIdQuizzesAssessmentIdRoute: typeof SlugSectionsIdQuizzesAssessmentIdRoute
+  SlugSectionsIdQuizzesAssessmentIdAttemptsRoute: typeof SlugSectionsIdQuizzesAssessmentIdAttemptsRoute
   SlugSectionsIdQuizzesAssessmentIdQuestionsRoute: typeof SlugSectionsIdQuizzesAssessmentIdQuestionsRoute
 }
 
@@ -620,6 +641,8 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugSectionsIdQuizzesRoute: SlugSectionsIdQuizzesRoute,
   SlugSectionsIdQuizzesAssessmentIdRoute:
     SlugSectionsIdQuizzesAssessmentIdRoute,
+  SlugSectionsIdQuizzesAssessmentIdAttemptsRoute:
+    SlugSectionsIdQuizzesAssessmentIdAttemptsRoute,
   SlugSectionsIdQuizzesAssessmentIdQuestionsRoute:
     SlugSectionsIdQuizzesAssessmentIdQuestionsRoute,
 }

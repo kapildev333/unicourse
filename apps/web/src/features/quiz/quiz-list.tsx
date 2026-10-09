@@ -19,9 +19,6 @@ import { attemptsKey, useAssessmentRefresh, useAssessments, useAttempt, useAttem
 import { ReleaseButton } from './release'
 import { useNow, windowLine, windowState } from './window'
 
-// ponytail: the attempts page is a separate route file (6c); typed loosely until it exists
-const attemptsTo = '/$slug/sections/$id/quizzes/$assessmentId/attempts' as never
-
 const stateLabel = { upcoming: 'Upcoming', open: 'Open', closed: 'Closed' }
 
 export function QuizzesPage({ slug, sectionId }: { slug: string; sectionId: string }) {
@@ -94,7 +91,7 @@ function QuizRow(props: {
               <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId/questions" params={params} variant="ghost" size="sm" aria-label={`Questions for ${a.name}`}>
                 Questions
               </ButtonLink>
-              <ButtonLink to={attemptsTo} params={params} variant="ghost" size="sm" aria-label={`Attempts for ${a.name}`}>
+              <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId/attempts" params={params} variant="ghost" size="sm" aria-label={`Attempts for ${a.name}`}>
                 Attempts
               </ButtonLink>
               <ReleaseButton slug={slug} sectionId={sectionId} a={a} onDone={onDone} onError={onError} />
