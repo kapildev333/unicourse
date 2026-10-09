@@ -1,11 +1,14 @@
 package quiz
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // rgItems are the openQuiz questions with ids; the callbacks may change them before the PUT.
@@ -199,5 +202,75 @@ func TestRegradeValidationFirst(t *testing.T) {
 	st, b := e.putRG(id, items)
 	if c, f := errDetails([]byte(b)); st != 400 || c != "validation_failed" || !reflect.DeepEqual(f, []string{"items[0].points"}) {
 		t.Fatalf("%d %s", st, b)
+	}
+}
+
+// TestRegradeCapsManual: a reviewed 1.5 on a 3.25-point question, the question lowered to 1 -> 1.00, correct, manual; raised leaves it.
+func TestRegradeCapsManual(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.submitted("stud")
+	if st, b := e.call(e.Inst, "PATCH", e.review(id, "stud"), qm{"grading": qm{qs[1]: qm{"points": 1.5}}}); st != 200 {
+		t.Fatalf("review %d %s", st, b)
+	}
+	check := func(want string, correct bool, score string) {
+		t.Helper()
+		_, g, cell, _ := e.attemptRow(id, "stud")
+		m := map[string]Mark{}
+		json.Unmarshal([]byte(g), &m)
+		if string(m[qs[1]].Points) != want || m[qs[1]].Correct != correct || !m[qs[1]].Manual || cell.String != score {
+			t.Fatalf("mark %+v cell %v, want %s %v %s", m[qs[1]], cell, want, correct, score)
+		}
+	}
+	if st, b := e.putRG(id, rgItems(qs, true, "Paris", 2, 1)); st != 200 {
+		t.Fatalf("%d %s", st, b)
+	}
+	check("1.00", true, "3.00")
+	if st, b := e.putRG(id, rgItems(qs, true, "Paris", 2, 5)); st != 200 {
+		t.Fatalf("%d %s", st, b)
+	}
+	check("1.00", true, "3.00") // raised again: the capped value stays (the reviewed 1.5 is gone)
+}
+
+// TestRegradeWaitsForSubmit: a transaction holds an attempt's lock; the regrade waits for it, and the held
+// submit finishes before the keys change, so the regrade then regrades it.
+func TestRegradeWaitsForSubmit(t *testing.T) {
+	e := newEnv(t)
+	id, qs := e.openQuiz()
+	c := e.as("stud")
+	e.call(c, "POST", e.apath(id), nil)
+	if st, b := e.raw(c, "PUT", e.apath(id)+"/me", qm{"answers": qm{qs[0]: qm{"choices": []int{0}}, qs[1]: qm{"text": "Paris"}}}); st != 200 {
+		t.Fatalf("answers %d %s", st, b)
+	}
+	locked, release, held := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		held <- pg.WithTx(context.Background(), e.DB, e.Fx.UniversityA, func(tx *sql.Tx) error {
+			if _, err := tx.Exec(`select 1 from attempts where assessment_id = $1 for update`, id); err != nil {
+				return err
+			}
+			close(locked)
+			<-release
+			return submit(context.Background(), tx, e.Fx.UniversityA, id, e.UserID["stud@a.edu"], false)
+		})
+	}()
+	<-locked
+	done := make(chan int, 1)
+	go func() {
+		st, _ := e.putRG(id, rgItems(qs, false, "Rome", 2, 3.25))
+		done <- st
+	}()
+	select {
+	case st := <-done:
+		t.Fatalf("regrade did not wait: %d", st)
+	case <-time.After(500 * time.Millisecond):
+	}
+	close(release)
+	if err := <-held; err != nil {
+		t.Fatal(err)
+	}
+	if st := <-done; st != 200 {
+		t.Fatalf("regrade %d", st)
+	}
+	if s, _, cell, _ := e.attemptRow(id, "stud"); s != "0.00" || cell.String != "0.00" {
+		t.Fatalf("score %s cell %v (new keys: both wrong)", s, cell)
 	}
 }

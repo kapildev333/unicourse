@@ -110,4 +110,14 @@ func TestRegradeMarks(t *testing.T) {
 	if total != "0.45" {
 		t.Errorf("total %s", total)
 	}
+	// lowered below the reviewed value: capped, correct, still manual; raised: untouched
+	qs[1].Points = "0.04"
+	got, total = regradeMarks(qs, ans, old)
+	if b := got["b"]; b.Points != "0.04" || !b.Correct || !b.Manual || b.Feedback != "fb" || total != "0.44" {
+		t.Errorf("capped %+v total %s", b, total)
+	}
+	qs[1].Points = "9.00"
+	if got, _ = regradeMarks(qs, ans, old); got["b"] != old["b"] {
+		t.Errorf("raised %+v", got["b"])
+	}
 }

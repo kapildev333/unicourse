@@ -209,10 +209,11 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err := sectionExists(r, tx, secID); err != nil {
 		return 0, nil, err
 	}
-	w, err := loadWork(r, tx, secID, r.PathValue("assessmentId"), "quiz", "for update")
+	w, err := loadWork(r, tx, secID, r.PathValue("assessmentId"), "quiz", "for no key update")
 	if err != nil {
 		return 0, nil, err
 	}
+	// no key update, not update: a student submit upserts scores (FK key share on this row) while the regrade waits on its attempt lock
 	ok, err := editor(r, tx, s, secID)
 	if err := allow(ok, err); err != nil {
 		return 0, nil, err
