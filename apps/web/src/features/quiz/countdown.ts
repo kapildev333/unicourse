@@ -2,10 +2,22 @@ import { formatDateTime } from '../../lib/format'
 
 const MIN = 60_000
 
-/** Visible countdown line. `ms` is the time left; `closesAt` is printed when more than a day remains. */
-export function countdownText(ms: number, closesAt: string): string {
+/**
+ * Visible countdown line. `ms` is the time left until `deadlineAt`. Timed quizzes read "Time left: ..." at any length;
+ * untimed ones read "Closes in ..." and print `deadlineAt` (the close) when more than a day remains.
+ */
+export function countdownText(ms: number, deadlineAt: string, timed = false): string {
   if (ms <= 0) return 'Time is up'
-  if (ms >= 24 * 60 * MIN) return `Closes ${formatDateTime(closesAt)}`
+  if (timed) {
+    if (ms >= 60 * MIN) {
+      const total = Math.ceil(ms / MIN)
+      const h = Math.floor(total / 60)
+      const m = total % 60
+      return m === 0 ? `Time left: ${h} h` : `Time left: ${h} h ${m} min`
+    }
+    return ms >= MIN ? `Time left: ${Math.ceil(ms / MIN)} min` : `Time left: ${Math.ceil(ms / 1000)} s`
+  }
+  if (ms >= 24 * 60 * MIN) return `Closes ${formatDateTime(deadlineAt)}`
   if (ms >= 60 * MIN) {
     const total = Math.ceil(ms / MIN)
     const h = Math.floor(total / 60)

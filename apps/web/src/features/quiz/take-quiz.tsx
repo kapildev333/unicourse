@@ -28,7 +28,7 @@ import {
   type Question,
 } from './queries'
 import { Results } from './results'
-import { useNow, windowLine, windowState } from './window'
+import { minutes, useNow, windowLine, windowState } from './window'
 
 type Answers = Attempt['answers']
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -130,6 +130,13 @@ export function useAutosave(save: (answers: Answers) => Promise<unknown>, answer
   }
 }
 
+function intro(a: Assessment, now: number): string {
+  const n = a.timeLimitMinutes
+  if (n == null) return 'You have one attempt. Your answers are saved as you go and submitted automatically when the quiz closes.'
+  const clamp = a.closesAt && Date.parse(a.closesAt) - now < n * 60_000 ? ` The quiz closes at ${formatDateTime(a.closesAt)}, before your time would run out.` : ''
+  return `You have one attempt and ${minutes(n)} from the moment you start. Your answers are saved as you go and submitted automatically when the time is up or the quiz closes, whichever is first.${clamp}`
+}
+
 const backClass = 'mb-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline'
 const pts = (n: number) => `${fmtNum(n)} ${n === 1 ? 'point' : 'points'}`
 
@@ -146,11 +153,6 @@ type Props = { slug: string; sectionId: string; assessmentId: string }
 function TakeQuiz({ slug, sectionId, assessmentId, canEdit }: Props & { canEdit: boolean }) {
   const qc = useQueryClient()
   const list = useAssessments(slug, sectionId)
-  const refetchList = list.refetch
-  useEffect(() => {
-    const t = setInterval(() => void refetchList(), 60_000)
-    return () => clearInterval(t)
-  }, [refetchList])
   const refresh = useAssessmentRefresh(slug, sectionId)
   const now = useNow(1000)
   const [left, setLeft] = useState(false) // the form was left: submitted, or closed and waiting for the server
@@ -162,6 +164,16 @@ function TakeQuiz({ slug, sectionId, assessmentId, canEdit }: Props & { canEdit:
   const attemptQ = useAttempt(slug, sectionId, assessmentId, 'me', { enabled: !canEdit })
   const refetchAttempt = attemptQ.refetch
   const attempt = attemptQ.data
+  // limit or close edited by staff mid-attempt: pick both up (the attempt carries the effective deadline)
+  const refetchList = list.refetch
+  const hasAttempt = !!attempt
+  useEffect(() => {
+    const t = setInterval(() => {
+      void refetchList()
+      if (hasAttempt) void refetchAttempt()
+    }, 60_000)
+    return () => clearInterval(t)
+  }, [refetchList, refetchAttempt, hasAttempt])
   const submitted = !!attempt?.submittedAt
   const questionsQ = useQuestions(slug, sectionId, assessmentId, !canEdit && !!attempt)
   // a closed quiz refuses its questions to a student whose attempt is not yet submitted: wait for the sweeper
@@ -239,7 +251,7 @@ function TakeQuiz({ slug, sectionId, assessmentId, canEdit }: Props & { canEdit:
     else
       body = (
         <div className="flex flex-col items-start gap-3">
-          <p>You have one attempt. Your answers are saved as you go and submitted automatically when the quiz closes.</p>
+          <p>{intro(a, now)}</p>
           {start.error && (
             <ErrorBanner title="Couldn't start the quiz">
               {start.error instanceof ApiError && start.error.status === 409 && start.error.message === 'not open yet'
@@ -268,7 +280,7 @@ function TakeQuiz({ slug, sectionId, assessmentId, canEdit }: Props & { canEdit:
         attempt={attempt}
         questions={questionsQ.data.items}
         now={now}
-        refetchList={async () => (await list.refetch()).data?.items.find((x) => x.id === assessmentId)}
+        refetchDeadline={async () => (await attemptQ.refetch()).data?.deadlineAt}
         onSubmitted={(r) => {
           qc.setQueryData(attemptKey(slug, sectionId, assessmentId, 'me'), r)
           void refresh(questionsKey(slug, sectionId, assessmentId))
@@ -316,11 +328,11 @@ function QuizForm(props: Props & {
   attempt: Attempt
   questions: Question[]
   now: number
-  refetchList: () => Promise<Assessment | undefined>
+  refetchDeadline: () => Promise<string | undefined>
   onSubmitted: (a: Attempt) => void
   onClosed: (unsaved: boolean) => void
 }) {
-  const { slug, sectionId, assessmentId, assessment, attempt, questions, now, refetchList, onSubmitted, onClosed } = props
+  const { slug, sectionId, assessmentId, assessment, attempt, questions, now, refetchDeadline, onSubmitted, onClosed } = props
   const [answers, setAnswers] = useState<Answers>(attempt.answers)
   const [confirm, setConfirm] = useState(false)
   const [pending, setPending] = useState(false)
@@ -340,8 +352,9 @@ function QuizForm(props: Props & {
     },
   )
 
-  const closesAt = assessment.closesAt
-  const remaining = closesAt ? Date.parse(closesAt) - now : Infinity
+  const deadlineAt = attempt.deadlineAt
+  const timed = assessment.timeLimitMinutes != null
+  const remaining = Date.parse(deadlineAt) - now
   const isZero = remaining <= 0
 
   const [announce, setAnnounce] = useState('')
@@ -358,8 +371,8 @@ function QuizForm(props: Props & {
     finishing.current = true
     auto.stop()
     await auto.settled()
-    const fresh = await refetchList()
-    if (fresh?.closesAt && Date.parse(fresh.closesAt) > Date.now()) {
+    const fresh = await refetchDeadline()
+    if (fresh && Date.parse(fresh) > Date.now()) {
       finishing.current = false
       auto.resume()
       return
@@ -401,7 +414,7 @@ function QuizForm(props: Props & {
       setPending(false)
       setSubmitError(e)
       // the close passed while the submit was pending, so the zero effect already came and went
-      if (closesAt && Date.parse(closesAt) <= Date.now()) void zeroRef.current()
+      if (Date.parse(deadlineAt) <= Date.now()) void zeroRef.current()
     }
   }
 
@@ -421,12 +434,10 @@ function QuizForm(props: Props & {
   return (
     <div>
       <div className="sticky top-0 z-10 -mx-1 mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line bg-canvas px-1 py-2">
-        {closesAt && (
-          <p className={`flex items-center gap-2 text-sm ${urgent ? 'font-bold text-warning' : 'text-ink'}`}>
-            <CountIcon aria-hidden="true" />
-            {countdownText(remaining, closesAt)}
-          </p>
-        )}
+        <p className={`flex items-center gap-2 text-sm ${urgent ? 'font-bold text-warning' : 'text-ink'}`}>
+          <CountIcon aria-hidden="true" />
+          {countdownText(remaining, deadlineAt, timed)}
+        </p>
         <p role="status" aria-atomic="true" className="text-sm text-ink-muted">
           {auto.status === 'saving' ? (
             <span aria-hidden="true">Saving…</span>
