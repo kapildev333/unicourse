@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 )
@@ -74,6 +75,8 @@ type Section struct {
 	Finalize      *Finalize      `json:"finalize,omitempty"`
 	Announcements []Announcement `json:"announcements,omitempty"`
 	Weeks         []Week         `json:"weeks,omitempty"`
+	Quizzes       []Quiz         `json:"quizzes,omitempty"`
+	Assignments   []Assignment   `json:"assignments,omitempty"`
 }
 type Meeting struct {
 	Weekday  int    `json:"weekday"`
@@ -96,6 +99,72 @@ type Score struct {
 	Student string      `json:"student"`
 	Points  json.Number `json:"points"`
 }
+
+// Quiz and Assignment windows are durations from seed time ("-1h", "168h", Go syntax), so what is
+// seeded is open when the seed runs.
+type Quiz struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	Weight      json.Number `json:"weight"`
+	OpensIn     string      `json:"opensIn"`
+	ClosesIn    string      `json:"closesIn"`
+	Published   bool        `json:"published"`
+	Questions   []Question  `json:"questions"`
+	Attempts    []Attempt   `json:"attempts,omitempty"`
+	Reviews     []Review    `json:"reviews,omitempty"`
+}
+type Question struct {
+	Kind    string      `json:"kind"`
+	Prompt  string      `json:"prompt"`
+	Points  json.Number `json:"points"`
+	Choices []Choice    `json:"choices,omitempty"`
+	Answers []string    `json:"answers,omitempty"`
+}
+type Choice struct {
+	Text    string `json:"text"`
+	Correct bool   `json:"correct"`
+}
+type Attempt struct {
+	Email   string                `json:"email"`
+	Answers map[string]QuizAnswer `json:"answers,omitempty"` // by question index
+	Submit  bool                  `json:"submit"`
+}
+type QuizAnswer struct {
+	Choices []int  `json:"choices,omitempty"`
+	Text    string `json:"text,omitempty"`
+}
+type Review struct {
+	As       string              `json:"as,omitempty"` // default: the section's first instructor
+	Email    string              `json:"email"`
+	Grading  map[string]QuizMark `json:"grading,omitempty"` // by question index
+	Feedback string              `json:"feedback,omitempty"`
+}
+type QuizMark struct {
+	Points   json.Number `json:"points"`
+	Feedback string      `json:"feedback,omitempty"`
+}
+type Assignment struct {
+	Name        string       `json:"name"`
+	Description string       `json:"description,omitempty"`
+	MaxPoints   json.Number  `json:"maxPoints"`
+	Weight      json.Number  `json:"weight"`
+	OpensIn     string       `json:"opensIn"`
+	ClosesIn    string       `json:"closesIn"`
+	Published   bool         `json:"published"`
+	Submissions []Submission `json:"submissions,omitempty"`
+}
+type Submission struct {
+	Email string   `json:"email"`
+	Body  string   `json:"body"`
+	Files []string `json:"files,omitempty"` // bare names of the fixture's files
+	Grade *Grade   `json:"grade,omitempty"`
+}
+type Grade struct {
+	As       string      `json:"as,omitempty"` // default: the section's first instructor
+	Score    json.Number `json:"score"`
+	Feedback string      `json:"feedback,omitempty"`
+}
+
 type Finalize struct {
 	Overrides []Override `json:"overrides"`
 }
@@ -290,7 +359,7 @@ func (f *Fixture) validate() error {
 				}
 				s.Roster[i], inRoster[e] = e, true
 			}
-			if (len(s.Assessments) > 0 || s.Finalize != nil) && !instructor {
+			if (len(s.Assessments) > 0 || len(s.Quizzes) > 0 || len(s.Assignments) > 0 || s.Finalize != nil) && !instructor {
 				return fmt.Errorf("%s: assessments or finalize need an active instructor in staff", sp)
 			}
 			for ai := range s.Assessments {
@@ -307,6 +376,9 @@ func (f *Fixture) validate() error {
 					}
 					sc.Student, seen[e] = e, true
 				}
+			}
+			if err := f.validateWork(sp, s, inRoster, ref); err != nil {
+				return err
 			}
 			if s.Finalize != nil {
 				seen := map[string]bool{}
@@ -347,6 +419,117 @@ func (f *Fixture) validate() error {
 						}
 						return fmt.Errorf("%s: no file %q in the fixture's directory", path, m.File)
 					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateWork checks the quizzes and assignments of a section: windows parse and are ordered, every
+// email is a rostered student (or active staff for "as"), every index names a question.
+func (f *Fixture) validateWork(sp string, s *Section, inRoster map[string]bool, ref func(path, email string, mustBeActive bool) (string, error)) error {
+	window := func(path, opens, closes string) error {
+		o, err1 := time.ParseDuration(opens)
+		c, err2 := time.ParseDuration(closes)
+		if err1 != nil || err2 != nil || c <= o {
+			return fmt.Errorf("%s: opensIn and closesIn must be Go durations (\"-1h\"), closesIn after opensIn", path)
+		}
+		return nil
+	}
+	student := func(path, email string) (string, error) {
+		e, err := ref(path, email, true)
+		if err == nil && !inRoster[e] {
+			err = fmt.Errorf("%s: %q is not in this section's roster", path, e)
+		}
+		return e, err
+	}
+	staff := map[string]bool{}
+	for _, st := range s.Staff {
+		staff[st.Email] = true
+	}
+	actor := func(path, as string) (string, error) {
+		if as == "" {
+			return "", nil
+		}
+		e, err := ref(path, as, true)
+		if err == nil && !staff[e] {
+			err = fmt.Errorf("%s: %q is not staff of this section", path, e)
+		}
+		return e, err
+	}
+	for qi := range s.Quizzes {
+		q := &s.Quizzes[qi]
+		qp := fmt.Sprintf("%s.quizzes[%d]", sp, qi)
+		if err := window(qp, q.OpensIn, q.ClosesIn); err != nil {
+			return err
+		}
+		submitted, reviewed := map[string]bool{}, map[string]bool{} // by email
+		attempted := map[string]bool{}
+		for i := range q.Attempts {
+			a := &q.Attempts[i]
+			var err error
+			if a.Email, err = student(fmt.Sprintf("%s.attempts[%d].email", qp, i), a.Email); err != nil {
+				return err
+			}
+			if attempted[a.Email] {
+				return fmt.Errorf("%s.attempts[%d].email: %q has two attempts (a student has one per quiz)", qp, i, a.Email)
+			}
+			attempted[a.Email], submitted[a.Email] = true, a.Submit
+			for k := range a.Answers {
+				if n, err := strconv.Atoi(k); err != nil || n < 0 || n >= len(q.Questions) {
+					return fmt.Errorf("%s.attempts[%d].answers: %q is not a question index", qp, i, k)
+				}
+			}
+		}
+		for i := range q.Reviews {
+			r := &q.Reviews[i]
+			var err error
+			if r.Email, err = student(fmt.Sprintf("%s.reviews[%d].email", qp, i), r.Email); err != nil {
+				return err
+			}
+			if !submitted[r.Email] {
+				return fmt.Errorf("%s.reviews[%d].email: %q has no submitted attempt in this quiz", qp, i, r.Email)
+			}
+			if reviewed[r.Email] {
+				return fmt.Errorf("%s.reviews[%d].email: %q is reviewed twice", qp, i, r.Email)
+			}
+			reviewed[r.Email] = true
+			if r.As, err = actor(fmt.Sprintf("%s.reviews[%d].as", qp, i), r.As); err != nil {
+				return err
+			}
+			for k := range r.Grading {
+				if n, err := strconv.Atoi(k); err != nil || n < 0 || n >= len(q.Questions) {
+					return fmt.Errorf("%s.reviews[%d].grading: %q is not a question index", qp, i, k)
+				}
+			}
+		}
+	}
+	for ai := range s.Assignments {
+		a := &s.Assignments[ai]
+		ap := fmt.Sprintf("%s.assignments[%d]", sp, ai)
+		if err := window(ap, a.OpensIn, a.ClosesIn); err != nil {
+			return err
+		}
+		seen := map[string]bool{}
+		for i := range a.Submissions {
+			sub := &a.Submissions[i]
+			var err error
+			if sub.Email, err = student(fmt.Sprintf("%s.submissions[%d].email", ap, i), sub.Email); err != nil {
+				return err
+			}
+			if seen[sub.Email] {
+				return fmt.Errorf("%s.submissions[%d].email: %q has two submissions (a student has one per assignment)", ap, i, sub.Email)
+			}
+			seen[sub.Email] = true
+			for _, name := range sub.Files {
+				if st, err := fs.Stat(f.files, name); err != nil || st.IsDir() || strings.Contains(name, "/") {
+					return fmt.Errorf("%s.submissions[%d].files: no bare file %q in the fixture's files", ap, i, name)
+				}
+			}
+			if sub.Grade != nil {
+				if sub.Grade.As, err = actor(fmt.Sprintf("%s.submissions[%d].grade.as", ap, i), sub.Grade.As); err != nil {
+					return err
 				}
 			}
 		}

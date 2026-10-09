@@ -101,6 +101,34 @@ func TestLoadRejects(t *testing.T) {
 		{"missing material file", func(m map[string]any) {
 			sec(m, 0, 0)["weeks"].([]any)[0].(map[string]any)["materials"].([]any)[0].(map[string]any)["file"] = "nope.pdf"
 		}, "file"},
+		{"quiz window reversed", func(m map[string]any) { sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["closesIn"] = "-2h" }, "closesIn"},
+		{"attempt by a non-student", func(m map[string]any) {
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)[0].(map[string]any)["email"] = "elena.marsh@<domain>"
+		}, "not in this section's roster"},
+		{"two attempts by one student", func(m map[string]any) {
+			a := sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)
+			a[1].(map[string]any)["email"] = a[0].(map[string]any)["email"]
+		}, "two attempts"},
+		{"two reviews of one student", func(m map[string]any) {
+			r := sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"].([]any)
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"] = append(r, r[0])
+		}, "reviewed twice"},
+		{"review without an attempt", func(m map[string]any) {
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["reviews"].([]any)[0].(map[string]any)["email"] = "lucas.moreau@<domain>"
+		}, "no submitted attempt"},
+		{"two submissions by one student", func(m map[string]any) {
+			a := sec(m, 0, 0)["assignments"].([]any)[0].(map[string]any)["submissions"].([]any)
+			a[1].(map[string]any)["email"] = a[0].(map[string]any)["email"]
+		}, "two submissions"},
+		{"grader not on staff", func(m map[string]any) {
+			sec(m, 0, 0)["assignments"].([]any)[0].(map[string]any)["submissions"].([]any)[0].(map[string]any)["grade"].(map[string]any)["as"] = "owen.park@<domain>"
+		}, "not staff"},
+		{"answer to no question", func(m map[string]any) {
+			sec(m, 0, 0)["quizzes"].([]any)[0].(map[string]any)["attempts"].([]any)[0].(map[string]any)["answers"] = map[string]any{"9": map[string]any{"text": "x"}}
+		}, "question index"},
+		{"submission file missing", func(m map[string]any) {
+			sec(m, 0, 0)["assignments"].([]any)[0].(map[string]any)["submissions"].([]any)[0].(map[string]any)["files"] = []any{"nope.pdf"}
+		}, "nope.pdf"},
 		{"no instructor", func(m map[string]any) {
 			sec(m, 0, 0)["staff"] = []any{map[string]any{"email": "sofia.alvarez@<domain>", "role": "ta"}}
 		}, "instructor"},
@@ -183,8 +211,16 @@ func TestRunSeedsDemo(t *testing.T) {
 		{"enrollments", `select count(*) from enrollments`, 26, false},
 		{"grade_scales", `select count(*) from grade_scales`, 12, false},
 		{"assessments", `select count(*) from assessments where published`, 10, false},
-		{"assessments total", `select count(*) from assessments`, 10, false},
-		{"scores", `select count(*) from scores`, 47, false},
+		{"assessments total", `select count(*) from assessments`, 12, false},
+		{"scores", `select count(*) from scores`, 50, false},
+		{"quizzes", `select count(*) from assessments where kind = 'quiz' and name = 'Week 3 check' and not published and opens_at < now() and closes_at > now()`, 1, false},
+		{"quiz questions", `select count(*) from questions`, 3, false},
+		{"quiz attempts", `select count(*) from attempts where submitted_at is not null and not auto_submitted`, 2, false},
+		{"quiz reviewed", `select count(*) from attempts a join users u on u.id = a.reviewed_by where u.display_name = 'Sofia Alvarez' and a.feedback <> '' and a.score = 2.5`, 1, false},
+		{"assignments", `select count(*) from assessments where kind = 'assignment' and name = 'Essay 1' and max_points = 20 and not published and closes_at > now()`, 1, false},
+		{"submissions", `select count(*) from submissions`, 2, false},
+		{"submission files", `select count(*) from submission_files`, 1, false},
+		{"graded submission", `select count(*) from submissions s join scores c on c.assessment_id = s.assessment_id and c.user_id = s.user_id where s.graded_at is not null and s.score = 17 and s.feedback <> '' and c.points = 17`, 1, false},
 		{"final_grades", `select count(*) from final_grades`, 8, false},
 		{"incomplete", `select count(*) from final_grades f join users u on u.id = f.user_id where f.status = 'incomplete' and f.override_reason <> '' and u.email = 'lucas.moreau@northfield.edu'`, 1, false},
 		{"cs210 final grades", `select count(*) from final_grades f join sections s on s.id = f.section_id join courses c on c.id = s.course_id where c.code = 'CS210'`, 0, false},
@@ -282,7 +318,7 @@ func TestRunTwiceAndReset(t *testing.T) {
 	if n := platformCount(t, db, `select count(*) from universities`); n != 1 {
 		t.Fatalf("universities %d", n)
 	}
-	if n := count(t, db, first.UniversityID, `select count(*) from assessments`); n != 10 {
+	if n := count(t, db, first.UniversityID, `select count(*) from assessments`); n != 12 {
 		t.Fatalf("assessments %d", n)
 	}
 	o.Reset = true
@@ -294,7 +330,7 @@ func TestRunTwiceAndReset(t *testing.T) {
 		t.Fatal("reset kept the old id")
 	}
 	u := again.UniversityID
-	for q, want := range map[string]int{`select count(*) from sections`: 6, `select count(*) from scores`: 47, `select count(*) from materials`: 3} {
+	for q, want := range map[string]int{`select count(*) from sections`: 6, `select count(*) from scores`: 50, `select count(*) from materials`: 3} {
 		if n := count(t, db, u, q); n != want {
 			t.Errorf("%s: %d, want %d", q, n, want)
 		}
@@ -338,8 +374,8 @@ func TestResetLeavesOtherUniversityAlone(t *testing.T) {
 		}
 		return n
 	}
-	if blobs(keep.UniversityID) != 3 || blobs(gone.UniversityID) != 3 {
-		t.Fatal("want 3 blobs per university before the reset")
+	if blobs(keep.UniversityID) != 4 || blobs(gone.UniversityID) != 4 {
+		t.Fatal("want 4 blobs per university before the reset")
 	}
 	f, err := Load(Demo, "acme", 2031)
 	if err != nil {
@@ -349,7 +385,7 @@ func TestResetLeavesOtherUniversityAlone(t *testing.T) {
 	if _, err := Run(context.Background(), db, f, o); err != nil {
 		t.Fatal(err)
 	}
-	for q, want := range map[string]int{`select count(*) from sections`: 6, `select count(*) from scores`: 47, `select count(*) from materials`: 3, `select count(*) from enrollments`: 26} {
+	for q, want := range map[string]int{`select count(*) from sections`: 6, `select count(*) from scores`: 50, `select count(*) from materials`: 3, `select count(*) from enrollments`: 26} {
 		if n := count(t, db, keep.UniversityID, q); n != want {
 			t.Errorf("northfield %s: %d, want %d", q, n, want)
 		}
@@ -357,7 +393,7 @@ func TestResetLeavesOtherUniversityAlone(t *testing.T) {
 	if n := platformCount(t, db, `select count(*) from universities where slug = 'northfield'`); n != 1 {
 		t.Errorf("northfield rows: %d", n)
 	}
-	if blobs(keep.UniversityID) != 3 {
+	if blobs(keep.UniversityID) != 4 {
 		t.Errorf("northfield blobs: %d", blobs(keep.UniversityID))
 	}
 	if blobs(gone.UniversityID) != 0 {
