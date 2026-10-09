@@ -22,11 +22,11 @@ import {
   type Assessment,
 } from '../quiz/queries'
 import { ReleaseButton } from '../quiz/release'
-import { useNow, windowLine, windowState } from '../quiz/window'
+import { assignmentState, useNow, windowLine } from '../quiz/window'
 import type { Section } from '../section/queries'
 import { SectionFrame } from '../section/section-frame'
 
-const stateLabel = { upcoming: 'Upcoming', open: 'Open', closed: 'Closed' }
+const stateLabel = { upcoming: 'Upcoming', open: 'Open', late: 'Past due', closed: 'Closed' }
 
 export function AssignmentsPage({ slug, sectionId }: { slug: string; sectionId: string }) {
   return (
@@ -49,9 +49,13 @@ function AssignmentRow(props: {
 }) {
   const { slug, sectionId, a, now, canEdit, onEdit, onDelete, onDone, onError } = props
   const sub = useSubmission(slug, sectionId, a.id, 'me', !canEdit)
-  const state = windowState(a, now)
+  const state = assignmentState(a, now)
   const mine = sub.data
-  const score = a.published && mine?.score !== undefined ? ` Score ${fmtNum(mine.score)} / ${fmtNum(a.maxPoints)}.` : ''
+  const penalised = mine?.late && mine.penaltyPercent > 0 && mine.finalScore !== undefined
+  const score =
+    a.published && mine?.score !== undefined
+      ? ` Score ${fmtNum(mine.score)} / ${fmtNum(a.maxPoints)}${penalised ? `, ${mine.finalScore!.toFixed(2)} after the ${fmtNum(mine.penaltyPercent)}% late penalty` : ''}.`
+      : ''
   const params = { slug, id: sectionId, assessmentId: a.id }
 
   return (
@@ -62,7 +66,7 @@ function AssignmentRow(props: {
             {a.name}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="neutral">{stateLabel[state]}</Badge>
+            <Badge tone={state === 'late' ? 'warning' : 'neutral'}>{stateLabel[state]}</Badge>
             {mine && <Badge tone="neutral">Submitted</Badge>}
             {canEdit && a.published && <Badge tone="neutral">Scores released</Badge>}
           </div>
@@ -101,7 +105,7 @@ function AssignmentRow(props: {
                 to="/$slug/sections/$id/assignments/$assessmentId"
                 params={params}
                 size="sm"
-                variant={state === 'open' ? 'primary' : 'secondary'}
+                variant={state === 'open' || state === 'late' ? 'primary' : 'secondary'}
                 aria-label={`View ${a.name}`}
               >
                 View

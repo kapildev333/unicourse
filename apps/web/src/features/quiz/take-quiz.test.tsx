@@ -157,12 +157,12 @@ it('Submit quiz confirms, sends submit:true once and shows the results with focu
 
 it('at zero it saves once without submit, then polls the attempt until the server submitted it', async () => {
   let swept = false
+  const deadlineAt = new Date(Date.now() + 2500).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 2500).toISOString() }),
-    attempt: attempt({ answers: { a: { choices: [1] } } }),
+    attempt: attempt({ deadlineAt, answers: { a: { choices: [1] } } }),
     routes: {
       [`GET ${A}/attempts/me`]: () => ({
-        body: swept ? attempt({ answers: { a: { choices: [1] } }, submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: true }) : attempt({ answers: { a: { choices: [1] } } }),
+        body: swept ? attempt({ deadlineAt, answers: { a: { choices: [1] } }, submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: true }) : attempt({ deadlineAt, answers: { a: { choices: [1] } } }),
       }),
     },
   })
@@ -181,15 +181,15 @@ it('at zero it saves once without submit, then polls the attempt until the serve
 
 it('a 409 at zero with an unsaved change shows the banner and the results', async () => {
   let closed = false
+  const deadlineAt = new Date(Date.now() + 2500).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 2500).toISOString() }),
-    attempt: attempt(),
+    attempt: attempt({ deadlineAt }),
     routes: {
       [`PUT ${A}/attempts/me`]: () => {
         closed = true
         return err(409, 'conflict', 'closed; your answers as of the closing time were submitted')
       },
-      [`GET ${A}/attempts/me`]: () => ({ body: closed ? attempt({ submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: true }) : attempt() }),
+      [`GET ${A}/attempts/me`]: () => ({ body: closed ? attempt({ deadlineAt, submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: true }) : attempt({ deadlineAt }) }),
     },
   })
   fireEvent.click((await screen.findAllByRole('radio'))[0])
@@ -200,14 +200,13 @@ it('a 409 at zero with an unsaved change shows the banner and the results', asyn
   expect(puts(fn).length).toBeGreaterThan(0)
 })
 
-it('closesAt moved later on the refetch: no save at zero', async () => {
+it('deadlineAt moved later on the refetch: no save at zero', async () => {
   let n = 0
   const soon = new Date(Date.now() + 2500).toISOString()
   const later = new Date(Date.now() + 3_600_000).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: soon }),
-    attempt: attempt(),
-    routes: { [`GET ${S}/assessments`]: () => ({ body: { items: [quiz({ closesAt: ++n === 1 ? soon : later })] } }) },
+    attempt: attempt({ deadlineAt: soon }),
+    routes: { [`GET ${A}/attempts/me`]: () => ({ body: attempt({ deadlineAt: ++n === 1 ? soon : later }) }) },
   })
   await screen.findAllByRole('radio')
   await tick(4000)
@@ -217,7 +216,7 @@ it('closesAt moved later on the refetch: no save at zero', async () => {
 })
 
 it('countdown line and the screen-reader announcer speak at thresholds only', async () => {
-  setup({ assessment: quiz({ closesAt: new Date(Date.now() + 5 * 60_000 + 2500).toISOString() }), attempt: attempt() })
+  setup({ attempt: attempt({ deadlineAt: new Date(Date.now() + 5 * 60_000 + 2500).toISOString() }) })
   await screen.findAllByRole('radio')
   expect(screen.getByText(/^Closes in 6 min$/)).toBeInTheDocument()
   await tick(4000)
@@ -229,9 +228,9 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 it('a submit that fails after the close runs the zero path: final save without submit, then polling', async () => {
   let swept = false
+  const deadlineAt = new Date(Date.now() + 8000).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 8000).toISOString() }),
-    attempt: attempt({ answers: { a: { choices: [1] } } }),
+    attempt: attempt({ deadlineAt, answers: { a: { choices: [1] } } }),
     routes: {
       [`PUT ${A}/attempts/me`]: async (req) => {
         const b = await req.json()
@@ -240,9 +239,9 @@ it('a submit that fails after the close runs the zero path: final save without s
           return err(500, 'internal')
         }
         swept = true
-        return { body: attempt({ answers: b.answers }) }
+        return { body: attempt({ deadlineAt, answers: b.answers }) }
       },
-      [`GET ${A}/attempts/me`]: () => ({ body: swept ? submitted({ a: { choices: [1] } }) : attempt({ answers: { a: { choices: [1] } } }) }),
+      [`GET ${A}/attempts/me`]: () => ({ body: swept ? submitted({ a: { choices: [1] } }) : attempt({ deadlineAt, answers: { a: { choices: [1] } } }) }),
     },
   })
   await screen.findAllByRole('radio')
@@ -259,8 +258,7 @@ it('a submit that fails after the close runs the zero path: final save without s
 
 it('zero reached while a submit is pending sends no extra PUT', async () => {
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 5000).toISOString() }),
-    attempt: attempt(),
+    attempt: attempt({ deadlineAt: new Date(Date.now() + 5000).toISOString() }),
     routes: {
       [`PUT ${A}/attempts/me`]: async () => {
         await delay(3000)
@@ -307,13 +305,13 @@ it('at zero it waits for an autosave in flight before the final PUT', async () =
   let release: () => void = () => {}
   const gate = new Promise<void>((r) => (release = r))
   let n = 0
+  const deadlineAt = new Date(Date.now() + 3000).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 3000).toISOString() }),
-    attempt: attempt(),
+    attempt: attempt({ deadlineAt }),
     routes: {
       [`PUT ${A}/attempts/me`]: async () => {
         if (++n === 1) await gate
-        return { body: attempt() }
+        return { body: attempt({ deadlineAt }) }
       },
     },
   })
@@ -326,20 +324,20 @@ it('at zero it waits for an autosave in flight before the final PUT', async () =
   await waitFor(() => expect(puts(fn)).toHaveLength(2))
 })
 
-it('an edit made while the zero check is pending is saved after the close moved later', async () => {
+it('an edit made while the zero check is pending is saved after the deadline moved later', async () => {
   let release: () => void = () => {}
   const gate = new Promise<void>((r) => (release = r))
   let n = 0
+  const soon = new Date(Date.now() + 2500).toISOString()
   const fn = setup({
-    assessment: quiz({ closesAt: new Date(Date.now() + 2500).toISOString() }),
-    attempt: attempt(),
+    attempt: attempt({ deadlineAt: soon }),
     routes: {
-      [`GET ${S}/assessments`]: async () => {
+      [`GET ${A}/attempts/me`]: async () => {
         if (++n >= 2) {
           await gate
-          return { body: { items: [quiz({ closesAt: new Date(Date.now() + 3_600_000).toISOString() })] } }
+          return { body: attempt({ deadlineAt: new Date(Date.now() + 3_600_000).toISOString() }) }
         }
-        return { body: { items: [quiz({ closesAt: new Date(Date.now() + 2500).toISOString() })] } }
+        return { body: attempt({ deadlineAt: soon }) }
       },
     },
   })
@@ -352,4 +350,41 @@ it('an edit made while the zero check is pending is saved after the close moved 
   await tick(1500)
   await waitFor(() => expect(puts(fn)).toHaveLength(1))
   expect(await body(puts(fn)[0])).toEqual({ answers: { a: { choices: [0] } } })
+})
+
+it('a timed quiz counts down to deadlineAt, not closesAt', async () => {
+  setup({
+    assessment: quiz({ timeLimitMinutes: 10 }),
+    attempt: attempt({ deadlineAt: new Date(Date.now() + 8 * 60_000 + 30_000).toISOString() }),
+  })
+  await screen.findAllByRole('radio')
+  expect(screen.getByText('Time left: 9 min')).toBeInTheDocument()
+  expect(screen.getByText(/, 10 min each$/)).toBeInTheDocument()
+})
+
+it('zero at deadlineAt (before closesAt) saves once without submit', async () => {
+  const fn = setup({
+    assessment: quiz({ timeLimitMinutes: 10 }),
+    attempt: attempt({ deadlineAt: new Date(Date.now() + 2500).toISOString(), answers: { a: { choices: [1] } } }),
+  })
+  await screen.findAllByRole('radio')
+  await tick(2000)
+  await tick(2000)
+  await waitFor(() => expect(puts(fn)).toHaveLength(1))
+  expect(await body(puts(fn)[0])).toEqual({ answers: { a: { choices: [1] } } })
+})
+
+it('the Start intro of a timed quiz states the limit; it adds the clamp when the close comes first', async () => {
+  setup({ assessment: quiz({ timeLimitMinutes: 30 }) })
+  expect(
+    await screen.findByText(
+      'You have one attempt and 30 minutes from the moment you start. Your answers are saved as you go and submitted automatically when the time is up or the quiz closes, whichever is first.',
+    ),
+  ).toBeInTheDocument()
+})
+
+it('the timed intro names the close when it comes before the limit would run out', async () => {
+  setup({ assessment: quiz({ timeLimitMinutes: 60, closesAt: new Date(Date.now() + 20 * 60_000).toISOString() }) })
+  expect(await screen.findByText(/before your time would run out\.$/)).toBeInTheDocument()
+  expect(screen.getByText(/^You have one attempt and 60 minutes/)).toBeInTheDocument()
 })

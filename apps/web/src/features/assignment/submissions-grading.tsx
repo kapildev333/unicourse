@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Inbox } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { Badge } from '../../components/badge'
 import { Button } from '../../components/button'
 import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
@@ -27,6 +28,7 @@ import {
 import { ReleaseButton } from '../quiz/release'
 import { PlainText, countHint } from '../section/plain-text'
 import { SectionFrame } from '../section/section-frame'
+import { penalised } from './penalty'
 import { gradeSubmission } from './queries'
 import { SubmissionFiles } from './submission-form'
 
@@ -122,7 +124,15 @@ function Submissions({ slug, sectionId, assessmentId, userId }: { slug: string; 
                     </Link>
                     {r.displayName && <span className="block text-xs text-ink-muted">{r.email}</span>}
                   </td>
-                  <td data-label="Submitted">{formatDateTime(r.submittedAt)}</td>
+                  <td data-label="Submitted">
+                    {formatDateTime(r.submittedAt)}
+                    {r.late && (
+                      <>
+                        {' '}
+                        <Badge tone="neutral">Late</Badge>
+                      </>
+                    )}
+                  </td>
                   <td data-label="Files">{r.fileCount}</td>
                   <td data-label="Score">{r.score === undefined ? 'Not graded' : `${fmtNum(r.score)} / ${fmtNum(a.maxPoints)}`}</td>
                   <td data-label="Graded">{r.gradedAt ? formatDateTime(r.gradedAt) : 'Not graded'}</td>
@@ -184,6 +194,10 @@ function GradeForm({ slug, sectionId, a, name, sub }: { slug: string; sectionId:
   const [local, setLocal] = useState('')
   const [notice, setNotice] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
+  // what a late submission's score is recorded as: the gradebook value while the input is unchanged, else computed
+  const typed = parsePoints(score, a.maxPoints)
+  const recorded = score.trim() === savedScore && sub.finalScore !== undefined ? sub.finalScore.toFixed(2) : 'points' in typed && typed.points !== null ? penalised(typed.points, sub.penaltyPercent) : ''
+  const lateHint = sub.late && sub.penaltyPercent > 0 && recorded ? ` Recorded as ${recorded} after the ${fmtNum(sub.penaltyPercent)}% late penalty.` : ''
   const dirty = score.trim() !== savedScore || feedback !== savedFeedback
 
   const save = useMutation({
@@ -193,7 +207,11 @@ function GradeForm({ slug, sectionId, a, name, sub }: { slug: string; sectionId:
       setScore(s.score === undefined ? '' : fmtNum(s.score)) // the server's normal form, so the panel is clean again
       setFeedback(s.feedback ?? '')
       await refresh(submissionsKey(slug, sectionId, a.id))
-      setNotice(`Grade saved. ${name}: ${fmtNum(s.score ?? 0)} / ${fmtNum(a.maxPoints)}.`)
+      setNotice(
+        s.late && s.penaltyPercent > 0 && s.finalScore !== undefined
+          ? `Grade saved. ${name}: ${fmtNum(s.score ?? 0)} / ${fmtNum(a.maxPoints)}, recorded as ${s.finalScore.toFixed(2)} after the ${fmtNum(s.penaltyPercent)}% late penalty.`
+          : `Grade saved. ${name}: ${fmtNum(s.score ?? 0)} / ${fmtNum(a.maxPoints)}.`,
+      )
     },
   })
   const fe = useFieldErrors(save.error)
@@ -217,7 +235,15 @@ function GradeForm({ slug, sectionId, a, name, sub }: { slug: string; sectionId:
         <h3 id="grade-name-h" className="text-base font-bold wrap-break-word">
           {name}
         </h3>
-        <p className="text-sm text-ink-muted">Submitted {formatDateTime(sub.submittedAt)}</p>
+        <p className="text-sm text-ink-muted">
+          Submitted {formatDateTime(sub.submittedAt)}
+          {sub.late && (
+            <>
+              {' '}
+              <Badge tone="neutral">Late</Badge>
+            </>
+          )}
+        </p>
       </div>
       {sub.body ? (
         <PlainText text={sub.body} className="rounded border border-line bg-surface p-3 text-sm text-ink" />
@@ -227,7 +253,7 @@ function GradeForm({ slug, sectionId, a, name, sub }: { slug: string; sectionId:
       {sub.files.length > 0 && <SubmissionFiles slug={slug} sectionId={sectionId} aId={a.id} userId={sub.userId} files={sub.files} />}
       <form ref={formRef} onSubmit={onSave} noValidate className="flex flex-col gap-4">
         {save.error && <FormErrors error={save.error} />}
-        <FormField label={`Score for ${name}`} name="score" hint={`Out of ${fmtNum(a.maxPoints)}. Up to ${fmtNum(2 * a.maxPoints)} with bonus.`} error={local || fe.score}>
+        <FormField label={`Score for ${name}`} name="score" hint={`Out of ${fmtNum(a.maxPoints)}. Up to ${fmtNum(2 * a.maxPoints)} with bonus.${lateHint}`} error={local || fe.score}>
           <input inputMode="decimal" className={`${inputSizedClass} w-32`} value={score} onChange={(e) => setScore(e.target.value)} />
         </FormField>
         <FormField label={`Feedback for ${name}`} name="feedback" hint={countHint(feedback, 5000)} error={fe.feedback}>

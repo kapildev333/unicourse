@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Download, Upload } from 'lucide-react'
+import { AlarmClock, ArrowLeft, Download, Upload } from 'lucide-react'
 import { createElement, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
 import { Badge } from '../../components/badge'
@@ -14,7 +14,7 @@ import { StatusMessage } from '../../components/status-message'
 import { formatDateTime } from '../../lib/format'
 import { fmtNum } from '../grades/grade'
 import { assessmentsKey, submissionKey, useAssessments, useSubmission, type Assessment, type Submission } from '../quiz/queries'
-import { useNow, windowLine, windowState } from '../quiz/window'
+import { assignmentState, useNow, windowLine } from '../quiz/window'
 import { accept, fileIcon, formatSize } from '../section/files'
 import { PlainText, countHint } from '../section/plain-text'
 import { useUploadPolicy } from '../section/queries'
@@ -28,7 +28,7 @@ const noCopy = {}
 const backClass = 'mb-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline'
 const linkClass =
   'inline-flex items-center gap-1 text-sm text-accent underline hover:text-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
-const stateLabel = { upcoming: 'Upcoming', open: 'Open', closed: 'Closed' }
+const stateLabel = { upcoming: 'Upcoming', open: 'Open', late: 'Past due', closed: 'Closed' }
 
 export function AssignmentPage({ slug, sectionId, assessmentId }: { slug: string; sectionId: string; assessmentId: string }) {
   return (
@@ -99,12 +99,12 @@ function Assignment({ slug, sectionId, assessmentId, canEdit }: { slug: string; 
   } else if (list.isPending || (!canEdit && sub.isPending)) body = <Loading label="Loading assignment…" />
   else if (!a) body = <ErrorBanner title="Assignment not found">This assignment doesn't exist or was deleted.</ErrorBanner>
   else {
-    const state = lapsed ? 'closed' : windowState(a, now)
+    const state = lapsed ? 'closed' : assignmentState(a, now)
     body = (
       <>
         {lapsed && (
           <div className="mb-4">
-            <ErrorBanner title="The due date has passed">Your submission can no longer be changed.</ErrorBanner>
+            <ErrorBanner title={a.lateUntil ? 'Late submissions are closed' : 'The due date has passed'}>Your submission can no longer be changed.</ErrorBanner>
           </div>
         )}
         <Detail
@@ -131,7 +131,7 @@ function Detail(props: {
   slug: string
   sectionId: string
   a: Assessment
-  state: 'upcoming' | 'open' | 'closed'
+  state: 'upcoming' | 'open' | 'late' | 'closed'
   canEdit: boolean
   submission: Submission | null
   onLapsed: () => void
@@ -141,7 +141,7 @@ function Detail(props: {
     <>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <h2 className="min-w-0 text-xl font-bold wrap-break-word">{a.name}</h2>
-        <Badge tone="neutral">{stateLabel[state]}</Badge>
+        <Badge tone={state === 'late' ? 'warning' : 'neutral'}>{stateLabel[state]}</Badge>
       </div>
       <p className="mt-1 text-sm text-ink-muted">{windowLine(a, 'assignment')}</p>
       <p className="mt-1 text-sm text-ink-muted">
@@ -167,8 +167,18 @@ function Detail(props: {
       <div className="mt-6">
         {state === 'upcoming' ? (
           <p className="text-sm text-ink">This assignment opens {a.opensAt ? formatDateTime(a.opensAt) : 'soon'}.</p>
-        ) : state === 'open' ? (
-          <Form slug={slug} sectionId={sectionId} a={a} submission={submission} onLapsed={onLapsed} />
+        ) : state === 'open' || state === 'late' ? (
+          <>
+            {state === 'late' && a.lateUntil && (
+              <p className="mb-4 flex items-start gap-2 text-sm text-ink">
+                <AlarmClock className="mt-0.5 shrink-0" aria-hidden="true" />
+                {a.latePenaltyPercent
+                  ? `Late submissions are accepted until ${formatDateTime(a.lateUntil)} with a ${fmtNum(a.latePenaltyPercent)}% penalty.`
+                  : `Late submissions are accepted until ${formatDateTime(a.lateUntil)}.`}
+              </p>
+            )}
+            <Form slug={slug} sectionId={sectionId} a={a} submission={submission} onLapsed={onLapsed} />
+          </>
         ) : (
           <ReadOnly slug={slug} sectionId={sectionId} a={a} submission={submission} />
         )}
@@ -179,7 +189,7 @@ function Detail(props: {
 }
 
 const submitted = (s: Submission | null) => (
-  <p className="text-sm text-ink-muted">{s ? `Submitted ${formatDateTime(s.submittedAt)}` : 'Not submitted yet.'}</p>
+  <p className="text-sm text-ink-muted">{s ? `Submitted ${s.late ? 'late on ' : ''}${formatDateTime(s.submittedAt)}` : 'Not submitted yet.'}</p>
 )
 
 function ReadOnly({ slug, sectionId, a, submission: s }: { slug: string; sectionId: string; a: Assessment; submission: Submission | null }) {
@@ -195,7 +205,9 @@ function ReadOnly({ slug, sectionId, a, submission: s }: { slug: string; section
         <>
           {s.body ? <PlainText text={s.body} className="rounded border border-line bg-surface p-3 text-sm text-ink" /> : <p className="text-sm text-ink-muted">No text submitted.</p>}
           {s.files.length > 0 && <SubmissionFiles slug={slug} sectionId={sectionId} aId={a.id} userId="me" files={s.files} />}
-          <p className="text-sm text-ink">The due date has passed. Your submission can no longer be changed.</p>
+          <p className="text-sm text-ink">
+            {a.lateUntil ? 'The late submission window has closed.' : 'The due date has passed.'} Your submission can no longer be changed.
+          </p>
         </>
       ) : (
         <p className="text-sm text-ink">You didn't submit this assignment.</p>
@@ -216,6 +228,7 @@ function Grade({ a, submission: s }: { a: Assessment; submission: Submission }) 
         <>
           <p className="text-xl font-bold">
             Score {fmtNum(s.score)} / {fmtNum(a.maxPoints)}
+            {s.late && s.penaltyPercent > 0 && s.finalScore !== undefined && `, ${s.finalScore.toFixed(2)} after the ${fmtNum(s.penaltyPercent)}% late penalty`}
           </p>
           {s.feedback && (
             <>

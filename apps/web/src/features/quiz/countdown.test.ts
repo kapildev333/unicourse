@@ -16,6 +16,14 @@ it('countdownText by range', () => {
   expect(countdownText(-5, iso)).toBe('Time is up')
 })
 
+it('countdownText for a timed quiz reads Time left', () => {
+  expect(countdownText(m(3 * 60 + 12), iso, true)).toBe('Time left: 3 h 12 min')
+  expect(countdownText(m(30 * 60), iso, true)).toBe('Time left: 30 h')
+  expect(countdownText(m(8, 1), iso, true)).toBe('Time left: 9 min')
+  expect(countdownText(42_000, iso, true)).toBe('Time left: 42 s')
+  expect(countdownText(0, iso, true)).toBe('Time is up')
+})
+
 it('announcement speaks only when a threshold is crossed', () => {
   expect(announcement(m(10, 1), m(9, 59))).toBe('10 minutes left.')
   expect(announcement(m(5, 1), m(4, 59))).toBe('5 minutes left.')

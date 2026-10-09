@@ -131,3 +131,25 @@ it('shows the 403 copy', async () => {
   setup({ [`GET ${S}/assessments`]: () => err(403, 'forbidden') }, { staff: false })
   expect(await screen.findByText("Only this section's staff and enrolled students can open its assignments.")).toBeInTheDocument()
 })
+
+it('shows the late window in the line and a warning Past due badge', async () => {
+  setup(
+    { ...list(asg('a1', 'Essay 1', { closesAt: '2020-02-01T09:00:00Z', lateUntil: '2099-01-01T09:00:00Z', latePenaltyPercent: 20 })), ...subMe('a1', null) },
+    { staff: false },
+  )
+  const art = await screen.findByRole('article')
+  expect(within(art).getByText(/ · Due .*, late until /)).toBeInTheDocument()
+  expect(within(art).getByText('Past due')).toBeInTheDocument()
+  expect(await within(art).findByRole('link', { name: 'View Essay 1' })).toBeInTheDocument()
+})
+
+it('student: a published late score shows the penalised score', async () => {
+  setup(
+    {
+      ...list(asg('a1', 'Essay 1', { published: true, closesAt: '2020-02-01T09:00:00Z', lateUntil: '2020-03-01T09:00:00Z', latePenaltyPercent: 20 })),
+      ...subMe('a1', sub({ late: true, penaltyPercent: 20, score: 15, finalScore: 12 })),
+    },
+    { staff: false },
+  )
+  expect(await screen.findByText(/Score 15 \/ 20, 12\.00 after the 20% late penalty\./)).toBeInTheDocument()
+})

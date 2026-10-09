@@ -134,3 +134,45 @@ it('after saving "17.50" the panel is clean: leaving raises no discard dialog', 
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   expect(sent(fn, 'PATCH')).toHaveLength(1)
 })
+
+const lateRows = [row('u1', 'Dana Reyes', { late: true, score: 15, finalScore: 12 }), row('u2', 'Tomás Ibarra')]
+const lateSub = (over: Partial<Submission> = {}) => full({ late: true, penaltyPercent: 20, ...over })
+
+it('table: a Late badge only on the late row', async () => {
+  setup({ [`GET ${S}/assessments/q1/submissions`]: () => ({ body: { items: lateRows } }) })
+  const table = await screen.findByRole('table', { name: 'Submissions for Essay 1' })
+  const [dana, tomas] = within(table).getAllByRole('row').slice(1)
+  expect(within(dana).getByText('Late')).toBeInTheDocument()
+  expect(within(tomas).queryByText('Late')).toBeNull()
+})
+
+it('panel: Late badge and the penalised line follow the typed score', async () => {
+  setup({ [`GET ${S}/assessments/q1/submissions/u1`]: () => ({ body: lateSub({ score: 15, finalScore: 12 }) }) }, 'u1')
+  const input = await screen.findByLabelText('Score for Dana Reyes')
+  expect(screen.getByText('Late')).toBeInTheDocument()
+  expect(screen.getByText(/Recorded as 12\.00 after the 20% late penalty\./)).toBeInTheDocument()
+  fireEvent.change(input, { target: { value: '12.5' } })
+  expect(screen.getByText(/Recorded as 10\.00 after the 20% late penalty\./)).toBeInTheDocument()
+  fireEvent.change(input, { target: { value: 'abc' } })
+  expect(screen.queryByText(/Recorded as/)).toBeNull()
+})
+
+it('panel: an on-time submission has no penalised line', async () => {
+  setup({ [`GET ${S}/assessments/q1/submissions/u1`]: () => ({ body: full({ penaltyPercent: 20 }) }) }, 'u1')
+  fireEvent.change(await screen.findByLabelText('Score for Dana Reyes'), { target: { value: '15' } })
+  expect(screen.queryByText(/Recorded as/)).toBeNull()
+  expect(screen.queryByText('Late')).toBeNull()
+})
+
+it('panel: the status line names the recorded score for a late submission', async () => {
+  setup(
+    {
+      [`GET ${S}/assessments/q1/submissions/u1`]: () => ({ body: lateSub() }),
+      [`PATCH ${S}/assessments/q1/submissions/u1`]: (r) => r.json().then((b) => ({ body: lateSub({ ...b, finalScore: 12 }) })),
+    },
+    'u1',
+  )
+  fireEvent.change(await screen.findByLabelText('Score for Dana Reyes'), { target: { value: '15' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save grade' }))
+  expect(await screen.findByText('Grade saved. Dana Reyes: 15 / 20, recorded as 12.00 after the 20% late penalty.')).toBeInTheDocument()
+})

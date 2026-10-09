@@ -185,8 +185,9 @@ test('E-QUIZ-07 the gradebook column shows the same scores', async ({ browser })
 test('E-QUIZ-08 questions are locked once an attempt exists', async ({ browser }) => {
   const page = await pageAs(browser, P.elena.email, slug)
   await page.goto(`/${slug}/sections/${sid}/quizzes/${quizId}/questions`)
-  await expect(page.getByText(/Questions are locked because a student has started this quiz/), 'instructor, editor: locked view').toBeVisible()
-  await expect(page.getByRole('button', { name: 'Save questions' }), 'instructor, editor: no Save').toHaveCount(0)
+  await expect(page.getByText(/Students have started: you can fix prompts, points and answer keys/), 'instructor, editor: regrade note').toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save and regrade' }), 'instructor, editor: Save and regrade').toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add multiple choice' }), 'instructor, editor: structure locked').toBeDisabled()
   const res = await page.request.put(`${A}/sections/${sid}/assessments/${quizId}/questions`, {
     headers: { 'Sec-Fetch-Site': 'same-origin' },
     data: { items: [{ kind: 'blank', prompt: 'x', points: 1, answers: ['x'] }] },

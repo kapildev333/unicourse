@@ -21,7 +21,15 @@ const copy = {
   'validation_failed:closesAt': 'Enter a time after Opens.',
   'validation_failed:maxPoints': 'Enter maximum points greater than 0.',
   'validation_failed:weight': 'Enter a weight from 0 to 100.',
+  'validation_failed:timeLimitMinutes': 'Enter whole minutes from 1 to 1,440.',
+  'validation_failed:lateUntil': 'Late submissions until must be after Due.',
+  'validation_failed:latePenaltyPercent': 'Enter a penalty from 0 to 100.',
   forbidden: "Only this section's staff and administrators can change quizzes and assignments.",
+}
+
+const copyFor = {
+  quiz: copy,
+  assignment: { ...copy, 'validation_failed:closesAt': 'Enter a due time after Opens and before Late submissions until.' },
 }
 
 /** Next full hour; closes an hour later (quiz) or a week later at 23:59 (assignment). */
@@ -58,6 +66,9 @@ export function WindowDialog(props: {
   const [closes, setCloses] = useState(assessment?.closesAt ? toLocalInput(assessment.closesAt) : (d?.closes ?? ''))
   const [maxPoints, setMax] = useState(assessment ? fmtNum(assessment.maxPoints) : '')
   const [weight, setWeight] = useState(assessment ? fmtNum(assessment.weight) : '')
+  const [limit, setLimit] = useState(assessment?.timeLimitMinutes ? String(assessment.timeLimitMinutes) : '')
+  const [late, setLate] = useState(assessment?.lateUntil ? toLocalInput(assessment.lateUntil) : '')
+  const [penalty, setPenalty] = useState(fmtNum(assessment?.latePenaltyPercent ?? 0))
   const [local, setLocal] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const bannerRef = useRef<HTMLDivElement>(null)
@@ -78,7 +89,8 @@ export function WindowDialog(props: {
       onSaved(`${a.name} ${assessment ? 'saved' : 'created'}.`)
     },
   })
-  const server = useFieldErrors(m.error, copy)
+  const copyMap = copyFor[kind]
+  const server = useFieldErrors(m.error, copyMap)
   const fields: Record<string, string> = { ...server, ...local }
   const hasLocal = Object.keys(local).length > 0
   useFocusFirstError(formRef, hasLocal ? local : m.error, bannerRef)
@@ -97,10 +109,29 @@ export function WindowDialog(props: {
     else if (o && Date.parse(c) <= Date.parse(o)) errs.closesAt = `${closesLabel} must be after Opens.`
     if (kind === 'assignment' && (max === undefined || max <= 0)) errs.maxPoints = copy['validation_failed:maxPoints']
     if (w === undefined || w > 100) errs.weight = copy['validation_failed:weight']
+    const lim = limit.trim()
+    const limN = /^\d+$/.test(lim) ? Number(lim) : undefined
+    if (kind === 'quiz' && lim !== '' && (limN === undefined || limN < 1 || limN > 1440)) errs.timeLimitMinutes = copy['validation_failed:timeLimitMinutes']
+    const l = kind === 'assignment' ? fromLocalInput(late) : undefined
+    const pen = parseDecimal(penalty)
+    if (kind === 'assignment' && late !== '') {
+      if (!l || (c && Date.parse(l) <= Date.parse(c))) errs.lateUntil = copy['validation_failed:lateUntil']
+      if (pen === undefined || pen > 100) errs.latePenaltyPercent = copy['validation_failed:latePenaltyPercent']
+    }
     setLocal(errs)
     if (Object.keys(errs).length > 0 || !o || !c || w === undefined) return
     if (!assessment)
-      return m.mutate({ kind, name: n, description, opensAt: o, closesAt: c, weight: w, ...(max !== undefined && { maxPoints: max }) })
+      return m.mutate({
+        kind,
+        name: n,
+        description,
+        opensAt: o,
+        closesAt: c,
+        weight: w,
+        ...(max !== undefined && { maxPoints: max }),
+        ...(limN !== undefined && { timeLimitMinutes: limN }),
+        ...(l && { lateUntil: l, latePenaltyPercent: pen }),
+      })
     const body = {
       ...(n !== assessment.name && { name: n }),
       ...(description !== assessment.description && { description }),
@@ -108,6 +139,9 @@ export function WindowDialog(props: {
       ...(closes !== toLocalInput(assessment.closesAt ?? '') && { closesAt: c }),
       ...(max !== undefined && max !== assessment.maxPoints && { maxPoints: max }),
       ...(w !== assessment.weight && { weight: w }),
+      ...(kind === 'quiz' && limN !== assessment.timeLimitMinutes && { timeLimitMinutes: limN ?? null }),
+      ...(kind === 'assignment' && late !== (assessment.lateUntil ? toLocalInput(assessment.lateUntil) : '') && { lateUntil: l ?? null }),
+      ...(l && pen !== (assessment.latePenaltyPercent ?? 0) && { latePenaltyPercent: pen }),
     }
     if (Object.keys(body).length === 0) return onClose()
     m.mutate(body)
@@ -117,7 +151,7 @@ export function WindowDialog(props: {
   return (
     <Dialog open size="lg" onClose={onClose} title={assessment ? `Edit ${assessment.name}` : `New ${noun}`}>
       <form ref={formRef} noValidate onSubmit={submit} className="flex flex-col gap-4">
-        {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={copy} />}
+        {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={copyMap} />}
         <FormField label="Title" name="name" error={fields.name}>
           <input type="text" maxLength={100} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>
@@ -144,6 +178,36 @@ export function WindowDialog(props: {
         >
           <input type="datetime-local" className={`${inputSizedClass} w-60`} value={closes} onChange={(e) => setCloses(e.target.value)} />
         </FormField>
+        {kind === 'quiz' && (
+          <FormField
+            label="Time limit (minutes)"
+            name="timeLimitMinutes"
+            error={fields.timeLimitMinutes}
+            hint="Optional. Each attempt is submitted this many minutes after it starts, or at Closes, whichever is first."
+          >
+            <input type="text" inputMode="numeric" className={`${inputSizedClass} w-32`} value={limit} onChange={(e) => setLimit(e.target.value)} />
+          </FormField>
+        )}
+        {kind === 'assignment' && (
+          <FormField
+            label="Late submissions until"
+            name="lateUntil"
+            error={fields.lateUntil}
+            hint="Optional. Students can still submit after Due until this time, and those submissions are marked late."
+          >
+            <input type="datetime-local" className={`${inputSizedClass} w-60`} value={late} onChange={(e) => setLate(e.target.value)} />
+          </FormField>
+        )}
+        {kind === 'assignment' && late !== '' && (
+          <FormField
+            label="Late penalty (%)"
+            name="latePenaltyPercent"
+            error={fields.latePenaltyPercent}
+            hint="Taken off the score of a late submission when you grade it. With 20, a score of 15 is recorded as 12."
+          >
+            <input type="text" inputMode="decimal" className={`${inputSizedClass} w-32`} value={penalty} onChange={(e) => setPenalty(e.target.value)} />
+          </FormField>
+        )}
         {kind === 'assignment' && (
           <FormField
             label="Max points"
