@@ -100,7 +100,10 @@ test('E-QUIZ-02 a student starts, answers two questions, sees Saved, does not su
   await group(amara, 'Which keyword').getByLabel('def', { exact: true }).check()
   await expect(status(amara, 'Saved'), 'student, take page: Saved after a choice').toBeVisible()
   // spelled with a hyphen: the automatic grading does not match it, the TA will accept it
-  await group(amara, 'Name the search').getByLabel('Your answer').fill('binary-search')
+  await Promise.all([
+    amara.waitForResponse((r) => r.url().includes('/attempts/me') && r.request().method() === 'PUT' && r.ok()),
+    group(amara, 'Name the search').getByLabel('Your answer').fill('binary-search'),
+  ])
   await expect(status(amara, 'Saved'), 'student, take page: Saved after the blank').toBeVisible()
   expect(Date.now(), 'the answers were saved before the close').toBeLessThan(closeAt)
 })

@@ -8,13 +8,16 @@ import { expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } fro
 test.describe.configure({ mode: 'serial' })
 
 const slug = `e2e-asg-${runId}`
+const other = `e2e-asg2-${runId}`
 const P = personas(slug)
+const P2 = personas(other)
 const NAME = 'Essay 1'
 const pdfPath = fileURLToPath(new URL('./fixtures/syllabus.pdf', import.meta.url))
 let sid = ''
 
 test.beforeAll(async ({ browser }) => {
   seedDemo(slug)
+  seedDemo(other)
   const elena = await pageAs(browser, P.elena.email, slug)
   sid = (await sectionIds(elena, slug))['CS210-001']
   await elena.context().close()
@@ -97,9 +100,15 @@ test('E-ASG-03 the TA downloads the same PDF, grades 17 and releases', async ({ 
 
   await page.getByRole('link', { name: 'All submissions' }).click()
   await expect(page.getByRole('row').filter({ hasText: 'Amara Okafor' }), 'TA, Submissions: graded row').toContainText('17 / 20')
+  const student = await pageAs(browser, P.amara.email, slug)
+  await open(student)
+  await expect(student.getByText('Score 17 / 20'), 'student, assignment: score hidden before release').toHaveCount(0)
   await page.getByRole('button', { name: `Release scores for ${NAME}` }).click()
   await page.getByRole('dialog', { name: `Release scores for ${NAME}?` }).getByRole('button', { name: 'Release scores' }).click()
   await expect(status(page, `${NAME}: scores released to students.`), 'TA, Submissions: released notice').toBeVisible()
+  await student.reload()
+  await expect(student.getByText('Score 17 / 20'), 'student, assignment: score after release').toBeVisible()
+  await student.context().close()
   await page.context().close()
 })
 
@@ -147,5 +156,18 @@ test('E-ASG-07 the assignment page fits a 390 px phone', async ({ browser }) => 
   await page.getByRole('link', { name: `View ${NAME}` }).click()
   await expect(page.getByRole('button', { name: 'Upload files' }), 'student at 390, assignment: Upload').toBeVisible()
   await expectNoSideScroll(page, 'student at 390, assignment page')
+  await page.context().close()
+})
+
+test('E-ASG-08 a second university sees none of it', async ({ browser }) => {
+  const page = await pageAs(browser, P2.elena.email, other)
+  await page.goto(`/${slug}/sections/${sid}/assignments`)
+  await expect(page.getByText(NAME), 'other university instructor, first university URL: no Essay 1').toHaveCount(0)
+  await expect(page.getByText('Only this section\'s staff and enrolled students can open its assignments.').or(page.getByText(/not found|no access/i)).first(), 'other university instructor, first university URL: refused').toBeVisible()
+  const res = await page.request.get(`/api/v1/universities/${slug}/sections/${sid}/assessments`, { headers: { 'Sec-Fetch-Site': 'same-origin' } })
+  expect([403, 404], 'other university instructor, API: first university assessments').toContain(res.status())
+  const own = (await sectionIds(page, other))['CS210-001']
+  await page.goto(`/${other}/sections/${own}/assignments`)
+  await expect(page.getByText('No assignments yet'), 'other university instructor, own CS210-001: empty').toBeVisible()
   await page.context().close()
 })
