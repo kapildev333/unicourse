@@ -382,3 +382,22 @@ func TestPreviewEmptyKeyNotDuplicate(t *testing.T) {
 		t.Fatalf("p=%+v err=%v", p, err)
 	}
 }
+
+// stallBody yields data, then fails like a connection past its read deadline.
+type stallBody struct{ data *strings.Reader }
+
+func (s stallBody) Read(p []byte) (int, error) {
+	if n, _ := s.data.Read(p); n > 0 {
+		return n, nil
+	}
+	return 0, os.ErrDeadlineExceeded
+}
+
+func TestReadUploadDeadlineIsNotValidation(t *testing.T) {
+	r := httptest.NewRequest("POST", "/", stallBody{strings.NewReader("--b\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.csv\"\r\n\r\nemail\na@a")})
+	r.Header.Set("Content-Type", "multipart/form-data; boundary=b")
+	_, _, _, err := ReadUpload(r, emailSpec)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("got %v", err)
+	}
+}

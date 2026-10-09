@@ -27,6 +27,9 @@ func DecodeJSON(r *http.Request, dst any) error {
 	if err == nil {
 		// A second value (or garbage) after the first is an error; io.EOF means clean end.
 		if err = dec.Decode(&struct{}{}); err != io.EOF {
+			if errors.Is(err, os.ErrDeadlineExceeded) {
+				return err // WriteError answers 499
+			}
 			return Validation(FieldError{Field: "body", Message: "must contain a single JSON value"})
 		}
 		return exactKeys(raw.Bytes(), dst)

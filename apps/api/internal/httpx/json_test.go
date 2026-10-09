@@ -3,6 +3,7 @@ package httpx
 import (
 	"errors"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -113,5 +114,26 @@ func TestDecodeJSONExactCaseKeys(t *testing.T) {
 	var m map[string]string
 	if err := DecodeJSON(httptest.NewRequest("POST", "/", strings.NewReader(`{"NAME":"x"}`)), &m); err != nil {
 		t.Error(err)
+	}
+}
+
+type stallAfter struct{ data *strings.Reader }
+
+func (s stallAfter) Read(p []byte) (int, error) {
+	if n, _ := s.data.Read(p); n > 0 {
+		return n, nil
+	}
+	return 0, os.ErrDeadlineExceeded
+}
+
+func TestDecodeJSONDeadlineIsNotValidation(t *testing.T) {
+	for _, body := range []string{`{"a"`, `{"a":"b"}`} { // stalls mid-value, and on the trailing check
+		r := httptest.NewRequest("POST", "/", stallAfter{strings.NewReader(body)})
+		var v struct {
+			A string `json:"a"`
+		}
+		if err := DecodeJSON(r, &v); !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Errorf("%s: %v", body, err)
+		}
 	}
 }

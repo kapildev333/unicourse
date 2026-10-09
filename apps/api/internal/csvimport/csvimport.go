@@ -14,6 +14,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"strings"
 	"unicode/utf8"
 
@@ -214,6 +215,9 @@ func ReadUpload(r *http.Request, s Spec) (recs []Record, checksum, formChecksum 
 }
 
 func uploadErr(err error) error {
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return err // WriteError answers 499
+	}
 	var mb *http.MaxBytesError
 	if errors.As(err, &mb) {
 		return fileErr("file too large")
