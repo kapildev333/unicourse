@@ -163,7 +163,7 @@ test('E-ASG-08 a second university sees none of it', async ({ browser }) => {
   const page = await pageAs(browser, P2.elena.email, other)
   await page.goto(`/${slug}/sections/${sid}/assignments`)
   await expect(page.getByText(NAME), 'other university instructor, first university URL: no Essay 1').toHaveCount(0)
-  await expect(page.getByText('Only this section\'s staff and enrolled students can open its assignments.').or(page.getByText(/not found|no access/i)).first(), 'other university instructor, first university URL: refused').toBeVisible()
+  await expect(page.getByRole('heading', { name: "You don't have access to this university" }), 'other university instructor, first university URL: refused').toBeVisible()
   const res = await page.request.get(`/api/v1/universities/${slug}/sections/${sid}/assessments`, { headers: { 'Sec-Fetch-Site': 'same-origin' } })
   expect([403, 404], 'other university instructor, API: first university assessments').toContain(res.status())
   const own = (await sectionIds(page, other))['CS210-001']
