@@ -75,10 +75,10 @@ function SectionCard({ slug, s }: { slug: string; s: GradeSection }) {
                   : ` · ${fmtNum(a.points)} / ${fmtNum(a.maxPoints)} · ${fmtNum(a.weight)}%`) + (a.dueOn ? ` · Due ${formatDate(a.dueOn)}` : '')
               if (a.kind !== 'quiz' && a.kind !== 'assignment') return <li key={a.id}>{a.name + rest}</li>
               // ponytail: take and assignment pages are separate route files (P18-L6b, P18-L7); typed loosely until they exist
-              const to = (a.kind === 'quiz' ? '/$slug/sections/$id/quizzes/$assessmentId' : '/$slug/sections/$id/assignments/$assessmentId') as never
+              const to = a.kind === 'quiz' ? '/$slug/sections/$id/quizzes/$assessmentId' : '/$slug/sections/$id/assignments/$assessmentId'
               return (
                 <li key={a.id}>
-                  <Link to={to} params={{ slug, id: s.section.id, assessmentId: a.id } as never} className="text-accent underline">
+                  <Link to={to} params={{ slug, id: s.section.id, assessmentId: a.id }} className="text-accent underline">
                     {a.name}
                   </Link>
                   {rest}
