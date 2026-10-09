@@ -12,6 +12,7 @@ const fall = { id: 't2', name: 'Fall 2026', startsOn: '2026-08-25', endsOn: '202
 const spring = { id: 't1', name: 'Spring 2026', startsOn: '2026-01-10', endsOn: '2026-05-15' }
 const course = (code: string, title: string) => ({ id: `c-${code}`, departmentId: 'd1', code, title, credits: 3 })
 const mid = { id: 'a1', name: 'Midterm', weight: 40, maxPoints: 40, dueOn: '2026-10-12', points: 34 }
+const quiz = { id: 'q1', name: 'Week 3 check', kind: 'quiz', weight: 20, maxPoints: 10, points: 8 }
 const fin = { id: 'a2', name: 'Final', weight: 60, maxPoints: 100 }
 
 const grades = (over: Record<string, unknown> = {}) => ({
@@ -195,4 +196,14 @@ it('gives every card the same fixed-height grade block', async () => {
   renderPage(grades())
   const c = await card('PH110-001')
   expect(within(c).getByText('Current B').parentElement).toHaveClass('min-h-14')
+})
+
+it('links a quiz row to its take page and leaves manual rows as plain text', async () => {
+  const g = grades()
+  g.terms[1].sections![0].assessments = [{ ...mid, kind: 'manual' }, quiz]
+  renderPage(g)
+  const c = await card('CS101-001')
+  expect(within(c).getByRole('link', { name: 'Week 3 check' })).toHaveAttribute('href', '/a/sections/s1/quizzes/q1')
+  expect(within(c).queryByRole('link', { name: 'Midterm' })).toBeNull()
+  expect(within(c).getByText(/^Midterm · 34 \/ 40/)).toBeInTheDocument()
 })

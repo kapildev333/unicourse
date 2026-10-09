@@ -23,6 +23,7 @@ const section = (staff: unknown[] = []) => ({
 const asm = (id: string, name: string, maxPoints: number, weight: number, published = false) => ({
   id,
   sectionId: 's1',
+  kind: 'manual' as 'manual' | 'quiz' | 'assignment',
   name,
   maxPoints,
   weight,
@@ -460,4 +461,15 @@ it('an explicit 0 score on a published assessment is not Missing', async () => {
   renderPage('instructor', {}, pub([stu('erin', 'Erin Moe', { a1: 0 }, { percent: 0 })]))
   await screen.findByText('Letters: A 1 · B 1')
   expect(screen.queryByText('Missing')).not.toBeInTheDocument()
+})
+
+it('badges quiz and assignment columns and leaves manual ones plain', async () => {
+  const b = book()
+  b.assessments = [asm('a1', 'Midterm', 40, 40), { ...asm('a2', 'Week 3 check', 10, 30), kind: 'quiz' }, { ...asm('a3', 'Essay 1', 20, 30), kind: 'assignment' }]
+  renderPage('instructor', {}, b)
+  expect(await screen.findByText('Quiz')).toBeInTheDocument()
+  expect(screen.getByText('Assignment')).toBeInTheDocument()
+  const heads = screen.getAllByRole('columnheader')
+  expect(heads.filter((h) => /^Quiz$|^Assignment$/.test(h.textContent ?? '')).length).toBe(0)
+  expect(within(heads.find((h) => h.textContent?.includes('Midterm'))!).queryByText(/^(Quiz|Assignment)$/)).toBeNull()
 })

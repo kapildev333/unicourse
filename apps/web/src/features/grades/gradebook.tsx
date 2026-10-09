@@ -427,6 +427,11 @@ function Gradebook({ slug, sectionId, sec }: { slug: string; sectionId: string; 
                   <span className="block font-normal normal-case">
                     {fmtNum(a.maxPoints)} pts · {fmtNum(a.weight)}%
                   </span>
+                  {(a.kind === 'quiz' || a.kind === 'assignment') && (
+                    <span className="block">
+                      <Badge tone="neutral">{a.kind === 'quiz' ? 'Quiz' : 'Assignment'}</Badge>
+                    </span>
+                  )}
                   {a.dueOn && <span className="block font-normal normal-case">Due {formatDate(a.dueOn)}</span>}
                   {editing ? (
                     <PublishToggle

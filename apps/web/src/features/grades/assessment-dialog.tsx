@@ -5,6 +5,7 @@ import { Button } from '../../components/button'
 import { Dialog } from '../../components/dialog'
 import { FormErrors, useFieldErrors, useFocusFirstError } from '../../components/form-errors'
 import { FormField, inputClass, inputSizedClass } from '../../components/form-field'
+import { formatDate } from '../../lib/format'
 import { fmtNum, parseDecimal } from './grade'
 import { useGradesRefresh, type Assessment } from './queries'
 import type { components } from '../../api/types'
@@ -40,6 +41,10 @@ export function AssessmentDialog(props: {
   const formRef = useRef<HTMLFormElement>(null)
   const bannerRef = useRef<HTMLDivElement>(null)
   const path = { params: { path: { slug, id: sectionId } } }
+  // quizzes derive max points from their questions; quizzes and assignments derive the due date from closesAt (D144)
+  const kind = assessment?.kind ?? 'manual'
+  const derivedMax = kind === 'quiz'
+  const derivedDue = kind !== 'manual'
 
   const m = useMutation({
     mutationFn: (body: components['schemas']['AssessmentCreate'] | components['schemas']['AssessmentUpdate']) =>
@@ -89,22 +94,22 @@ export function AssessmentDialog(props: {
     const w = parseDecimal(weight)
     const n = name.trim()
     if (!n || n.length > 100) errs.name = copy['validation_failed:name']
-    if (max === undefined || max <= 0) errs.maxPoints = copy['validation_failed:maxPoints']
+    if (!derivedMax && (max === undefined || max <= 0)) errs.maxPoints = copy['validation_failed:maxPoints']
     if (w === undefined || w > 100) errs.weight = copy['validation_failed:weight']
     setLocal(errs)
-    if (Object.keys(errs).length > 0 || max === undefined || w === undefined) return
+    if (Object.keys(errs).length > 0 || w === undefined || (!derivedMax && max === undefined)) return
     if (!assessment)
       return m.mutate({
         name: n,
-        maxPoints: max,
+        maxPoints: max!,
         weight: w,
         ...(dueOn && { dueOn }),
       })
     const body = {
       ...(n !== assessment.name && { name: n }),
-      ...(max !== assessment.maxPoints && { maxPoints: max }),
+      ...(!derivedMax && max !== assessment.maxPoints && { maxPoints: max }),
       ...(w !== assessment.weight && { weight: w }),
-      ...(dueOn !== (assessment.dueOn ?? '') && { dueOn: dueOn || null }),
+      ...(!derivedDue && dueOn !== (assessment.dueOn ?? '') && { dueOn: dueOn || null }),
     }
     if (Object.keys(body).length === 0) return onClose()
     m.mutate(body)
@@ -116,7 +121,9 @@ export function AssessmentDialog(props: {
         <div className="flex flex-col gap-4">
           <FormErrors error={del.error} copy={copy} />
           <p className="text-sm">
-            Delete {assessment.name}? Its {scoredCount} scores are deleted too. This can&apos;t be undone.
+            Delete {assessment.name}? Its {scoredCount} scores
+            {kind === 'manual' ? '' : ` and every student ${kind === 'quiz' ? 'attempt' : 'submission'}`} are deleted too. This can&apos;t be
+            undone.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
@@ -137,15 +144,19 @@ export function AssessmentDialog(props: {
         <FormField label="Name" name="name" error={fields.name}>
           <input type="text" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>
-        <FormField label="Max points" name="maxPoints" hint="Points a full score is worth." error={fields.maxPoints}>
-          <input
-            type="text"
-            inputMode="decimal"
-            className={`${inputSizedClass} w-32`}
-            value={maxPoints}
-            onChange={(e) => setMax(e.target.value)}
-          />
-        </FormField>
+        {derivedMax ? (
+          <p className="text-sm text-ink-muted">Max points: {fmtNum(assessment!.maxPoints)}, derived from its questions.</p>
+        ) : (
+          <FormField label="Max points" name="maxPoints" hint="Points a full score is worth." error={fields.maxPoints}>
+            <input
+              type="text"
+              inputMode="decimal"
+              className={`${inputSizedClass} w-32`}
+              value={maxPoints}
+              onChange={(e) => setMax(e.target.value)}
+            />
+          </FormField>
+        )}
         <FormField
           label="Weight (%)"
           name="weight"
@@ -160,14 +171,21 @@ export function AssessmentDialog(props: {
             onChange={(e) => setWeight(e.target.value)}
           />
         </FormField>
-        <FormField label="Due date" name="dueOn" hint="Optional." error={fields.dueOn}>
-          <input
-            type="date"
-            className={`${inputSizedClass} w-48`}
-            value={dueOn}
-            onChange={(e) => setDueOn(e.target.value)}
-          />
-        </FormField>
+        {derivedDue ? (
+          <p className="text-sm text-ink-muted">
+            {assessment!.dueOn ? `Due ${formatDate(assessment!.dueOn)}, from its closing time.` : 'The due date comes from its closing time.'} Change
+            the window on the {kind === 'quiz' ? 'Quizzes' : 'Assignments'} tab.
+          </p>
+        ) : (
+          <FormField label="Due date" name="dueOn" hint="Optional." error={fields.dueOn}>
+            <input
+              type="date"
+              className={`${inputSizedClass} w-48`}
+              value={dueOn}
+              onChange={(e) => setDueOn(e.target.value)}
+            />
+          </FormField>
+        )}
         <div className="flex items-center justify-end gap-2">
           {assessment && (
             <Button
