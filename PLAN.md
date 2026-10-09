@@ -11,7 +11,7 @@ Spec 8: `docs/specs/2026-10-07-postman-collection.md` · plan `docs/plans/2026-1
 Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e2e-coverage.md` (Phase 16, done 2026-10-08)
 Spec 10: `docs/specs/2026-10-08-backlog-completion.md` · plan `docs/plans/2026-10-08-backlog-completion.md` (Phase 17, started 2026-10-08)
 Spec 11: `docs/specs/2026-10-08-quizzes-and-assignments.md` · plan `docs/plans/2026-10-08-quizzes-and-assignments.md` (Phase 18, done 2026-10-09)
-Spec 12: `docs/specs/2026-10-09-quiz-and-assignment-followups.md` · plan `docs/plans/2026-10-09-quiz-and-assignment-followups.md` (Phase 19, started 2026-10-09)
+Spec 12: `docs/specs/2026-10-09-quiz-and-assignment-followups.md` · plan `docs/plans/2026-10-09-quiz-and-assignment-followups.md` (Phase 19, done 2026-10-09)
 
 ## Decisions
 | # | Decision | Status |
@@ -435,7 +435,7 @@ Owner (loop prompt, 2026-10-08): MCQ and fill-in-the-blank questions, automated 
 | P18-L7 - Web assignments (Task 7, W) | Sonnet 5.5 | `features/assignment/**`, `routes/$slug/sections_.$id.assignments*` | **done** - [#170](https://github.com/kapildev333/unicourse/pull/170). Orchestrator: 553 unit tests, build, e2e 89 passed; browser pass of the list, dialog, student page with text and file, grading panel; review changes needed (two fixes landed) |
 | P18-L8 - Demo seed and e2e (Task 8, W) | Sonnet 5.5 | `internal/seed/**`, `docs/seed/fixture.schema.json`, `e2e/{quizzes,assignments}.spec.ts` | **done** - [#172](https://github.com/kapildev333/unicourse/pull/172) (L8a seed: open quiz with 2 attempts and a TA review, assignment with 2 submissions and a 17/20 grade on CS101; fixture keys and schema) and [#173](https://github.com/kapildev333/unicourse/pull/173) (L8b: quizzes.spec.ts 10 cases, assignments.spec.ts 8 cases incl. the live automatic submission and tenant isolation). Orchestrator: Go 19 ok, seed verified on the dev database, e2e 89 + 18 passed; reviews approve (L8a, two low fixed) and changes needed → fixed (L8b) |
 
-## Phase 19 - Quiz and assignment follow-ups (Spec 12, started 2026-10-09)
+## Phase 19 - Quiz and assignment follow-ups (Spec 12, complete 2026-10-09)
 Owner (loop prompt, 2026-10-09): build the four backlog items (regrading after an answer-key change, late submissions with a penalty, per-attempt time limits, a server ReadTimeout); no CI (D148). Unattended; D149-D152 owner to confirm.
 
 | Lane | Model | Scope | Status |
@@ -447,7 +447,7 @@ Owner (loop prompt, 2026-10-09): build the four backlog items (regrading after a
 | P19-L5 - Late submissions in `internal/assignment` (Task 5, W) | Sonnet 5.5 | `internal/assignment/**`, contract | **done** - [#180](https://github.com/kapildev333/unicourse/pull/180). Orchestrator: Go 19 ok, 553 unit tests, e2e 30; real HTTP: late flag, 15 → 12.00 in the gradebook, hidden until release, 409 after the late window; review changes needed → fixed (a `for update` that also locked the assessment row deadlocked concurrent graders) |
 | P19-L6 - Server timeouts (Task 6, W) | Sonnet 5.5 | `internal/config`, `cmd/api/main.go`, the two upload handlers' deadline call, README env table | **done** - [#176](https://github.com/kapildev333/unicourse/pull/176). Orchestrator: Go 19 ok 0 SKIP; real process: a trickled body cut off at the 2 s read timeout and logged 499, malformed body still 400, a 300 KB upload at 50 KB/s (5.9 s) 201 under the upload deadline; review changes needed → fixed (test through the real ReceiveFile, csvimport and DecodeJSON passthroughs) |
 | P19-L7 - Web (Task 7, W) | Sonnet 5.5 | `features/quiz/**`, `features/assignment/**` | **done** - [#184](https://github.com/kapildev333/unicourse/pull/184). Orchestrator: 592 unit tests, build, e2e 36 (quizzes, assignments, grades, a11y), browser pass of every new state in light and dark at 1440 and 390; review approve, one medium finding fixed (a 400 on a missing question id now enters regrade mode like the 409) |
-| P19-L8 - e2e (Task 8, W) | Sonnet 5.5 | `e2e/quizzes.spec.ts`, `e2e/assignments.spec.ts` | building from #184's content (branched from L7's head) |
+| P19-L8 - e2e (Task 8, W) | Sonnet 5.5 | `e2e/quizzes.spec.ts`, `e2e/assignments.spec.ts` | **done** - [#186](https://github.com/kapildev333/unicourse/pull/186). E-QUIZ-11 (time limit, automatic submission observed), E-QUIZ-12 (regrade keeps reviewed points, gradebook changes), E-ASG-09 (late penalty 15 → 12.00); orchestrator: 21 passed from a snapshot; review approve |
 
 ## Backlog
 Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 maps them to B1-B13); what remains afterwards is owner-gated (Spec 10 §3). The list as it stood on 2026-10-08:
@@ -539,3 +539,4 @@ Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 map
 - 2026-10-09: P19-L6 (#176, server timeouts) and the P19-L1 design (#177) landed; D153 records the design rulings; P19-L2 launched.
 - 2026-10-09: P19-L2 (#179), P19-L5 (#180) and P19-L4 (#181) landed after reviews (one deadlock regression caught and fixed in L5), fix rounds and the orchestrator's gates and real-HTTP passes; P19-L3 (regrade) verified and landing; P19-L7 (web) launched. The shared test database stalled once behind a hung advisory-lock holder (a test that set up its fixture twice) and was cleared by terminating that backend; the Go gate timeout is now 40 minutes.
 - 2026-10-09: P19-L3 (#183) and P19-L7 (#184) landed; every Spec 12 behaviour is on main; P19-L8 (three e2e cases) is the last lane before the phase close.
+- 2026-10-09: Phase 19 complete: P19-L8 (#186) landed; final check on main: Go 19 packages ok (0 SKIP), 592 web unit tests, build, Postman and types.ts in sync, Playwright full suite 110 passed (4.4 m) on port 17114 / unicourse_e2e_14. Spec 12 built in one day (11 PRs #175-#186); release v0.19.0 after this PR. The 5-minute loop stops here; the owner reviews D149-D154 (ruled under delegation); CI stays off under D148.
