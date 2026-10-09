@@ -19,8 +19,7 @@ import { attemptsKey, useAssessmentRefresh, useAssessments, useAttempt, useAttem
 import { ReleaseButton } from './release'
 import { useNow, windowLine, windowState } from './window'
 
-// ponytail: the take and attempts pages are separate route files (6b, 6c); typed loosely until they exist
-const takeTo = '/$slug/sections/$id/quizzes/$assessmentId' as never
+// ponytail: the attempts page is a separate route file (6c); typed loosely until it exists
 const attemptsTo = '/$slug/sections/$id/quizzes/$assessmentId/attempts' as never
 
 const stateLabel = { upcoming: 'Upcoming', open: 'Open', closed: 'Closed' }
@@ -64,7 +63,7 @@ function QuizRow(props: {
     const start = state === 'open' && !mine && (a.questionCount ?? 0) > 0
     const cont = state === 'open' && !!mine && !submitted
     student = (
-      <ButtonLink to={takeTo} params={params as never} size="sm" variant={start || cont ? 'primary' : 'secondary'} aria-label={`${start ? 'Start' : cont ? 'Continue' : 'View'} ${a.name}`}>
+      <ButtonLink to="/$slug/sections/$id/quizzes/$assessmentId" params={params as never} size="sm" variant={start || cont ? 'primary' : 'secondary'} aria-label={`${start ? 'Start' : cont ? 'Continue' : 'View'} ${a.name}`}>
         {start ? 'Start' : cont ? 'Continue' : 'View'}
       </ButtonLink>
     )
