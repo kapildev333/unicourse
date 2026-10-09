@@ -470,3 +470,51 @@ func TestAssessmentWindowCheck(t *testing.T) {
 		t.Errorf("valid quiz: %v", err)
 	}
 }
+
+func TestAssessmentFollowupChecks(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	var section string
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+		var course string
+		if err := tx.QueryRow(`insert into courses (university_id, department_id, code, title) values ('` + f.UniversityA + `', '` + f.DeptA + `', 'F1', 'C') returning id`).Scan(&course); err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ('` + f.UniversityA + `', '` + course + `', '` + f.TermA + `', '1') returning id`).Scan(&section); err != nil {
+			t.Fatal(err)
+		}
+		return nil
+	})
+	const win = `now(), now() + interval '1 day'`
+	insert := func(kind, opens, limit, late, penalty string) error {
+		return pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+			_, err := tx.Exec(`insert into assessments (university_id, section_id, name, max_points, weight, kind, opens_at, closes_at, time_limit_minutes, late_until, late_penalty_percent)
+				values ($1, $2, gen_random_uuid()::text, 1, 1, '`+kind+`', `+opens+`, `+limit+`, `+late+`, `+penalty+`)`, f.UniversityA, section)
+			return err
+		})
+	}
+	for name, c := range map[string][5]string{
+		"assignment with a limit":   {"assignment", win, "5", "null", "0"},
+		"quiz with limit 0":         {"quiz", win, "0", "null", "0"},
+		"quiz with limit 1441":      {"quiz", win, "1441", "null", "0"},
+		"quiz with lateUntil":       {"quiz", win, "null", "now() + interval '2 day'", "0"},
+		"lateUntil equals closes":   {"assignment", `now(), now() + interval '1 day'`, "null", "now() + interval '1 day'", "0"},
+		"manual with penalty":       {"manual", "null, null", "null", "null", "5"},
+		"assignment penalty 100.01": {"assignment", win, "null", "null", "100.01"},
+	} {
+		// column order: kind, opens_at + closes_at, limit, late, penalty
+		err := insert(c[0], c[1], c[2], c[3], c[4])
+		var pe *pgconn.PgError
+		if !errors.As(err, &pe) || pe.Code != "23514" {
+			t.Errorf("%s: %v, want 23514", name, err)
+		}
+	}
+	for name, c := range map[string][5]string{
+		"quiz limit 1440":      {"quiz", win, "1440", "null", "0"},
+		"assignment late 100%": {"assignment", win, "null", "now() + interval '2 day'", "100"},
+	} {
+		if err := insert(c[0], c[1], c[2], c[3], c[4]); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

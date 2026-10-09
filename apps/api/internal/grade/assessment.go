@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -32,17 +33,25 @@ type Assessment struct {
 	Published     bool        `json:"published"`
 	Position      int         `json:"position"`
 	QuestionCount *int        `json:"questionCount,omitempty"` // quizzes only
+
+	TimeLimitMinutes   *int        `json:"timeLimitMinutes,omitempty"`   // quizzes only, nil = no limit
+	LateUntil          *time.Time  `json:"lateUntil,omitempty"`          // assignments only, UTC
+	LatePenaltyPercent json.Number `json:"latePenaltyPercent,omitempty"` // assignments only, always present for them
 }
 
 const assessmentCols = `id, section_id, kind, name, description, max_points::text, weight::text,
   coalesce(to_char(due_on, 'YYYY-MM-DD'), ''), opens_at, closes_at, published, position,
-  case when kind = 'quiz' then (select count(*)::int from questions q where q.assessment_id = assessments.id) end`
+  case when kind = 'quiz' then (select count(*)::int from questions q where q.assessment_id = assessments.id) end,
+  time_limit_minutes, late_until, case when kind = 'assignment' then late_penalty_percent::text end`
 
 func scanAssessment(sc interface{ Scan(...any) error }) (Assessment, error) {
 	var a Assessment
 	var opens, closes sql.NullTime
-	var count sql.NullInt32
-	err := sc.Scan(&a.ID, &a.SectionID, &a.Kind, &a.Name, &a.Description, &a.MaxPoints, &a.Weight, &a.DueOn, &opens, &closes, &a.Published, &a.Position, &count)
+	var count, limit sql.NullInt32
+	var late sql.NullTime
+	var penalty sql.NullString
+	err := sc.Scan(&a.ID, &a.SectionID, &a.Kind, &a.Name, &a.Description, &a.MaxPoints, &a.Weight, &a.DueOn, &opens, &closes, &a.Published, &a.Position, &count,
+		&limit, &late, &penalty)
 	if opens.Valid {
 		t := opens.Time.UTC()
 		a.OpensAt = &t
@@ -55,6 +64,15 @@ func scanAssessment(sc interface{ Scan(...any) error }) (Assessment, error) {
 		n := int(count.Int32)
 		a.QuestionCount = &n
 	}
+	if limit.Valid {
+		n := int(limit.Int32)
+		a.TimeLimitMinutes = &n
+	}
+	if late.Valid {
+		t := late.Time.UTC()
+		a.LateUntil = &t
+	}
+	a.LatePenaltyPercent = json.Number(penalty.String)
 	return a, err
 }
 
@@ -97,6 +115,11 @@ type fieldsIn struct {
 	DueOn, OpensAt, ClosesAt string // times RFC 3339, "" = none
 	Position                 *int
 	SetMax, SetDue           bool
+	// quiz time limit (minutes), assignment late window; "" = none. Set* say the request named the field with a value.
+	TimeLimit                              json.Number
+	LateUntil                              string
+	Penalty                                json.Number
+	SetTimeLimit, SetLateUntil, SetPenalty bool
 }
 
 // assessmentFields validates the merged or created values (all errors at once, body field order)
@@ -166,6 +189,41 @@ func assessmentFields(in fieldsIn) (fieldsIn, []httpx.FieldError) {
 	}
 	if opensOK && closesOK && !closes.Round(time.Microsecond).After(opens.Round(time.Microsecond)) {
 		bad("closesAt", "must be after opensAt")
+	}
+	if in.Kind != "quiz" && in.SetTimeLimit {
+		bad("timeLimitMinutes", "only for quizzes")
+	} else if in.Kind == "quiz" && in.TimeLimit != "" {
+		if n, err := strconv.Atoi(string(in.TimeLimit)); err != nil || n < 1 || n > 1440 {
+			bad("timeLimitMinutes", "must be between 1 and 1440")
+		}
+	}
+	if known && in.Kind != "assignment" {
+		if in.SetLateUntil {
+			bad("lateUntil", "only for assignments")
+		}
+		if in.SetPenalty {
+			bad("latePenaltyPercent", "only for assignments")
+		}
+		out.Penalty = "0"
+	} else if known {
+		if in.LateUntil != "" {
+			if late, err := time.Parse(time.RFC3339, in.LateUntil); err != nil {
+				bad("lateUntil", "must be an RFC 3339 time")
+			} else if closesOK && !late.Round(time.Microsecond).After(closes.Round(time.Microsecond)) {
+				if in.SetLateUntil {
+					bad("lateUntil", "must be after closesAt")
+				} else {
+					bad("closesAt", "must be before lateUntil")
+				}
+			}
+		}
+		if in.Penalty == "" {
+			out.Penalty = "0"
+		} else if p, fe := tenant.Decimal("latePenaltyPercent", in.Penalty, 2, "0", "100"); fe != nil {
+			d = append(d, *fe)
+		} else {
+			out.Penalty = json.Number(p)
+		}
 	}
 	if in.Position != nil {
 		if *in.Position < 0 || *in.Position > 10000 {
@@ -241,6 +299,10 @@ func createAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		ClosesAt    string      `json:"closesAt"`
 		Published   bool        `json:"published"`
 		Position    *int        `json:"position"`
+
+		TimeLimitMinutes   json.Number `json:"timeLimitMinutes"`
+		LateUntil          string      `json:"lateUntil"`
+		LatePenaltyPercent json.Number `json:"latePenaltyPercent"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
@@ -254,7 +316,9 @@ func createAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		}
 	}
 	f := fieldsIn{Kind: in.Kind, Name: in.Name, Description: in.Description, MaxPoints: in.MaxPoints, Weight: in.Weight, DueOn: in.DueOn,
-		OpensAt: in.OpensAt, ClosesAt: in.ClosesAt, Position: in.Position, SetMax: in.MaxPoints != "", SetDue: in.DueOn != ""}
+		OpensAt: in.OpensAt, ClosesAt: in.ClosesAt, Position: in.Position, SetMax: in.MaxPoints != "", SetDue: in.DueOn != "",
+		TimeLimit: in.TimeLimitMinutes, LateUntil: in.LateUntil, Penalty: in.LatePenaltyPercent,
+		SetTimeLimit: in.TimeLimitMinutes != "", SetLateUntil: in.LateUntil != "", SetPenalty: in.LatePenaltyPercent != ""}
 	if in.Kind == "quiz" {
 		f.MaxPoints = "1" // Σ question points once questions exist
 	}
@@ -262,12 +326,13 @@ func createAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)
 	}
-	a, err := scanAssessment(tx.QueryRowContext(r.Context(), `insert into assessments (university_id, section_id, kind, name, description, max_points, weight, opens_at, closes_at, due_on, published, position)
+	a, err := scanAssessment(tx.QueryRowContext(r.Context(), `insert into assessments (university_id, section_id, kind, name, description, max_points, weight, opens_at, closes_at, due_on, published, position, time_limit_minutes, late_until, late_penalty_percent)
 		values ($1, $2, $3, $4, $5, $6::numeric, $7::numeric, nullif($8, '')::timestamptz, nullif($9, '')::timestamptz,
 		        case when $3 = 'manual' then nullif($10, '')::date
 		             else (nullif($9, '')::timestamptz at time zone (select timezone from universities where id = $1))::date end,
-		        $11, coalesce($12::int, (select coalesce(max(position) + 1, 0) from assessments where section_id = $2)))
-		returning `+assessmentCols, s.UniversityID, secID, v.Kind, v.Name, v.Description, v.MaxPoints, v.Weight, v.OpensAt, v.ClosesAt, v.DueOn, in.Published, in.Position))
+		        $11, coalesce($12::int, (select coalesce(max(position) + 1, 0) from assessments where section_id = $2)),
+		        nullif($13, '')::int, nullif($14, '')::timestamptz, $15::numeric)
+		returning `+assessmentCols, s.UniversityID, secID, v.Kind, v.Name, v.Description, v.MaxPoints, v.Weight, v.OpensAt, v.ClosesAt, v.DueOn, in.Published, in.Position, v.TimeLimit, v.LateUntil, v.Penalty))
 	if err != nil {
 		return 0, nil, assessmentWriteErr(err)
 	}
@@ -299,6 +364,10 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		ClosesAt    tenant.Opt[string]      `json:"closesAt"`
 		Published   tenant.Opt[bool]        `json:"published"`
 		Position    tenant.Opt[int]         `json:"position"`
+
+		TimeLimitMinutes   tenant.Opt[json.Number] `json:"timeLimitMinutes"`
+		LateUntil          tenant.Opt[string]      `json:"lateUntil"`
+		LatePenaltyPercent tenant.Opt[json.Number] `json:"latePenaltyPercent"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return 0, nil, err
@@ -308,7 +377,8 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		name string
 		null bool
 	}{{"name", in.Name.Null}, {"description", in.Description.Null}, {"maxPoints", in.MaxPoints.Null}, {"weight", in.Weight.Null},
-		{"opensAt", in.OpensAt.Null}, {"closesAt", in.ClosesAt.Null}, {"published", in.Published.Null}, {"position", in.Position.Null}} {
+		{"opensAt", in.OpensAt.Null}, {"closesAt", in.ClosesAt.Null}, {"published", in.Published.Null}, {"position", in.Position.Null},
+		{"latePenaltyPercent", in.LatePenaltyPercent.Null}} {
 		if f.null {
 			d = append(d, httpx.FieldError{Field: f.name, Message: "must not be null"})
 		}
@@ -316,13 +386,19 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)
 	}
-	if !in.Name.Set && !in.Description.Set && !in.MaxPoints.Set && !in.Weight.Set && !in.DueOn.Set && !in.OpensAt.Set && !in.ClosesAt.Set && !in.Published.Set && !in.Position.Set {
+	if !in.Name.Set && !in.Description.Set && !in.MaxPoints.Set && !in.Weight.Set && !in.DueOn.Set && !in.OpensAt.Set && !in.ClosesAt.Set && !in.Published.Set && !in.Position.Set &&
+		!in.TimeLimitMinutes.Set && !in.LateUntil.Set && !in.LatePenaltyPercent.Set {
 		return 0, nil, tenant.NoFields()
 	}
 	after := before
 	f := fieldsIn{Kind: before.Kind, Name: before.Name, Description: before.Description, MaxPoints: before.MaxPoints, Weight: before.Weight,
 		DueOn: before.DueOn, OpensAt: rfc3339(before.OpensAt), ClosesAt: rfc3339(before.ClosesAt), Position: &before.Position,
-		SetMax: in.MaxPoints.Set, SetDue: in.DueOn.Set}
+		SetMax: in.MaxPoints.Set, SetDue: in.DueOn.Set, Penalty: before.LatePenaltyPercent, LateUntil: rfc3339(before.LateUntil),
+		SetTimeLimit: in.TimeLimitMinutes.Set && !in.TimeLimitMinutes.Null, SetLateUntil: in.LateUntil.Set && !in.LateUntil.Null,
+		SetPenalty: in.LatePenaltyPercent.Set}
+	if before.TimeLimitMinutes != nil {
+		f.TimeLimit = json.Number(strconv.Itoa(*before.TimeLimitMinutes))
+	}
 	emptyDue := false // "" is a 400 (null clears), collected with the other field errors
 	if in.Name.Set {
 		f.Name = in.Name.V
@@ -346,6 +422,15 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if in.ClosesAt.Set {
 		f.ClosesAt = in.ClosesAt.V
 	}
+	if in.TimeLimitMinutes.Set {
+		f.TimeLimit = in.TimeLimitMinutes.V // null: V is "" and clears it
+	}
+	if in.LateUntil.Set {
+		f.LateUntil = in.LateUntil.V
+	}
+	if in.LatePenaltyPercent.Set {
+		f.Penalty = in.LatePenaltyPercent.V
+	}
 	if in.Published.Set {
 		after.Published = in.Published.V
 	}
@@ -366,8 +451,9 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		opens_at = nullif($6, '')::timestamptz, closes_at = nullif($7, '')::timestamptz,
 		due_on = case when kind = 'manual' then nullif($8, '')::date
 		              else (nullif($7, '')::timestamptz at time zone (select u.timezone from universities u where u.id = assessments.university_id))::date end,
-		published = $9, position = $10 where id = $1 returning `+assessmentCols,
-		after.ID, v.Name, v.Description, v.MaxPoints, v.Weight, v.OpensAt, v.ClosesAt, v.DueOn, after.Published, after.Position))
+		published = $9, position = $10,
+		time_limit_minutes = nullif($11, '')::int, late_until = nullif($12, '')::timestamptz, late_penalty_percent = $13::numeric where id = $1 returning `+assessmentCols,
+		after.ID, v.Name, v.Description, v.MaxPoints, v.Weight, v.OpensAt, v.ClosesAt, v.DueOn, after.Published, after.Position, v.TimeLimit, v.LateUntil, v.Penalty))
 	if err != nil {
 		return 0, nil, assessmentWriteErr(err)
 	}

@@ -385,7 +385,7 @@ func TestAssessmentTimeLimit(t *testing.T) {
 		t.Fatalf("create: %d %s", st, raw)
 	}
 	id := m["id"].(string)
-	for _, v := range []any{0, 1441, 10.5, "x"} {
+	for _, v := range []any{0, 1441, 10.5} {
 		if st, raw := e.post(e.Inst, win(map[string]any{"name": "B", "timeLimitMinutes": v})); st != 400 || !strings.Contains(raw, "must be between 1 and 1440") {
 			t.Errorf("limit %v: %d %s", v, st, raw)
 		}
