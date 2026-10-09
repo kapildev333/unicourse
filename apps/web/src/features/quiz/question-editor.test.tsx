@@ -38,10 +38,11 @@ const q2: Question = { id: 'k2', kind: 'blank', prompt: 'Capital of France?', po
 const err = (status: number, code: string, details: unknown[] = []) => ({ status, body: { error: { code, message: 'm', details } } })
 const items = [q1, q2]
 
-function setup(routes: Routes, o: { questions?: Question[]; attempts?: number } = {}) {
+let router: ReturnType<typeof renderSection>['router']
+function setup(routes: Routes, o: { questions?: Question[]; attempts?: number; student?: boolean } = {}) {
   const fn = mockApi({
     [`GET ${S}`]: () => ({ body: sectionFixture() }),
-    'GET /universities/a/me/sections': () => ({ body: mine() }),
+    'GET /universities/a/me/sections': () => ({ body: mine(o.student ? 'student' : undefined) }),
     [`GET ${S}/assessments`]: () => ({ body: { items: [quiz] } }),
     [`GET ${S}/assessments/q1/questions`]: () => ({ body: { items: o.questions ?? items } }),
     [`GET ${S}/assessments/q1/attempts`]: () => ({
@@ -49,7 +50,7 @@ function setup(routes: Routes, o: { questions?: Question[]; attempts?: number } 
     }),
     ...routes,
   })
-  renderSection({ path: '/a/sections/s1/quizzes/q1/questions', ui: <QuestionsPage slug="a" sectionId="s1" assessmentId="q1" />, userId: 'u-ins' })
+  ;({ router } = renderSection({ path: '/a/sections/s1/quizzes/q1/questions', ui: <QuestionsPage slug="a" sectionId="s1" assessmentId="q1" />, userId: o.student ? 'u0' : 'u-ins' }))
   return fn
 }
 const PUT = `PUT ${S}/assessments/q1/questions`
@@ -178,12 +179,40 @@ it('reports a quiz that is not in the list', async () => {
   expect(await screen.findByText('This quiz doesn\'t exist or was deleted.')).toBeInTheDocument()
 })
 
-it('asks before leaving with unsaved edits', async () => {
+it('does not ask before leaving when clean', async () => {
   setup({})
   await screen.findByText('Question 2')
   fireEvent.click(screen.getByRole('link', { name: 'Participants' }))
-  await waitFor(() => expect(screen.getByRole('navigation', { name: 'Section pages' })).toBeInTheDocument())
-  expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull() // clean: navigation allowed
+  await waitFor(() => expect(router.state.location.pathname).toBe('/a/sections/s1/participants'))
+  expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull()
+})
+
+it('releases the unsaved-changes guard after a successful save', async () => {
+  setup({ [PUT]: (r) => r.json().then((b: { items: unknown[] }) => ({ body: { items: b.items.map((it, i) => ({ id: `n${i}`, position: i, multiple: false, choices: [], ...(it as object) })) } })) })
+  await screen.findByText('Question 2')
+  fireEvent.change(screen.getByLabelText('Choice 1'), { target: { value: 'Link' } })
+  save()
+  await screen.findByText(/^Questions saved/)
+  fireEvent.click(screen.getByRole('link', { name: 'Participants' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/a/sections/s1/participants'))
+  expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull()
+})
+
+it('a server field error clears when a question moves', async () => {
+  setup({ [PUT]: () => err(400, 'validation_failed', [{ field: 'items[1].prompt', message: 'is required' }]) })
+  await screen.findByText('Question 2')
+  fireEvent.change(screen.getByLabelText('Choice 1'), { target: { value: 'Link' } })
+  save()
+  expect(await within(cards()[1]).findByText('Write a prompt of at most 2,000 characters.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Move question 2 up' }))
+  await waitFor(() => expect(screen.queryByText('Write a prompt of at most 2,000 characters.')).toBeNull())
+})
+
+it('a student sees No access, not the editor', async () => {
+  setup({}, { student: true })
+  expect(await screen.findByText("Only this section's staff can change its quizzes.")).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Save questions' })).toBeNull()
+  expect(screen.queryByLabelText('Prompt')).toBeNull()
 })
 
 it('guards navigation when dirty', async () => {

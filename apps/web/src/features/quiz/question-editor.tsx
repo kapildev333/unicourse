@@ -117,7 +117,16 @@ const backClass = 'mb-3 inline-flex items-center gap-1 text-sm font-medium text-
 export function QuestionsPage({ slug, sectionId, assessmentId }: { slug: string; sectionId: string; assessmentId: string }) {
   return (
     <SectionFrame slug={slug} sectionId={sectionId}>
-      {() => <Questions slug={slug} sectionId={sectionId} assessmentId={assessmentId} />}
+      {(_, access) =>
+        access.canEdit ? (
+          <Questions slug={slug} sectionId={sectionId} assessmentId={assessmentId} />
+        ) : (
+          <>
+            <Back slug={slug} sectionId={sectionId} />
+            <ErrorBanner title="No access">Only this section's staff can change its quizzes.</ErrorBanner>
+          </>
+        )
+      }
     </SectionFrame>
   )
 }
@@ -231,7 +240,12 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
   const atMax = drafts.length >= MAX_QUESTIONS
 
   const update = (i: number, patch: Partial<Draft>) => setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)))
+  const clearErrors = () => {
+    setLocal({})
+    m.reset()
+  }
   const add = (kind: Draft['kind']) => {
+    clearErrors()
     const d: Draft = {
       key: newKey(),
       kind,
@@ -245,6 +259,7 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
   }
   const move = (i: number, dir: 'up' | 'down') => {
     const j = dir === 'up' ? i - 1 : i + 1
+    clearErrors()
     focusNext.current = `move:${dir}:${drafts[i].key}`
     setDrafts((ds) => {
       const c = [...ds]
@@ -253,6 +268,7 @@ function Editor(props: { slug: string; sectionId: string; quiz: Assessment; serv
     })
   }
   const remove = (i: number) => {
+    clearErrors()
     focusNext.current = i > 0 ? `q-h-${drafts[i - 1].key}` : 'add-choice-question'
     setDrafts((ds) => ds.filter((_, j) => j !== i))
   }
