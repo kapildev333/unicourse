@@ -237,7 +237,7 @@ test('E-GRADES-08 a student never reaches the gradebook', async ({ browser }) =>
   const page = await pageAs(browser, P.amara.email, slug)
   ids = Object.keys(ids).length ? ids : await sectionIds(page, slug)
   await page.goto(`/${slug}/sections/${ids['CS101-001']}`)
-  await expect(page.getByRole('navigation', { name: 'Section pages' }).getByRole('link'), 'amara, CS101 section: tabs').toHaveText(['Home', 'Announcements', 'Materials', 'Participants'])
+  await expect(page.getByRole('navigation', { name: 'Section pages' }).getByRole('link'), 'amara, CS101 section: tabs').toHaveText(['Home', 'Announcements', 'Materials', 'Quizzes', 'Assignments', 'Participants'])
   await page.goto(`/${slug}/me`)
   const card = page.getByRole('list', { name: `My sections in ${demoTerm}` }).getByRole('listitem').filter({ hasText: 'CS101-001' })
   await expect(card, 'amara, My sections: CS101-001 card').toBeVisible()
