@@ -438,7 +438,7 @@ function QuestionCard(props: {
                 <label className="flex items-center gap-2 text-sm text-ink">
                   <input type="checkbox" className="size-4 accent-accent" checked={c.correct} onChange={(e) => setChoice(j, { correct: e.target.checked })} />
                   <span>
-                    Correct<span className="sr-only"> (choice {j + 1})</span>
+                    Correct <span className="sr-only">(choice {j + 1})</span>
                   </span>
                 </label>
                 <Button
