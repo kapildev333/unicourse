@@ -118,6 +118,7 @@ type choiceIn struct {
 }
 
 type questionIn struct {
+	ID      string      `json:"id"`
 	Kind    string      `json:"kind"`
 	Prompt  string      `json:"prompt"`
 	Points  json.Number `json:"points"`
@@ -143,7 +144,7 @@ func checkQuestions(items []questionIn) ([]questionIn, []httpx.FieldError) {
 				add(f.Field, f.Message)
 			}
 		}
-		o := questionIn{Kind: it.Kind}
+		o := questionIn{ID: it.ID, Kind: it.Kind}
 		if it.Kind != "choice" && it.Kind != "blank" {
 			add("kind", "must be choice or blank")
 		}
@@ -220,9 +221,6 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err := tx.QueryRowContext(r.Context(), `select exists(select 1 from attempts where assessment_id = $1)`, w.ID).Scan(&started); err != nil {
 		return 0, nil, err
 	}
-	if started {
-		return 0, nil, httpx.Conflict("questions are locked once a student has started")
-	}
 	var in struct {
 		Items *[]questionIn `json:"items"`
 	}
@@ -236,6 +234,24 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if len(d) > 0 {
 		return 0, nil, httpx.Validation(d...)
 	}
+	var existing []Question
+	if started {
+		var d []httpx.FieldError
+		for i, it := range items {
+			if it.ID == "" {
+				d = append(d, httpx.FieldError{Field: "items[" + strconv.Itoa(i) + "].id", Message: "is required once a student has started"})
+			}
+		}
+		if len(d) > 0 {
+			return 0, nil, httpx.Validation(d...)
+		}
+		if existing, err = keyedQuestions(r.Context(), tx, w.ID); err != nil {
+			return 0, nil, err
+		}
+		if !sameStructure(existing, items) {
+			return 0, nil, httpx.Conflict("questions are locked once a student has started")
+		}
+	}
 	// ponytail: one jsonb array instead of the design's unnest of five text[] (no array params elsewhere in the API); same rows
 	rows := make([]map[string]any, len(items))
 	total := new(big.Rat)
@@ -247,6 +263,9 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 			it.Answers = []string{}
 		}
 		rows[i] = map[string]any{"kind": it.Kind, "prompt": it.Prompt, "points": it.Points, "choices": it.Choices, "answers": it.Answers}
+		if started {
+			rows[i]["id"] = it.ID
+		}
 		p, _ := new(big.Rat).SetString(string(it.Points))
 		total.Add(total, p)
 	}
@@ -262,12 +281,14 @@ func putQuestions(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) 
 	if err := tx.QueryRowContext(r.Context(), `select count(*), coalesce(sum(points), 0.00)::text from questions where assessment_id = $1`, w.ID).Scan(&before.QuestionCount, &before.TotalPoints); err != nil {
 		return 0, nil, err
 	}
-	if _, err := tx.ExecContext(r.Context(), `delete from questions where assessment_id = $1`, w.ID); err != nil {
-		return 0, nil, err
+	if started {
+		err = regrade(r.Context(), tx, s, w.ID, raw)
+	} else if _, err = tx.ExecContext(r.Context(), `delete from questions where assessment_id = $1`, w.ID); err == nil {
+		_, err = tx.ExecContext(r.Context(), `insert into questions (university_id, assessment_id, kind, prompt, points, position, choices, answers)
+			select $1, $2, x.v->>'kind', x.v->>'prompt', (x.v->>'points')::numeric, x.n::int, x.v->'choices', x.v->'answers'
+			from jsonb_array_elements($3::jsonb) with ordinality as x(v, n)`, s.UniversityID, w.ID, string(raw))
 	}
-	if _, err := tx.ExecContext(r.Context(), `insert into questions (university_id, assessment_id, kind, prompt, points, position, choices, answers)
-		select $1, $2, x.v->>'kind', x.v->>'prompt', (x.v->>'points')::numeric, x.n::int, x.v->'choices', x.v->'answers'
-		from jsonb_array_elements($3::jsonb) with ordinality as x(v, n)`, s.UniversityID, w.ID, string(raw)); err != nil {
+	if err != nil {
 		return 0, nil, err
 	}
 	max := "1" // an empty quiz keeps 1 (the column needs > 0)
