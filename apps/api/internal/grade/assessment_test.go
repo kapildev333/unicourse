@@ -458,6 +458,10 @@ func TestAssessmentCloseAfterLate(t *testing.T) {
 	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"closesAt"}) || !strings.Contains(raw, "must be before lateUntil") {
 		t.Fatalf("close past late: %d %s", st, raw)
 	}
+	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"lateUntil": "2026-10-13T03:30:00Z"})
+	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"lateUntil"}) || !strings.Contains(raw, "must be after closesAt") {
+		t.Fatalf("late at closes: %d %s", st, raw)
+	}
 	st, raw = e.raw(e.Inst, "PATCH", e.aPath(id), map[string]any{"closesAt": "2026-10-16T00:00:00Z", "lateUntil": "2026-10-15T00:00:00Z"})
 	if _, f := errDetails([]byte(raw)); st != 400 || !reflect.DeepEqual(f, []string{"lateUntil"}) {
 		t.Fatalf("both wrong: %d %s", st, raw)

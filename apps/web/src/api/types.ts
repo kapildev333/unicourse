@@ -1233,7 +1233,7 @@ export interface paths {
         };
         /**
          * List quiz questions
-         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 "not open yet" before opensAt and 409 "closed" after the attempt's deadline (closesAt, or started_at plus timeLimitMinutes when earlier) unless they have submitted an attempt, and on a quiz with timeLimitMinutes 409 "not started" until they have started an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.
+         * @description Who: admin, dept_admin (own departments), instructor or TA of the section, with the answer keys; an enrolled student without keys. Errors: a student gets 409 "not open yet" before opensAt and 409 "closed" after the attempt's deadline (closesAt, or startedAt plus timeLimitMinutes when earlier) unless they have submitted an attempt, and on a quiz with timeLimitMinutes 409 "not started" until they have started an attempt. A student sees the keys (choices[].correct, answers) only when the quiz is published and their own attempt is submitted.
          */
         get: operations["listQuestions"];
         /**
@@ -2103,13 +2103,13 @@ export interface components {
              * @description Quiz only (1 to 1440, whole minutes); null or omitted means no limit. Errors: "only for quizzes" (field timeLimitMinutes), "must be between 1 and 1440".
              * @example 30
              */
-            timeLimitMinutes?: number;
+            timeLimitMinutes?: number | null;
             /**
              * Format: date-time
              * @description Assignment only; null or omitted means no late window. RFC 3339, after closesAt. Errors: "only for assignments", "must be an RFC 3339 time", "must be after closesAt" (field lateUntil).
              * @example 2026-10-14T03:30:00Z
              */
-            lateUntil?: string;
+            lateUntil?: string | null;
             /**
              * @description Assignment only; omitted means 0. At most 2 decimals. Errors: "only for assignments", "must be between 0 and 100" (field latePenaltyPercent).
              * @example 10
