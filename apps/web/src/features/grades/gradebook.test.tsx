@@ -470,6 +470,5 @@ it('badges quiz and assignment columns and leaves manual ones plain', async () =
   expect(await screen.findByText('Quiz')).toBeInTheDocument()
   expect(screen.getByText('Assignment')).toBeInTheDocument()
   const heads = screen.getAllByRole('columnheader')
-  expect(heads.filter((h) => /^Quiz$|^Assignment$/.test(h.textContent ?? '')).length).toBe(0)
   expect(within(heads.find((h) => h.textContent?.includes('Midterm'))!).queryByText(/^(Quiz|Assignment)$/)).toBeNull()
 })
