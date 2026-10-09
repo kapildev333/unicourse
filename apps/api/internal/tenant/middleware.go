@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
@@ -19,6 +20,8 @@ type Deps struct {
 	Sessions *auth.SessionStore
 	BaseURL  string   // cfg.BaseURL, used for invitation URLs
 	Files    blob.Dir // UNICOURSE_FILES_DIR; zero in tests that never touch files
+	// UploadTimeout is the read deadline an upload handler sets for its multipart body; zero keeps the server default.
+	UploadTimeout time.Duration
 }
 
 // Handler is a tenant-scoped handler. tx is the request's only transaction (RLS = s.UniversityID).

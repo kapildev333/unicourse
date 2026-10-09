@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -15,9 +16,11 @@ type Config struct {
 	SMTPURL, WebOrigin, WebDir                                                   string
 	// TrustedProxies are the reverse proxies whose X-Forwarded-For is believed; empty trusts none.
 	TrustedProxies []netip.Prefix
-	OutboxSenders  int   // mail sender goroutines per process, 1 to 10
-	MaxUploadBytes int64 // largest material file, 1 to 10 GiB
-	SignInIPLimit  int   // sign-in link requests per client address per hour, 1 to 1000000
+	OutboxSenders  int           // mail sender goroutines per process, 1 to 10
+	MaxUploadBytes int64         // largest material file, 1 to 10 GiB
+	SignInIPLimit  int           // sign-in link requests per client address per hour, 1 to 1000000
+	ReadTimeout    time.Duration // whole-request read deadline, 1 s to 1 h
+	UploadTimeout  time.Duration // read deadline of a file upload, 1 s to 24 h
 }
 
 // Load reads configuration through getenv; the error lists every missing required variable.
@@ -68,6 +71,15 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	c.SignInIPLimit = int(ipLimit)
+	var secs int64
+	if secs, err = wholeInRange(opt("READ_TIMEOUT"), 30, 1, 3600, "UNICOURSE_READ_TIMEOUT must be a whole number of seconds from 1 to 3600"); err != nil {
+		return Config{}, err
+	}
+	c.ReadTimeout = time.Duration(secs) * time.Second
+	if secs, err = wholeInRange(opt("UPLOAD_TIMEOUT"), 600, 1, 86400, "UNICOURSE_UPLOAD_TIMEOUT must be a whole number of seconds from 1 to 86400"); err != nil {
+		return Config{}, err
+	}
+	c.UploadTimeout = time.Duration(secs) * time.Second
 	if c.WebOrigin, err = webOrigin(c.WebOrigin); err != nil {
 		return Config{}, err
 	}
