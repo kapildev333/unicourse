@@ -16,7 +16,7 @@ let sid = ''
 test.beforeAll(async ({ browser }) => {
   seedDemo(slug)
   const elena = await pageAs(browser, P.elena.email, slug)
-  sid = (await sectionIds(elena, slug))['CS101-001']
+  sid = (await sectionIds(elena, slug))['CS210-001']
   await elena.context().close()
 })
 
@@ -77,7 +77,7 @@ test('E-ASG-02 a student saves text, uploads a PDF and replaces the text once', 
 })
 
 test('E-ASG-03 the TA downloads the same PDF, grades 17 and releases', async ({ browser }) => {
-  const page = await pageAs(browser, P.sofia.email, slug)
+  const page = await pageAs(browser, P.ingrid.email, slug)
   await list(page)
   await page.getByRole('link', { name: `Submissions for ${NAME}` }).click()
   const rows = page.getByRole('row')
@@ -110,7 +110,7 @@ test('E-ASG-04 the student sees 17 / 20 and the feedback; My grades lists it', a
   await expect(page.getByText('Clear and correct. Add an example next time.'), 'student, assignment: feedback').toBeVisible()
 
   await page.goto(`/${slug}/grades`)
-  const card = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: /^CS101-001/ }) })
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: /^CS210-001/ }) })
   await card.getByText(/^Published scores/).click()
   await expect(card.getByRole('listitem').filter({ hasText: NAME }), 'student, My grades: Essay 1 row').toContainText('17 / 20')
   await card.getByRole('link', { name: NAME }).click()
@@ -131,7 +131,7 @@ test('E-ASG-05 an .html upload is refused and leaves no submission', async ({ br
 })
 
 test('E-ASG-06 a student who submitted nothing has no row', async ({ browser }) => {
-  const page = await pageAs(browser, P.sofia.email, slug)
+  const page = await pageAs(browser, P.ingrid.email, slug)
   await list(page)
   await page.getByRole('link', { name: `Submissions for ${NAME}` }).click()
   await expect(page.getByRole('row').filter({ hasText: 'Amara Okafor' }), 'TA, Submissions: amara row').toHaveCount(1)
