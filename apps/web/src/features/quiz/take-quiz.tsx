@@ -455,8 +455,9 @@ function QuizForm(props: Props & {
       )}
       <ol className="flex flex-col gap-4">
         {questions.map((q, i) => (
-          <li key={q.id}>
-            <fieldset className="min-w-0 rounded border border-line bg-surface p-4 sm:p-6">
+          <li key={q.id} className="rounded border border-line bg-surface p-4 sm:p-6">
+            {/* the card is the li: a bordered fieldset would draw its border through the legend */}
+            <fieldset className="min-w-0 border-0 p-0">
               <legend className="mb-3 flex flex-col gap-1 p-0">
                 <span className="text-sm text-ink-muted">
                   Question {i + 1} of {total}, {pts(q.points)}
