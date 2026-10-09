@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
-import { expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
+import { api, expectNoSideScroll, pageAs, personas, runId, sectionIds, seedDemo } from './helpers'
 
 // Spec 11 §1, assignment half: create, submit text and a PDF, replace the text, download, grade, release, My grades.
 // The cases share one assignment and run in order.
@@ -170,4 +170,52 @@ test('E-ASG-08 a second university sees none of it', async ({ browser }) => {
   await page.goto(`/${other}/sections/${own}/assignments`)
   await expect(page.getByText('No assignments yet'), 'other university instructor, own CS210-001: empty').toBeVisible()
   await page.context().close()
+})
+
+test('E-ASG-09 a late submission is penalised: 15 graded, 12.00 recorded and shown', async ({ browser }) => {
+  const elena = await pageAs(browser, P.elena.email, slug)
+  const now = Date.now()
+  await api(elena, 'post', `/api/v1/universities/${slug}/sections/${sid}/assessments`, {
+    kind: 'assignment',
+    name: 'Late essay',
+    opensAt: new Date(now - 48 * 3600_000).toISOString(),
+    closesAt: new Date(now - 3600_000).toISOString(),
+    lateUntil: new Date(now + 7 * 24 * 3600_000).toISOString(),
+    latePenaltyPercent: 20,
+    maxPoints: 20,
+    weight: 0,
+  })
+  await elena.context().close()
+
+  const student = await pageAs(browser, P.priya.email, slug)
+  await list(student)
+  await student.getByRole('link', { name: 'View Late essay' }).click()
+  await expect(student.getByText('Past due', { exact: true }), 'student, late assignment: Past due badge').toBeVisible()
+  await expect(student.getByText(/Late submissions are accepted until .* with a 20% penalty\./), 'student, late assignment: late sentence').toBeVisible()
+  await student.getByLabel('Your answer').fill('Better late than never.')
+  await student.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(status(student, 'Submission saved.'), 'student, late assignment: saved').toBeVisible()
+  await expect(student.getByText(/^Submitted late on /), 'student, late assignment: late submitted line').toBeVisible()
+
+  const ta = await pageAs(browser, P.ingrid.email, slug)
+  await list(ta)
+  await ta.getByRole('link', { name: 'Submissions for Late essay' }).click()
+  await ta.getByRole('link', { name: 'Priya Raman' }).click()
+  await ta.getByLabel('Score for Priya Raman').fill('15')
+  await ta.getByRole('button', { name: 'Save grade' }).click()
+  await expect(ta.getByText('Recorded as 12.00 after the 20% late penalty'), 'TA, submission: penalised value').toBeVisible()
+  await ta.getByRole('link', { name: 'All submissions' }).click()
+  await ta.getByRole('button', { name: 'Release scores for Late essay' }).click()
+  await ta.getByRole('dialog', { name: 'Release scores for Late essay?' }).getByRole('button', { name: 'Release scores' }).click()
+  await expect(status(ta, 'Late essay: scores released to students.'), 'TA, Submissions: released notice').toBeVisible()
+  await ta.context().close()
+
+  await student.reload()
+  await expect(student.getByText('Score 15 / 20, 12.00 after the 20% late penalty'), 'student, late assignment: penalised score').toBeVisible()
+  await student.context().close()
+
+  const inst = await pageAs(browser, P.elena.email, slug)
+  await inst.goto(`/${slug}/sections/${sid}/grades`)
+  await expect(inst.getByRole('textbox', { name: 'Score for Priya Raman, Late essay' }), 'instructor, gradebook: 12').toHaveValue('12')
+  await inst.context().close()
 })

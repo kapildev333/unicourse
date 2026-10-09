@@ -239,3 +239,63 @@ test('E-QUIZ-10 the take page fits a 390 px phone', async ({ browser }) => {
   await expectNoSideScroll(page, 'student at 390, take page')
   await page.context().close()
 })
+
+test('E-QUIZ-12 the instructor fixes a key and every submitted attempt is regraded', async ({ browser }) => {
+  const page = await pageAs(browser, P.elena.email, slug)
+  await page.goto(`/${slug}/sections/${sid}/quizzes/${quizId}/questions`)
+  await expect(page.getByText(/Students have started: you can fix prompts, points and answer keys/), 'instructor, editor: regrade note').toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add multiple choice' }), 'instructor, editor: structure locked').toBeDisabled()
+  // Question 2 (not 1: nobody answered "func"): Queue becomes the key, so priya's answer is now right and amara left it blank.
+  await question(page, 2).getByLabel('Correct (choice 1)').check()
+  await question(page, 2).getByLabel('Correct (choice 2)').uncheck()
+  await page.getByRole('button', { name: 'Save and regrade' }).click()
+  const dlg = page.getByRole('dialog', { name: 'Save and regrade?' })
+  await dlg.getByRole('button', { name: 'Save and regrade' }).click()
+  await expect(status(page, 'Saved. 2 attempts regraded.'), 'instructor, editor: regrade notice').toBeVisible()
+
+  await page.goto(`/${slug}/sections/${sid}/grades`)
+  await expect(page.getByRole('textbox', { name: `Score for Priya Raman, ${NAME}` }), 'instructor, gradebook: priya now right').toHaveValue('7')
+  await expect(page.getByRole('textbox', { name: `Score for Amara Okafor, ${NAME}` }), 'instructor, gradebook: amara keeps the reviewed question 3').toHaveValue('5')
+  await page.context().close()
+
+  await quizzes(amara)
+  await amara.getByRole('link', { name: `View ${NAME}` }).click()
+  await expect(question(amara, 3).getByText('3 / 3 points'), 'student amara, results: reviewed points kept').toBeVisible()
+  const priya = await pageAs(browser, P.priya.email, slug)
+  await quizzes(priya)
+  await priya.getByRole('link', { name: `View ${NAME}` }).click()
+  await expect(priya.getByText('Score 7 / 7', { exact: true }), 'student priya, results: new total').toBeVisible()
+  await priya.context().close()
+})
+
+test('E-QUIZ-11 a time-limited attempt is submitted by the server long before the close', async ({ browser }) => {
+  test.setTimeout(150_000)
+  const elena = await pageAs(browser, P.elena.email, slug)
+  const now = Date.now()
+  const q = await api(elena, 'post', `${A}/sections/${sid}/assessments`, {
+    kind: 'quiz',
+    name: 'Timed check',
+    opensAt: new Date(now - 60_000).toISOString(),
+    closesAt: new Date(now + 24 * 3600_000).toISOString(),
+    weight: 0,
+    timeLimitMinutes: 1,
+  })
+  await api(elena, 'put', `${A}/sections/${sid}/assessments/${q.id}/questions`, {
+    items: [
+      { kind: 'blank', prompt: 'Type yes.', points: 1, answers: ['yes'] },
+      { kind: 'blank', prompt: 'Type no.', points: 1, answers: ['no'] },
+    ],
+  })
+  await elena.context().close()
+
+  const page = await pageAs(browser, P.daniel.email, slug)
+  await quizzes(page)
+  await expect(page.getByText(/1 min each/), 'student, Quizzes: time limit on the row').toBeVisible()
+  await page.getByRole('link', { name: 'Start Timed check' }).click()
+  await page.getByRole('button', { name: 'Start quiz' }).click()
+  await expect(page.getByText(/Time left:/), 'student, take page: countdown').toBeVisible()
+  await group(page, 'Type yes').getByLabel('Your answer').fill('yes')
+  await expect(status(page, 'Saved'), 'student, take page: Saved').toBeVisible()
+  await expect(page.getByText(/^Submitted automatically at /), 'student, results: submitted at the limit').toBeVisible({ timeout: 110_000 })
+  await page.context().close()
+})
