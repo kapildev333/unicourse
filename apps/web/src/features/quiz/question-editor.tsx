@@ -210,9 +210,8 @@ function Editor(props: {
   const regrade = started || structLocked
 
   const m = useMutation({
-    // the argument is the number of submitted attempts being regraded (the status line names it)
-    mutationFn: (_regraded: number) => putQuestions(slug, sectionId, quiz.id, toBody(drafts)),
-    onSuccess: async (saved, regraded) => {
+    mutationFn: () => putQuestions(slug, sectionId, quiz.id, toBody(drafts)),
+    onSuccess: async (saved) => {
       setConfirm(false)
       await refresh(questionsKey(slug, sectionId, quiz.id), attemptsKey(slug, sectionId, quiz.id))
       const next = toDrafts(saved.items)
@@ -221,7 +220,7 @@ function Editor(props: {
       setLocal({})
       setNotice(
         regrade
-          ? `Saved. ${plural(regraded, 'attempt', 'attempts')} regraded.`
+          ? `Saved. ${plural(submitted, 'attempt', 'attempts')} regraded.`
           : `Questions saved: ${totalLine(saved.items.length, sum(saved.items.map((q) => q.points)))}.`,
       )
     },
@@ -306,7 +305,7 @@ function Editor(props: {
     setLocal(v)
     if (Object.keys(v).length > 0) return
     if (regrade) setConfirm(true)
-    else m.mutate(0)
+    else m.mutate()
   }
 
   const addButtons = (
@@ -411,7 +410,7 @@ function Editor(props: {
           <Button variant="secondary" disabled={m.isPending} onClick={() => setConfirm(false)}>
             Cancel
           </Button>
-          <Button disabled={m.isPending} onClick={() => m.mutate(submitted)}>
+          <Button disabled={m.isPending} onClick={() => m.mutate()}>
             {m.isPending ? 'Saving…' : 'Save and regrade'}
           </Button>
         </DialogFooter>
