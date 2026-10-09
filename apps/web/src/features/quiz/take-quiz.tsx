@@ -48,6 +48,7 @@ export function useAutosave(save: (answers: Answers) => Promise<unknown>, answer
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const inflight = useRef(false)
   const again = useRef(false)
+  const flight = useRef<Promise<unknown>>(Promise.resolve())
   const stopped = useRef(false)
   const fns = useRef({ save, onStop })
   useEffect(() => {
@@ -66,10 +67,12 @@ export function useAutosave(save: (answers: Answers) => Promise<unknown>, answer
     setStatus('saving')
     const snap = latest.current
     try {
-      await fns.current.save(snap)
+      const p = fns.current.save(snap)
+      flight.current = p.catch(() => {})
+      await p
       inflight.current = false
-      if (stopped.current) return
       saved.current = snap
+      if (stopped.current) return
       if (again.current || latest.current !== snap) {
         again.current = false
         void runRef.current()
@@ -114,6 +117,7 @@ export function useAutosave(save: (answers: Answers) => Promise<unknown>, answer
   return {
     status,
     unsaved: () => latest.current !== saved.current,
+    settled: () => flight.current,
     stop: () => {
       stopped.current = true
       clearTimeout(timer.current)
@@ -121,6 +125,7 @@ export function useAutosave(save: (answers: Answers) => Promise<unknown>, answer
     },
     resume: () => {
       stopped.current = false
+      if (latest.current !== saved.current) timer.current = setTimeout(() => void run(), 1000)
     },
   }
 }
@@ -352,6 +357,7 @@ function QuizForm(props: Props & {
     if (finishing.current) return
     finishing.current = true
     auto.stop()
+    await auto.settled()
     const fresh = await refetchList()
     if (fresh?.closesAt && Date.parse(fresh.closesAt) > Date.now()) {
       finishing.current = false
@@ -394,6 +400,8 @@ function QuizForm(props: Props & {
       auto.resume()
       setPending(false)
       setSubmitError(e)
+      // the close passed while the submit was pending, so the zero effect already came and went
+      if (closesAt && Date.parse(closesAt) <= Date.now()) void zeroRef.current()
     }
   }
 

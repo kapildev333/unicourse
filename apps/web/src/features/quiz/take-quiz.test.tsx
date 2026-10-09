@@ -223,3 +223,133 @@ it('countdown line and the screen-reader announcer speak at thresholds only', as
   await tick(4000)
   expect(screen.getByText('5 minutes left.')).toBeInTheDocument()
 })
+
+const submitted = (answers: Attempt['answers'] = {}) => attempt({ answers, submittedAt: '2026-10-12T13:40:00Z', autoSubmitted: true })
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+it('a submit that fails after the close runs the zero path: final save without submit, then polling', async () => {
+  let swept = false
+  const fn = setup({
+    assessment: quiz({ closesAt: new Date(Date.now() + 8000).toISOString() }),
+    attempt: attempt({ answers: { a: { choices: [1] } } }),
+    routes: {
+      [`PUT ${A}/attempts/me`]: async (req) => {
+        const b = await req.json()
+        if (b.submit) {
+          await delay(4000)
+          return err(500, 'internal')
+        }
+        swept = true
+        return { body: attempt({ answers: b.answers }) }
+      },
+      [`GET ${A}/attempts/me`]: () => ({ body: swept ? submitted({ a: { choices: [1] } }) : attempt({ answers: { a: { choices: [1] } } }) }),
+    },
+  })
+  await screen.findAllByRole('radio')
+  await tick(5000)
+  fireEvent.click(screen.getByRole('button', { name: 'Submit quiz' }))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Submit quiz' }).at(-1) as HTMLElement)
+  await tick(3500) // zero is reached with the submit still pending
+  await tick(1000) // then the submit fails
+  await waitFor(() => expect(puts(fn)).toHaveLength(2))
+  expect(await body(puts(fn)[1])).toEqual({ answers: { a: { choices: [1] } } })
+  await tick(3100)
+  expect(await screen.findByText(/^Submitted automatically at /)).toBeInTheDocument()
+})
+
+it('zero reached while a submit is pending sends no extra PUT', async () => {
+  const fn = setup({
+    assessment: quiz({ closesAt: new Date(Date.now() + 5000).toISOString() }),
+    attempt: attempt(),
+    routes: {
+      [`PUT ${A}/attempts/me`]: async () => {
+        await delay(3000)
+        return { body: attempt({ submittedAt: '2026-10-12T13:40:00Z' }) }
+      },
+    },
+  })
+  await screen.findAllByRole('radio')
+  await tick(3000)
+  fireEvent.click(screen.getByRole('button', { name: 'Submit quiz' }))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Submit quiz' }).at(-1) as HTMLElement)
+  await tick(4000)
+  expect(await screen.findByRole('heading', { name: 'Your results' })).toBeInTheDocument()
+  expect(puts(fn)).toHaveLength(1)
+  expect(await body(puts(fn)[0])).toEqual({ answers: {}, submit: true })
+})
+
+it('an autosave 409 "already submitted" shows the results without a banner', async () => {
+  let done = false
+  setup({
+    attempt: attempt(),
+    routes: {
+      [`PUT ${A}/attempts/me`]: () => {
+        done = true
+        return err(409, 'conflict', 'already submitted')
+      },
+      [`GET ${A}/attempts/me`]: () => ({ body: done ? submitted() : attempt() }),
+    },
+  })
+  fireEvent.click((await screen.findAllByRole('radio'))[0])
+  await tick(1100)
+  expect(await screen.findByText(/^Submitted automatically at /)).toBeInTheDocument()
+  expect(screen.queryByText("Your last change wasn't saved")).toBeNull()
+})
+
+it('an autosave 400 asks for a reload', async () => {
+  setup({ attempt: attempt(), routes: { [`PUT ${A}/attempts/me`]: () => err(400, 'validation', 'bad') } })
+  fireEvent.click((await screen.findAllByRole('radio'))[0])
+  await tick(1100)
+  expect(await screen.findByText("Your answers couldn't be saved. Reload the page.")).toBeInTheDocument()
+})
+
+it('at zero it waits for an autosave in flight before the final PUT', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>((r) => (release = r))
+  let n = 0
+  const fn = setup({
+    assessment: quiz({ closesAt: new Date(Date.now() + 3000).toISOString() }),
+    attempt: attempt(),
+    routes: {
+      [`PUT ${A}/attempts/me`]: async () => {
+        if (++n === 1) await gate
+        return { body: attempt() }
+      },
+    },
+  })
+  fireEvent.click((await screen.findAllByRole('radio'))[0])
+  await tick(1100)
+  await waitFor(() => expect(puts(fn)).toHaveLength(1))
+  await tick(3000)
+  expect(puts(fn)).toHaveLength(1)
+  release()
+  await waitFor(() => expect(puts(fn)).toHaveLength(2))
+})
+
+it('an edit made while the zero check is pending is saved after the close moved later', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>((r) => (release = r))
+  let n = 0
+  const fn = setup({
+    assessment: quiz({ closesAt: new Date(Date.now() + 2500).toISOString() }),
+    attempt: attempt(),
+    routes: {
+      [`GET ${S}/assessments`]: async () => {
+        if (++n >= 2) {
+          await gate
+          return { body: { items: [quiz({ closesAt: new Date(Date.now() + 3_600_000).toISOString() })] } }
+        }
+        return { body: { items: [quiz({ closesAt: new Date(Date.now() + 2500).toISOString() })] } }
+      },
+    },
+  })
+  const radios = await screen.findAllByRole('radio')
+  await tick(3000)
+  fireEvent.click(radios[0])
+  release()
+  await tick(500)
+  expect(puts(fn)).toHaveLength(0)
+  await tick(1500)
+  await waitFor(() => expect(puts(fn)).toHaveLength(1))
+  expect(await body(puts(fn)[0])).toEqual({ answers: { a: { choices: [0] } } })
+})
