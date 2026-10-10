@@ -46,7 +46,7 @@ func TestFeedTokenRoutes(t *testing.T) {
 	var hash []byte
 	var rows int
 	e.tx(func(tx *sql.Tx) error {
-		return tx.QueryRow(`select count(*), min(token_hash) from calendar_feeds where user_id = $1`, e.UserID["stud@a.edu"]).Scan(&rows, &hash)
+		return tx.QueryRow(`select (select count(*) from calendar_feeds where user_id = $1), (select token_hash from calendar_feeds where user_id = $1)`, e.UserID["stud@a.edu"]).Scan(&rows, &hash)
 	})
 	sum := sha256.Sum256([]byte(tok1))
 	if rows != 1 || string(hash) != string(sum[:]) {
