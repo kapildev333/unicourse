@@ -1,9 +1,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { setCampus } from '../../lib/format'
 import { mockApi, renderWithQuery } from '../../test-utils'
 import { CalendarFeedDialog } from './calendar-feed-dialog'
 
-afterEach(() => vi.unstubAllGlobals())
+beforeEach(() => setCampus({ timezone: 'UTC', locale: 'en-US' }))
+afterEach(() => {
+  vi.unstubAllGlobals()
+  setCampus()
+})
 
 const P = '/universities/a/me/calendar-feed'
 const none = { status: 404, body: { error: { code: 'not_found', message: 'none', details: [] } } }

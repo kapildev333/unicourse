@@ -39,12 +39,16 @@ export function CalendarFeedDialog({ slug, onClose }: { slug: string; onClose: (
       setUrl(d.url)
       setConfirming(false)
       setCopied('')
+      revoke.reset()
       client.setQueryData(key, { createdAt: d.createdAt })
     },
   })
   const revoke = useMutation({
     mutationFn: () => unwrap(api.DELETE('/universities/{slug}/me/calendar-feed', path)),
-    onSuccess: () => client.setQueryData(key, null),
+    onSuccess: () => {
+      create.reset()
+      client.setQueryData(key, null)
+    },
   })
   const error = create.error ?? revoke.error ?? feed.error
 
@@ -66,6 +70,7 @@ export function CalendarFeedDialog({ slug, onClose }: { slug: string; onClose: (
         <input
           ref={input}
           readOnly
+          autoFocus
           aria-label="Calendar link"
           value={url}
           className={inputClass}
@@ -76,7 +81,13 @@ export function CalendarFeedDialog({ slug, onClose }: { slug: string; onClose: (
             Copy link
           </Button>
         </div>
-        <StatusMessage message={copied} />
+        {copied === 'Link copied.' ? (
+          <StatusMessage message={copied} />
+        ) : (
+          <p role="status" className="text-sm text-ink-muted">
+            {copied}
+          </p>
+        )}
         <p className="text-sm text-ink-muted">
           Copy it now: it is shown only once. Anyone with this link can see your schedule, so keep it private.
         </p>

@@ -18,6 +18,7 @@ function useUpcoming(slug: string) {
     queryKey: [slug, 'upcoming'],
     queryFn: () => unwrap(api.GET('/universities/{slug}/me/upcoming', { params: { path: { slug } } })),
     staleTime: 60_000,
+    refetchOnMount: 'always',
   })
 }
 

@@ -28,7 +28,7 @@ it('falls back to the browser for an invalid zone or locale', () => {
 })
 
 it('formats a calendar date without shifting it, and in the campus locale', () => {
-  setCampus({ timezone: 'Pacific/Auckland', locale: 'en-US' })
+  setCampus({ timezone: 'America/Los_Angeles', locale: 'en-US' })
   expect(formatDate('2026-10-26')).toBe('Oct 26, 2026')
 })
 
