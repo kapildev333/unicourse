@@ -1404,6 +1404,74 @@ export interface paths {
         patch: operations["updateNotificationSettings"];
         trace?: never;
     };
+    "/universities/{slug}/me/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My upcoming work
+         * @description Who: any active member. Quizzes and assignments of the caller's sections (enrolled, or staff) that are open or due within 14 days, soonest first. Students see only work not yet submitted; instructors and TAs see what closes soon with submittedCount and enrolledCount. No keys, scores or other students.
+         */
+        get: operations["getMyUpcoming"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/me/calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My calendar feed
+         * @description Who: any active member; own feed. 404 when there is none. Never returns the URL.
+         */
+        get: operations["getMyCalendarFeed"];
+        put?: never;
+        /**
+         * Create or rotate my calendar feed
+         * @description Who: any active member; own membership only. Replaces any previous feed, so the old URL stops working. The URL is shown once (Cache-Control: no-store). Audit calendar_feed.create.
+         */
+        post: operations["createMyCalendarFeed"];
+        /**
+         * Revoke my calendar feed
+         * @description Who: any active member; own feed. 404 when there is none. Audit calendar_feed.delete.
+         */
+        delete: operations["deleteMyCalendarFeed"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/calendar-feeds/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar feed (iCalendar)
+         * @description Who: anyone holding the feed URL; the token is the credential, no session. Section meetings (campus today -30 to +180 days, within each term, one UTC event per occurrence) and quiz and assignment deadlines as text/calendar (RFC 5545, CRLF). Every failure is a plain 404. Not rate limited; the request log shows only the route pattern.
+         */
+        get: operations["getCalendarFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1450,6 +1518,16 @@ export interface components {
             slug: string;
             /** @example Example University */
             name: string;
+            /**
+             * @description IANA timezone of the campus; the web shows dates in it.
+             * @example America/New_York
+             */
+            timezone: string;
+            /**
+             * @description BCP 47 locale of the campus.
+             * @example en-US
+             */
+            locale: string;
         };
         MyMembership: {
             university: components["schemas"]["University"];
@@ -1638,7 +1716,7 @@ export interface components {
              * @example term
              * @enum {string}
              */
-            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
+            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material" | "calendar_feed";
             /**
              * Format: uuid
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
@@ -3257,6 +3335,100 @@ export interface components {
              */
             announcementMail: boolean;
         };
+        UpcomingItem: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            assessmentId: string;
+            /**
+             * @example quiz
+             * @enum {string}
+             */
+            kind: "quiz" | "assignment";
+            /** @example Quiz 1 */
+            name: string;
+            section: {
+                /**
+                 * Format: uuid
+                 * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+                 */
+                id: string;
+                /** @example 001 */
+                number: string;
+            };
+            course: {
+                /** @example CS101 */
+                code: string;
+                /** @example Intro to CS */
+                title: string;
+            };
+            /**
+             * @example student
+             * @enum {string}
+             */
+            myRole: "student" | "instructor" | "ta";
+            /**
+             * Format: date-time
+             * @example 2026-10-14T23:59:00Z
+             */
+            opensAt: string;
+            /**
+             * Format: date-time
+             * @description The effective deadline: closesAt, or for a started timed quiz the start plus the limit if sooner.
+             * @example 2026-10-14T23:59:00Z
+             */
+            dueAt: string;
+            /**
+             * Format: date-time
+             * @description Assignments with a late window only.
+             * @example 2026-10-14T23:59:00Z
+             */
+            lateUntil?: string;
+            /**
+             * @description Timed quizzes only.
+             * @example 30
+             */
+            timeLimitMinutes?: number;
+            /**
+             * @description True while the caller's quiz attempt is running.
+             * @example false
+             */
+            started: boolean;
+            /**
+             * @description Staff only: enrolled students who submitted.
+             * @example 12
+             */
+            submittedCount?: number;
+            /**
+             * @description Staff only.
+             * @example 30
+             */
+            enrolledCount?: number;
+        };
+        UpcomingList: {
+            items: components["schemas"]["UpcomingItem"][];
+        };
+        CalendarFeed: {
+            /**
+             * Format: date-time
+             * @example 2026-10-09T12:00:00Z
+             */
+            createdAt: string;
+        };
+        CalendarFeedCreated: {
+            /**
+             * Format: uri
+             * @description Shown only in this response; only a hash of the token is stored.
+             * @example https://unicourse.example/api/v1/universities/example/calendar-feeds/Zm9vYmFy.ics
+             */
+            url: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-09T12:00:00Z
+             */
+            createdAt: string;
+        };
     };
     responses: {
         /** @description validation_failed */
@@ -3340,7 +3512,7 @@ export interface components {
         termId: string;
         courseId: string;
         departmentId: string;
-        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
+        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material" | "calendar_feed";
         entityId: string;
         actorUserId: string;
         /** @description Inclusive. */
@@ -6352,6 +6524,141 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getMyUpcoming: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getMyCalendarFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeed"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createMyCalendarFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedCreated"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteMyCalendarFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getCalendarFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                /** @description Feed token (base64url) followed by .ics. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/calendar": string;
+                };
+            };
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };

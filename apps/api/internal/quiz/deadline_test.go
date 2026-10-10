@@ -71,3 +71,9 @@ func TestQuestionsStudentDeadline(t *testing.T) {
 		t.Errorf("untimed, no attempt: %d %s", st, b)
 	}
 }
+
+func TestDeadlineSQLAlias(t *testing.T) {
+	if DeadlineSQL != deadlineSQL {
+		t.Fatal("DeadlineSQL must be deadlineSQL")
+	}
+}

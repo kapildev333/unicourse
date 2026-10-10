@@ -11,7 +11,7 @@ import { expect, it } from 'vitest'
 import type { Me } from '../features/auth/use-me'
 import { AppShell } from './app-shell'
 
-const uni = (slug: string) => ({ id: slug, slug, name: `${slug} University` })
+const uni = (slug: string) => ({ id: slug, slug, name: `${slug} University`, timezone: 'UTC', locale: 'en-US' })
 const mk = (roles: ('admin' | 'dept_admin' | 'member')[]): Me => ({
   user: { id: 'u1', email: 'a@a.edu', displayName: 'A' } as Me['user'],
   memberships: roles.map((role, i) => ({

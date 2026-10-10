@@ -35,6 +35,7 @@ const entityLabels: Record<EntityType, string> = {
   announcement: 'Announcement',
   week: 'Week',
   material: 'Material',
+  calendar_feed: 'Calendar feed',
 }
 const verbs: Record<string, string> = {
   create: 'created',

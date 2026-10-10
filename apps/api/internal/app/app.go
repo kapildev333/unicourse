@@ -7,6 +7,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/assignment"
 	"github.com/kapildev333/unicourse/apps/api/internal/auth"
 	"github.com/kapildev333/unicourse/apps/api/internal/blob"
+	"github.com/kapildev333/unicourse/apps/api/internal/calendar"
 	"github.com/kapildev333/unicourse/apps/api/internal/content"
 	"github.com/kapildev333/unicourse/apps/api/internal/course"
 	"github.com/kapildev333/unicourse/apps/api/internal/grade"
@@ -38,5 +39,6 @@ func NewRouter(deps Deps) *httpx.Router {
 	assignment.Register(r, td)
 	quiz.Register(r, td)
 	notification.Register(r, td)
+	calendar.Register(r, td)
 	return r
 }

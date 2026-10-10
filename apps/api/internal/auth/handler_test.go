@@ -292,7 +292,7 @@ func TestMe(t *testing.T) {
 	var got struct {
 		User        struct{ ID, Email, DisplayName string }
 		Memberships []struct {
-			University    struct{ ID, Slug, Name string }
+			University    struct{ ID, Slug, Name, Timezone, Locale string }
 			Role          string
 			DepartmentIDs []string
 		}
@@ -303,6 +303,9 @@ func TestMe(t *testing.T) {
 	m := got.Memberships
 	if got.User.Email != "admin@a.edu" || len(m) != 1 || m[0].University.Slug != "a" || m[0].University.ID != x.fx.UniversityA || m[0].Role != "admin" {
 		t.Fatalf("%s", w.Body)
+	}
+	if m[0].University.Timezone != "America/New_York" || m[0].University.Locale != "en-US" {
+		t.Fatalf("campus fields: %s", w.Body)
 	}
 	if !strings.Contains(w.Body.String(), `"departmentIds":[]`) || !strings.Contains(w.Body.String(), `"displayName"`) {
 		t.Fatalf("shape: %s", w.Body)

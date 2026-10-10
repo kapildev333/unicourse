@@ -851,6 +851,184 @@
                 }
               ],
               "event": []
+            },
+            {
+              "name": "My upcoming work",
+              "request": {
+                "name": "My upcoming work",
+                "description": {
+                  "content": "Who: any active member. Quizzes and assignments of the caller's sections (enrolled, or staff) that are open or due within 14 days, soonest first. Students see only work not yet submitted; instructors and TAs see what closes soon with submittedCount and enrolledCount. No keys, scores or other students.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "universities",
+                    ":slug",
+                    "me",
+                    "upcoming"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "{{slug}}",
+                      "key": "slug",
+                      "description": "(Required) University slug."
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET"
+              },
+              "response": [],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "name": "calendar-feed",
+              "item": [
+                {
+                  "name": "My calendar feed",
+                  "request": {
+                    "name": "My calendar feed",
+                    "description": {
+                      "content": "Who: any active member; own feed. 404 when there is none. Never returns the URL.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "calendar-feed"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Create or rotate my calendar feed",
+                  "request": {
+                    "name": "Create or rotate my calendar feed",
+                    "description": {
+                      "content": "Who: any active member; own membership only. Replaces any previous feed, so the old URL stops working. The URL is shown once (Cache-Control: no-store). Audit calendar_feed.create.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "calendar-feed"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Revoke my calendar feed",
+                  "request": {
+                    "name": "Revoke my calendar feed",
+                    "description": {
+                      "content": "Who: any active member; own feed. 404 when there is none. Audit calendar_feed.delete.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "calendar-feed"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
             }
           ],
           "event": []
@@ -5889,6 +6067,56 @@
             }
           ],
           "event": []
+        },
+        {
+          "name": "Calendar feed (iCalendar)",
+          "request": {
+            "name": "Calendar feed (iCalendar)",
+            "description": {
+              "content": "Who: anyone holding the feed URL; the token is the credential, no session. Section meetings (campus today -30 to +180 days, within each term, one UTC event per occurrence) and quiz and assignment deadlines as text/calendar (RFC 5545, CRLF). Every failure is a plain 404. Not rate limited; the request log shows only the route pattern.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "universities",
+                ":slug",
+                "calendar-feeds",
+                ":token"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "{{slug}}",
+                  "key": "slug",
+                  "description": "(Required) University slug."
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "{{token}}",
+                  "key": "token",
+                  "description": "(Required) Feed token (base64url) followed by .ics."
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/calendar"
+              }
+            ],
+            "method": "GET"
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
         }
       ],
       "event": []
