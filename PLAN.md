@@ -470,10 +470,10 @@ Owner: "go" on the roadmap (D158). What's due across sections, in-app notificati
 | Lane | Model | Scope | Status |
 |---|---|---|---|
 | P21-L1 - Design (Task 1, D) | Opus 5.5 | `docs/design/P21-L1.md` | **done** - [#194](https://github.com/kapildev333/unicourse/pull/194). 450 lines; escalations E1-E7 accepted (D159) |
-| P21-L2 - Migration 0012, `internal/notification`, producers (Task 2, W) | Sonnet 5.5 | `migrations/0012`, `internal/notification/**`, named producer functions, `app.go`, contract | building from #194 |
-| P21-L3 - Upcoming, calendar feed and tokens, timezone on /me (Task 3, W) | Sonnet 5.5 | `internal/grade/upcoming*`, `internal/calendar/**`, `internal/auth/handler.go`, contract | pending L2 |
-| P21-L4 - Web bell, notifications page, opt-out (Task 4, W) | Sonnet 5.5 | `features/notifications/**`, `routes/$slug/notifications.tsx`, `app-shell.tsx`, `account-menu.tsx` | pending L2 |
-| P21-L5 - Web Upcoming panel, calendar dialog, university time zone (Task 5, W) | Sonnet 5.5 | `features/my-sections/**`, `lib/format.ts`, `features/quiz/window.ts` | pending L3 |
+| P21-L2 - Migration 0012, `internal/notification`, producers (Task 2, W) | Sonnet 5.5 | `migrations/0012`, `internal/notification/**`, named producer functions, `app.go`, contract | **done** - [#196](https://github.com/kapildev333/unicourse/pull/196). Orchestrator: Go 20 ok 0 SKIP, 592 unit tests; real HTTP: producers, author exclusion, opt-out mail, counts, mark read, publish-once, cascade; review approve, two test fixes |
+| P21-L3 - Upcoming, calendar feed and tokens, timezone on /me (Task 3, W) | Sonnet 5.5 | `internal/grade/upcoming*`, `internal/calendar/**`, `internal/auth/handler.go`, contract | **done** - [#197](https://github.com/kapildev333/unicourse/pull/197). Orchestrator: Go 21 ok, 592 unit tests; real HTTP: Upcoming, feed URL once, ICS (CRLF, folding, 100 events), rotate/revoke/404s, token absent from the log; review changes needed → fixed (calendar_feed audit entity in the enum/filter/label; serialised concurrent creates) |
+| P21-L4 - Web bell, notifications page, opt-out (Task 4, W) | Sonnet 5.5 | `features/notifications/**`, `routes/$slug/notifications.tsx`, `app-shell.tsx`, `account-menu.tsx` | built, reviewed (approve; phone-header wrap confirmed with touch emulation and fixed), rebased; gates and the full e2e running |
+| P21-L5 - Web Upcoming panel, calendar dialog, university time zone (Task 5, W) | Sonnet 5.5 | `features/my-sections/**`, `lib/format.ts`, `features/quiz/window.ts` | building from P21-L3's head |
 | P21-L6 - e2e (Task 6, W) | Sonnet 5.5 | `e2e/notifications.spec.ts`, `e2e/upcoming.spec.ts` | pending L4, L5 |
 
 ## Backlog
@@ -495,6 +495,7 @@ Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 map
 - (Phase 19 takes the ReadTimeout half) Every `tenant.Wrap` handler reads its JSON body inside the open transaction and the API server sets only `ReadHeaderTimeout`, so a slow client holds a pool connection for as long as it likes (P18-L4b review); add a `ReadTimeout` or read bodies before `BeginTx` when it matters. Interleave tests for `for share` on attempt start and `skip locked` in the sweeper are not test-pinned (P18-L4).
 - P18-L7 review: a submission upload's 403 reuses the materials sentence (`uploadReason`); the assignment list row shows no Submitted badge when the student's own-submission lookup fails (the page itself shows the error). P18-L6b review: if staff extend `closesAt` after a student left the form at the close, the student's page waits until the new close.
 - csvimport stays on the 30 s read timeout (its 5 MiB cap needs about 1.7 Mbit/s upstream; extend like the upload handlers if phones time out); a reverse proxy's upstream idle timeout should be under the API's 120 s `IdleTimeout` (P19-L6 review).
+- An assessment created with `published: true` never emits a "scores published" notification (only the false→true flip does; P21-L2 review note). Notifications are never pruned (plan). `todayIso` on Catalog/Courses and the audit-log day filter still use the browser's date (P21-L1 risk).
 - ESLint 10 when `eslint-plugin-jsx-a11y` supports it (P14-L5). The web index chunk is 546 kB after React 19; code-split when it matters. A byte-level upload progress bar needs an XHR upload path (P14-L4). The capture script could seed through `seed-demo` (D108). Local development needs Node 22.22.2 or newer; the owner's machine runs 22.11.
 
 ## Journal
@@ -571,3 +572,4 @@ Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 map
 - 2026-10-09: Phase 20 complete: research (#189, #190) and the roadmap with the Phase 21 plan (#191) landed; D157 records the recommendation. The 10-minute loop stops here; the owner answers the roadmap's §6 questions (or says "go" for Phase 21 with the defaults).
 - 2026-10-09: Owner said "go" on the roadmap (D158). Phase 21 opened from the roadmap's plan; P21-L1 designer launched.
 - 2026-10-09: P21-L1 design landed (#194) with D159; P21-L2 (migration 0012, notifications, producers) launched.
+- 2026-10-09: P21-L2 (#196) and P21-L3 (#197) landed after reviews, fix rounds, gates and real-HTTP passes; P21-L4 in final gates; P21-L5 building.
