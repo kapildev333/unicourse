@@ -4354,6 +4354,191 @@
           }
         }
       }
+    },
+    "/universities/{slug}/me/upcoming": {
+      "get": {
+        "operationId": "getMyUpcoming",
+        "summary": "My upcoming work",
+        "description": "Who: any active member. Quizzes and assignments of the caller's sections (enrolled, or staff) that are open or due within 14 days, soonest first. Students see only work not yet submitted; instructors and TAs see what closes soon with submittedCount and enrolledCount. No keys, scores or other students.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/me/calendar-feed": {
+      "get": {
+        "operationId": "getMyCalendarFeed",
+        "summary": "My calendar feed",
+        "description": "Who: any active member; own feed. 404 when there is none. Never returns the URL.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeed"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMyCalendarFeed",
+        "summary": "Create or rotate my calendar feed",
+        "description": "Who: any active member; own membership only. Replaces any previous feed, so the old URL stops working. The URL is shown once (Cache-Control: no-store). Audit calendar_feed.create.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedCreated"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMyCalendarFeed",
+        "summary": "Revoke my calendar feed",
+        "description": "Who: any active member; own feed. 404 when there is none. Audit calendar_feed.delete.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/calendar-feeds/{token}": {
+      "get": {
+        "operationId": "getCalendarFeed",
+        "summary": "Calendar feed (iCalendar)",
+        "description": "Who: anyone holding the feed URL; the token is the credential, no session. Section meetings (campus today -30 to +180 days, within each term, one UTC event per occurrence) and quiz and assignment deadlines as text/calendar (RFC 5545, CRLF). Every failure is a plain 404. Not rate limited; the request log shows only the route pattern.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Feed token (base64url) followed by .ics."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -4455,12 +4640,24 @@
           "name": {
             "type": "string",
             "example": "Example University"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "America/New_York",
+            "description": "IANA timezone of the campus; the web shows dates in it."
+          },
+          "locale": {
+            "type": "string",
+            "example": "en-US",
+            "description": "BCP 47 locale of the campus."
           }
         },
         "required": [
           "id",
           "slug",
-          "name"
+          "name",
+          "timezone",
+          "locale"
         ]
       },
       "MyMembership": {
@@ -8091,6 +8288,169 @@
             "type": "boolean",
             "example": true,
             "description": "Whether new announcements of this university's sections are also mailed."
+          }
+        }
+      },
+      "UpcomingItem": {
+        "type": "object",
+        "required": [
+          "assessmentId",
+          "kind",
+          "name",
+          "section",
+          "course",
+          "myRole",
+          "opensAt",
+          "dueAt",
+          "started"
+        ],
+        "properties": {
+          "assessmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "quiz",
+              "assignment"
+            ],
+            "example": "quiz"
+          },
+          "name": {
+            "type": "string",
+            "example": "Quiz 1"
+          },
+          "section": {
+            "type": "object",
+            "required": [
+              "id",
+              "number"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+              },
+              "number": {
+                "type": "string",
+                "example": "001"
+              }
+            }
+          },
+          "course": {
+            "type": "object",
+            "required": [
+              "code",
+              "title"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "CS101"
+              },
+              "title": {
+                "type": "string",
+                "example": "Intro to CS"
+              }
+            }
+          },
+          "myRole": {
+            "type": "string",
+            "enum": [
+              "student",
+              "instructor",
+              "ta"
+            ],
+            "example": "student"
+          },
+          "opensAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-14T23:59:00Z"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-14T23:59:00Z",
+            "description": "The effective deadline: closesAt, or for a started timed quiz the start plus the limit if sooner."
+          },
+          "lateUntil": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-14T23:59:00Z",
+            "description": "Assignments with a late window only."
+          },
+          "timeLimitMinutes": {
+            "type": "integer",
+            "example": 30,
+            "description": "Timed quizzes only."
+          },
+          "started": {
+            "type": "boolean",
+            "example": false,
+            "description": "True while the caller's quiz attempt is running."
+          },
+          "submittedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12,
+            "description": "Staff only: enrolled students who submitted."
+          },
+          "enrolledCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 30,
+            "description": "Staff only."
+          }
+        }
+      },
+      "UpcomingList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingItem"
+            }
+          }
+        }
+      },
+      "CalendarFeed": {
+        "type": "object",
+        "required": [
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T12:00:00Z"
+          }
+        }
+      },
+      "CalendarFeedCreated": {
+        "type": "object",
+        "required": [
+          "url",
+          "createdAt"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://unicourse.example/api/v1/universities/example/calendar-feeds/Zm9vYmFy.ics",
+            "description": "Shown only in this response; only a hash of the token is stored."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T12:00:00Z"
           }
         }
       }
