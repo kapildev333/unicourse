@@ -25,7 +25,14 @@ test.beforeAll(async ({ browser }) => {
 
 const status = (page: Page, text: string) => page.getByRole('status').filter({ hasText: text })
 const list = (page: Page) => page.goto(`/${slug}/sections/${sid}/assignments`)
-const local = (ms: number) => new Date(ms).toISOString().slice(0, 16)
+const local = (ms: number) => {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      .formatToParts(new Date(ms))
+      .map((x) => [x.type, x.value]),
+  )
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
+}
 async function open(page: Page) {
   await list(page)
   await page.getByRole('link', { name: `View ${NAME}` }).click()
