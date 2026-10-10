@@ -125,6 +125,9 @@ type university struct {
 	ID   string `json:"id"`
 	Slug string `json:"slug"`
 	Name string `json:"name"`
+	// Timezone (IANA) and Locale (BCP 47) are the campus's: web dates are shown in them.
+	Timezone string `json:"timezone"`
+	Locale   string `json:"locale"`
 }
 
 type membership struct {
@@ -138,7 +141,7 @@ func (d Deps) memberships(ctx context.Context, userID string) ([]membership, err
 	out := []membership{}
 	err := pg.WithUserTx(ctx, d.DB, userID, "", func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `
-select u.id, u.slug, u.name, m.role,
+select u.id, u.slug, u.name, u.timezone, u.locale, m.role,
        to_json(array(select da.department_id::text from department_admins da
                       where da.user_id = m.user_id and da.university_id = m.university_id
                       order by da.department_id))
@@ -152,7 +155,7 @@ order by u.name`, userID)
 		for rows.Next() {
 			var m membership
 			var ids []byte
-			if err := rows.Scan(&m.University.ID, &m.University.Slug, &m.University.Name, &m.Role, &ids); err != nil {
+			if err := rows.Scan(&m.University.ID, &m.University.Slug, &m.University.Name, &m.University.Timezone, &m.University.Locale, &m.Role, &ids); err != nil {
 				return err
 			}
 			if err := json.Unmarshal(ids, &m.DepartmentIDs); err != nil {
