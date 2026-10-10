@@ -470,3 +470,66 @@ func TestAssessmentCloseAfterLate(t *testing.T) {
 		t.Fatalf("both right: %d %s", st, raw)
 	}
 }
+
+// notes returns "email kind" per notification of university A, sorted, optionally for one kind.
+func (e *env) notes(kind string) []string {
+	e.T.Helper()
+	var out []string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		rows, err := tx.Query(`select u.email || ' ' || n.kind from notifications n join users u on u.id = n.user_id where $1 = '' or n.kind = $1 order by 1`, kind)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				return err
+			}
+			out = append(out, s)
+		}
+		return rows.Err()
+	})
+	return out
+}
+
+func TestCreateQuizNotifiesStudents(t *testing.T) {
+	e := newEnv(t)
+	if st, raw := e.post(e.TA, win(map[string]any{"name": "Q1"})); st != 201 {
+		t.Fatal(st, raw)
+	}
+	if st, raw := e.post(e.Inst, win(map[string]any{"kind": "assignment", "maxPoints": 5, "name": "A1"})); st != 201 {
+		t.Fatal(st, raw)
+	}
+	if st, raw := e.post(e.Inst, map[string]any{"name": "M", "maxPoints": 1, "weight": 1}); st != 201 {
+		t.Fatal(st, raw)
+	}
+	want := []string{"stud2@a.edu assessment_created", "stud2@a.edu assessment_created", "stud@a.edu assessment_created", "stud@a.edu assessment_created"}
+	if got := e.notes(""); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+}
+
+func TestPublishNotifiesOnce(t *testing.T) {
+	e := newEnv(t)
+	id := e.assessment("Mid", "100", "40")
+	patch := func(b map[string]any) {
+		e.T.Helper()
+		if st, raw := e.raw(e.Inst, "PATCH", e.aPath(id), b); st != 200 {
+			e.T.Fatal(st, raw)
+		}
+	}
+	patch(map[string]any{"name": "Mid2"})
+	if got := e.notes(""); len(got) != 0 {
+		t.Fatalf("rename notified: %v", got)
+	}
+	patch(map[string]any{"published": true})
+	patch(map[string]any{"published": true})
+	patch(map[string]any{"name": "Mid3"})
+	patch(map[string]any{"published": false})
+	patch(map[string]any{"published": true})
+	want := []string{"stud2@a.edu scores_published", "stud@a.edu scores_published"}
+	if got := e.notes(""); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+}

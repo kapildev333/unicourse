@@ -335,3 +335,23 @@ func TestOverrideSameLetterKeepsPoints(t *testing.T) {
 		t.Fatal(st, body)
 	}
 }
+
+func TestFinalizeNotifies(t *testing.T) {
+	e := newEnv(t)
+	e.twoAssessments()
+	want := []string{"stud2@a.edu grades_finalized", "stud@a.edu grades_finalized"}
+	for i := 1; i <= 2; i++ {
+		if st, body := e.finalize(map[string]any{}); st != 201 {
+			t.Fatal(st, body)
+		}
+		if got := e.notes("grades_finalized"); len(got) != 2*i || got[0] != want[0] {
+			t.Fatalf("round %d: %v", i, got)
+		}
+		if got := e.notes("scores_published"); len(got) != 0 {
+			t.Fatalf("scores_published: %v", got)
+		}
+		if st, _ := e.raw(e.Admin, "DELETE", "/sections/"+e.SectionA+"/final-grades", nil); st != 204 {
+			t.Fatal(st)
+		}
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/notification"
 	"github.com/kapildev333/unicourse/apps/api/internal/outbox"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -138,6 +139,9 @@ func createAnnouncement(baseURL string) tenant.Handler {
 		var id string
 		if err := tx.QueryRowContext(r.Context(), `insert into announcements (university_id, section_id, author_user_id, title, body, emailed)
 			values ($1, $2, $3, $4, $5, $6) returning id`, s.UniversityID, secID, s.UserID, title, body, len(mails) > 0).Scan(&id); err != nil {
+			return 0, nil, err
+		}
+		if err := notification.Announcement(r.Context(), tx, s.UniversityID, s.UserID, secID, id); err != nil {
 			return 0, nil, err
 		}
 		if err := outbox.Enqueue(r.Context(), tx, mails...); err != nil {

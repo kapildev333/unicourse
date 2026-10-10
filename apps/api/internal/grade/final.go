@@ -14,6 +14,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/audit"
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/notification"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -286,6 +287,9 @@ func finalize(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, error) {
 			if err = pg.MapError(err); errors.Is(err, pg.ErrConflict) {
 				return 0, nil, httpx.Conflict("section is already finalized; reopen first")
 			}
+			return 0, nil, err
+		}
+		if err := notification.GradesFinalized(ctx, tx, s.UniversityID, s.UserID, secID, ""); err != nil {
 			return 0, nil, err
 		}
 	}

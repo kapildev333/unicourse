@@ -13,7 +13,7 @@ import (
 var tenantTables = []string{"memberships", "department_admins", "departments", "terms", "courses", "sections",
 	"section_staff", "enrollments", "invitations", "audit_log", "pending_section_staff", "pending_enrollments", "section_meetings",
 	"grade_scales", "assessments", "scores", "final_grades", "announcements", "weeks", "materials",
-	"questions", "attempts", "submissions", "submission_files"}
+	"questions", "attempts", "submissions", "submission_files", "notifications", "calendar_feeds"}
 
 func TestMigrate(t *testing.T) {
 	api, db := testdb.OpenWithOwner(t)
@@ -38,8 +38,8 @@ func TestMigrate(t *testing.T) {
 	}
 	var tables int
 	db.QueryRow(`select count(*) from pg_tables where schemaname = 'public' and tablename <> 'schema_migrations'`).Scan(&tables)
-	if tables != 30 {
-		t.Fatalf("%d tables, want 30", tables)
+	if tables != 32 {
+		t.Fatalf("%d tables, want 32", tables)
 	}
 	rows, err := db.Query(`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'university_id' and table_name <> 'universities'`)
 	if err != nil {
@@ -52,8 +52,8 @@ func TestMigrate(t *testing.T) {
 		tenant = append(tenant, n)
 	}
 	rows.Close()
-	if len(tenant) != 24 {
-		t.Fatalf("%d tenant tables %v, want 24", len(tenant), tenant)
+	if len(tenant) != 26 {
+		t.Fatalf("%d tenant tables %v, want 26", len(tenant), tenant)
 	}
 	for _, name := range tenant {
 		var on, force bool

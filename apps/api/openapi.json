@@ -4098,6 +4098,262 @@
           }
         }
       }
+    },
+    "/universities/{slug}/me/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "summary": "List my notifications",
+        "description": "Who: any active member; own notifications only. Newest first, paginated. The subject is read live from the announcement or assessment, so an edit shows up and a deleted source removes its notifications. Errors: limit, cursor.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "markAllNotificationsRead",
+        "summary": "Mark all my notifications as read",
+        "description": "Who: any active member; own notifications only. Sets readAt on every unread one. Errors: read (must be true), {} is field \"\" (no fields to update).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationsMarkAllRead"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/me/notifications/unread-count": {
+      "get": {
+        "operationId": "countUnreadNotifications",
+        "summary": "Count my unread notifications",
+        "description": "Who: any active member; own notifications only.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationCount"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/me/notifications/{id}": {
+      "patch": {
+        "operationId": "markNotificationRead",
+        "summary": "Mark a notification read or unread",
+        "description": "Who: any active member; own notifications only (another user's, a malformed or a missing id is 404). read true sets readAt and keeps the first time on a repeat; false clears it. Errors: read (must not be null), {} is field \"\" (no fields to update).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationRead"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notification"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
+    },
+    "/universities/{slug}/me/notification-settings": {
+      "get": {
+        "operationId": "getNotificationSettings",
+        "summary": "Get my notification settings",
+        "description": "Who: any active member; settings of the caller's membership in this university.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateNotificationSettings",
+        "summary": "Change my notification settings",
+        "description": "Who: any active member; own membership only. Writes audit membership.update only when the value changes. Errors: announcementMail (must not be null), {} is field \"\" (no fields to update).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/slug"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7657,6 +7913,186 @@
           }
         },
         "required": []
+      },
+      "Notification": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "section",
+          "course",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "announcement",
+              "assessment_created",
+              "scores_published",
+              "grades_finalized"
+            ],
+            "example": "announcement"
+          },
+          "section": {
+            "type": "object",
+            "required": [
+              "id",
+              "number"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+              },
+              "number": {
+                "type": "string",
+                "example": "001"
+              }
+            }
+          },
+          "course": {
+            "type": "object",
+            "required": [
+              "code",
+              "title"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "CS101"
+              },
+              "title": {
+                "type": "string",
+                "example": "Intro to CS"
+              }
+            }
+          },
+          "subject": {
+            "type": "string",
+            "example": "Midterm moved",
+            "description": "The announcement title or assessment name, read live. Omitted for grades_finalized."
+          },
+          "announcementId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11",
+            "description": "Kind announcement only."
+          },
+          "assessment": {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "description": "Kinds assessment_created and scores_published only.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "quiz",
+                  "assignment"
+                ],
+                "example": "quiz"
+              }
+            }
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T10:00:00Z",
+            "description": "Omitted while unread."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-09T09:00:00Z"
+          }
+        }
+      },
+      "NotificationList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            },
+            "description": "Newest first."
+          },
+          "nextCursor": {
+            "type": "string",
+            "example": "eyJhIjoxfQ"
+          }
+        }
+      },
+      "NotificationCount": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          }
+        }
+      },
+      "NotificationRead": {
+        "type": "object",
+        "required": [
+          "read"
+        ],
+        "properties": {
+          "read": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "NotificationsMarkAllRead": {
+        "type": "object",
+        "required": [
+          "read"
+        ],
+        "properties": {
+          "read": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        }
+      },
+      "NotificationSettings": {
+        "type": "object",
+        "required": [
+          "announcementMail"
+        ],
+        "properties": {
+          "announcementMail": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether new announcements of this university's sections are also mailed."
+          }
+        }
       }
     },
     "parameters": {

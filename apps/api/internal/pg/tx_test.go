@@ -14,7 +14,7 @@ import (
 
 var ctx = context.Background()
 
-type ids struct{ dept, term, course, section, user, inv, assessment, week, submission string }
+type ids struct{ dept, term, course, section, user, inv, assessment, week, submission, announcement string }
 
 const weekInsert = "insert into weeks (university_id, section_id, title, position) values ('{U}', '{S}', 'Week 1', 1)"
 
@@ -40,11 +40,13 @@ var rest = map[string]string{
 	"questions":             `insert into questions (university_id, assessment_id, kind, prompt, points, position) values ('{U}', '{A}', 'blank', 'P', 1, 1)`,
 	"attempts":              `insert into attempts (university_id, assessment_id, user_id) values ('{U}', '{A}', '{USR}')`,
 	"submission_files":      `insert into submission_files (university_id, submission_id, file_name, content_type, size_bytes, sha256, position) values ('{U}', '{SUB}', 'a.pdf', 'application/pdf', 1, repeat('a', 64), 1)`,
+	"notifications":         `insert into notifications (university_id, user_id, kind, section_id) values ('{U}', '{USR}', 'grades_finalized', '{S}')`,
+	"calendar_feeds":        `insert into calendar_feeds (university_id, user_id, token_hash) values ('{U}', '{USR}', sha256(gen_random_uuid()::text::bytea))`,
 	"final_grades":          `insert into final_grades (university_id, section_id, user_id, status, credits, finalized_by) values ('{U}', '{S}', '{USR}', 'incomplete', 3, '{USR}')`,
 }
 
 func sub(q, uni string, i ids) string {
-	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment, "{W}", i.week, "{SUB}", i.submission).Replace(q)
+	return strings.NewReplacer("{U}", uni, "{D}", i.dept, "{S}", i.section, "{USR}", i.user, "{INV}", i.inv, "{A}", i.assessment, "{W}", i.week, "{SUB}", i.submission, "{ANN}", i.announcement).Replace(q)
 }
 
 // populate fills every tenant table for uni inside an open WithTx(uni) transaction.
@@ -64,8 +66,12 @@ func populate(t *testing.T, tx *sql.Tx, uni, user string) ids {
 	q(&i.week, sub(weekInsert, uni, i)+" returning id")
 	q(&i.submission, sub(submissionInsert, uni, i)+" returning id")
 	q(&i.inv, sub(rest["invitations"], uni, i)+` returning id`)
+	if _, err := tx.Exec(sub(rest["memberships"], uni, i)); err != nil { // notifications and calendar_feeds reference it
+		t.Fatal("memberships", err)
+	}
+	q(&i.announcement, sub(rest["announcements"], uni, i)+` returning id`)
 	for name, stmt := range rest {
-		if name == "invitations" {
+		if name == "invitations" || name == "memberships" || name == "announcements" {
 			continue
 		}
 		if _, err := tx.Exec(sub(stmt, uni, i)); err != nil {
@@ -305,6 +311,11 @@ func TestCrossTenantReferencesRejected(t *testing.T) {
 		"materials->weeks":                   rest["materials"],
 		"scores->assessments":                rest["scores"],
 		"final_grades->sections":             rest["final_grades"],
+		"notifications->sections":            `insert into notifications (university_id, user_id, kind, section_id) values ('{U}', (select user_id from memberships limit 1), 'grades_finalized', '{S}')`,
+		"notifications->memberships":         `insert into notifications (university_id, user_id, kind, section_id) values ('{U}', '{USR}', 'grades_finalized', (select id from sections limit 1))`,
+		"notifications->announcements":       `insert into notifications (university_id, user_id, kind, section_id, announcement_id) values ('{U}', '{USR}', 'announcement', (select id from sections limit 1), '{ANN}')`,
+		"notifications->assessments":         `insert into notifications (university_id, user_id, kind, section_id, assessment_id) values ('{U}', '{USR}', 'scores_published', (select id from sections limit 1), '{A}')`,
+		"calendar_feeds->memberships":        rest["calendar_feeds"],
 		"pending_section_staff->invitations": `insert into pending_section_staff (university_id, invitation_id, section_id, role) values ('{U}', '{INV}', (select id from sections limit 1), 'ta')`,
 	}
 	// A-side parents so the "limit 1" subselects resolve
@@ -515,6 +526,28 @@ func TestAssessmentFollowupChecks(t *testing.T) {
 	} {
 		if err := insert(c[0], c[1], c[2], c[3], c[4]); err != nil {
 			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestNotificationKindChecks(t *testing.T) {
+	db := testdb.Open(t)
+	f := testdb.Seed(t, db)
+	user := newUser(t, db, "u@a.edu")
+	var i ids
+	pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error { i = populate(t, tx, f.UniversityA, user); return nil })
+	for name, stmt := range map[string]string{
+		"announcement without announcement_id":  `insert into notifications (university_id, user_id, kind, section_id) values ('{U}', '{USR}', 'announcement', '{S}')`,
+		"scores_published with announcement_id": `insert into notifications (university_id, user_id, kind, section_id, announcement_id, assessment_id) values ('{U}', '{USR}', 'scores_published', '{S}', '{ANN}', '{A}')`,
+		"grades_finalized with assessment_id":   `insert into notifications (university_id, user_id, kind, section_id, assessment_id) values ('{U}', '{USR}', 'grades_finalized', '{S}', '{A}')`,
+	} {
+		err := pg.WithTx(ctx, db, f.UniversityA, func(tx *sql.Tx) error {
+			_, err := tx.Exec(sub(stmt, f.UniversityA, i))
+			return err
+		})
+		var pe *pgconn.PgError
+		if !errors.As(err, &pe) || pe.Code != "23514" {
+			t.Errorf("%s: %v, want 23514", name, err)
 		}
 	}
 }

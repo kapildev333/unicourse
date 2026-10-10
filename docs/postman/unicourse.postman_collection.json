@@ -520,6 +520,337 @@
               "protocolProfileBehavior": {
                 "disableBodyPruning": true
               }
+            },
+            {
+              "name": "notifications",
+              "item": [
+                {
+                  "name": "List my notifications",
+                  "request": {
+                    "name": "List my notifications",
+                    "description": {
+                      "content": "Who: any active member; own notifications only. Newest first, paginated. The subject is read live from the announcement or assessment, so an edit shows up and a deleted source removes its notifications. Errors: limit, cursor.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notifications"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [
+                        {
+                          "disabled": true,
+                          "key": "limit",
+                          "value": "",
+                          "description": "Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit."
+                        },
+                        {
+                          "disabled": true,
+                          "key": "cursor",
+                          "value": "",
+                          "description": "Opaque; corrupt is 400 field cursor."
+                        }
+                      ],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Mark all my notifications as read",
+                  "request": {
+                    "name": "Mark all my notifications as read",
+                    "description": {
+                      "content": "Who: any active member; own notifications only. Sets readAt on every unread one. Errors: read (must be true), {} is field \"\" (no fields to update).",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notifications"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"read\": \"<boolean>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Count my unread notifications",
+                  "request": {
+                    "name": "Count my unread notifications",
+                    "description": {
+                      "content": "Who: any active member; own notifications only.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notifications",
+                        "unread-count"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Mark a notification read or unread",
+                  "request": {
+                    "name": "Mark a notification read or unread",
+                    "description": {
+                      "content": "Who: any active member; own notifications only (another user's, a malformed or a missing id is 404). read true sets readAt and keeps the first time on a repeat; false clears it. Errors: read (must not be null), {} is field \"\" (no fields to update).",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notifications",
+                        ":id"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        },
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "",
+                          "key": "id",
+                          "description": "(Required) "
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"read\": \"<boolean>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
+            },
+            {
+              "name": "notification-settings",
+              "item": [
+                {
+                  "name": "Get my notification settings",
+                  "request": {
+                    "name": "Get my notification settings",
+                    "description": {
+                      "content": "Who: any active member; settings of the caller's membership in this university.",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notification-settings"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET"
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                },
+                {
+                  "name": "Change my notification settings",
+                  "request": {
+                    "name": "Change my notification settings",
+                    "description": {
+                      "content": "Who: any active member; own membership only. Writes audit membership.update only when the value changes. Errors: announcementMail (must not be null), {} is field \"\" (no fields to update).",
+                      "type": "text/plain"
+                    },
+                    "url": {
+                      "path": [
+                        "universities",
+                        ":slug",
+                        "me",
+                        "notification-settings"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "{{slug}}",
+                          "key": "slug",
+                          "description": "(Required) University slug."
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PATCH",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"announcementMail\": \"<boolean>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "response": [],
+                  "event": [],
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  }
+                }
+              ],
+              "event": []
             }
           ],
           "event": []
