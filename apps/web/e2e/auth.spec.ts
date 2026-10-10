@@ -197,7 +197,7 @@ test('E-AUTH-13 a person in two universities switches between them', async ({ br
   await expect(select.getByRole('option', { name: 'Northfield University' }), 'student, header: Northfield option').toHaveCount(1)
   await select.selectOption({ label: 'Northfield University' })
   await expect(page, 'student, header: switched to Northfield').toHaveURL(new RegExp(`/${slug}/me$`))
-  await expect(page.getByRole('listitem').filter({ hasText: 'CS101-001' }), 'student, My sections: CS101-001').toBeVisible()
+  await expect(page.getByRole('list', { name: /^My sections in / }).getByRole('listitem').filter({ hasText: 'CS101-001' }), 'student, My sections: CS101-001').toBeVisible()
   await page.context().close()
 })
 
