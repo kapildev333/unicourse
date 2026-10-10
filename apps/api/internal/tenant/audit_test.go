@@ -1,9 +1,12 @@
 package tenant
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -99,4 +102,20 @@ func total(t *testing.T, e *env, cookie *http.Cookie, q string) int {
 		t.Fatalf("total missing: %s", raw)
 	}
 	return *l.Total
+}
+
+func TestAuditLogCalendarFeed(t *testing.T) {
+	e := newServer(t, regTenant)
+	adm := e.adminCookie()
+	id := "0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11"
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		return audit.Write(context.Background(), tx, e.Fx.UniversityA, audit.Entry{ActorUserID: e.Fx.AdminA, Action: "calendar_feed.create", EntityType: "calendar_feed", EntityID: id})
+	})
+	st, raw := e.do(adm, "GET", pathA+"/audit-log?entityType=calendar_feed", nil)
+	if st != 200 || !strings.Contains(string(raw), `"calendar_feed.create"`) {
+		t.Fatalf("filter: %d %s", st, raw)
+	}
+	if st, raw := e.do(adm, "GET", pathA+"/audit-log?entityType=term", nil); st != 200 || strings.Contains(string(raw), "calendar_feed") {
+		t.Fatalf("other type: %d %s", st, raw)
+	}
 }

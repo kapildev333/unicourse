@@ -1716,7 +1716,7 @@ export interface components {
              * @example term
              * @enum {string}
              */
-            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
+            entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material" | "calendar_feed";
             /**
              * Format: uuid
              * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
@@ -3512,7 +3512,7 @@ export interface components {
         termId: string;
         courseId: string;
         departmentId: string;
-        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material";
+        entityType: "department" | "term" | "membership" | "invitation" | "course" | "section" | "staff" | "enrollment" | "assessment" | "final_grade" | "grade_scale" | "announcement" | "week" | "material" | "calendar_feed";
         entityId: string;
         actorUserId: string;
         /** @description Inclusive. */

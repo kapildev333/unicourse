@@ -5067,7 +5067,8 @@
               "grade_scale",
               "announcement",
               "week",
-              "material"
+              "material",
+              "calendar_feed"
             ],
             "example": "term"
           },
@@ -8581,7 +8582,8 @@
             "grade_scale",
             "announcement",
             "week",
-            "material"
+            "material",
+            "calendar_feed"
           ]
         }
       },

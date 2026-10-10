@@ -1,9 +1,13 @@
 package calendar
 
 import (
+	"context"
+	"time"
+
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
+	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"net/http"
 	"strings"
 	"testing"
@@ -103,4 +107,50 @@ func TestFeedTokenNoStore(t *testing.T) {
 		t.Fatalf("%v %d %q", err, res.StatusCode, res.Header.Get("Cache-Control"))
 	}
 	res.Body.Close()
+}
+
+// TestFeedCreateSerialises: a create that starts while another create of the same member is open waits for it,
+// then rotates it (both succeed) instead of hitting the unique key.
+func TestFeedCreateSerialises(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	tx, err := e.DB.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pg.SetUniversity(ctx, tx, e.Fx.UniversityA); err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	hash1 := sha256.Sum256([]byte("first"))
+	if _, err := tx.Exec(`select 1 from memberships where user_id = $1 for update`, e.UserID["stud@a.edu"]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(`insert into calendar_feeds (university_id, user_id, token_hash) values ($1,$2,$3)`, e.Fx.UniversityA, e.UserID["stud@a.edu"], hash1[:]); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan string, 1)
+	go func() {
+		st, raw := e.call(e.Stud, "POST", "/me/calendar-feed", nil)
+		done <- strings.TrimSpace(string(raw)) + "|" + http.StatusText(st)
+	}()
+	select {
+	case r := <-done:
+		t.Fatalf("second create did not wait for the first: %s", r)
+	case <-time.After(500 * time.Millisecond):
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if r := <-done; !strings.HasSuffix(r, "|Created") {
+		t.Fatalf("second create: %s", r)
+	}
+	var n int
+	var stored []byte
+	e.tx(func(tx *sql.Tx) error {
+		return tx.QueryRow(`select (select count(*) from calendar_feeds), (select token_hash from calendar_feeds limit 1)`).Scan(&n, &stored)
+	})
+	if n != 1 || string(stored) == string(hash1[:]) {
+		t.Fatalf("rotation: %d rows, first token kept=%v", n, string(stored) == string(hash1[:]))
+	}
 }

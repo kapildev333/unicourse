@@ -130,6 +130,16 @@ it('shows a Target column with entity, name when present, and a short id', async
   expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 7 changes')
 })
 
+it('labels a calendar feed entry', async () => {
+  mockApi({
+    ...members,
+    [L]: () => ({ body: { items: [entry('e1', { entityType: 'calendar_feed', action: 'calendar_feed.create' })], total: 1 } }),
+  })
+  renderWithQuery(<AuditLogPage slug="x" />)
+  expect(await screen.findByText('Calendar feed')).toBeInTheDocument()
+  expect(screen.queryByText(/undefined/)).toBeNull()
+})
+
 it('lists the Changed by options by name, falling back to the email', async () => {
   mockApi({
     'GET /universities/x/memberships': () => ({

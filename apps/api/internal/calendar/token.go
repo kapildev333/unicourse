@@ -39,6 +39,10 @@ func createFeed(d tenant.Deps) tenant.Handler {
 		if err != nil {
 			return 0, nil, err
 		}
+		// Serialise concurrent creates of the same member: the unique (university_id, user_id) would 500 the second.
+		if _, err := tx.ExecContext(ctx, `select 1 from memberships where user_id = $1 for update`, s.UserID); err != nil {
+			return 0, nil, err
+		}
 		if _, err := tx.ExecContext(ctx, `delete from calendar_feeds where user_id = $1`, s.UserID); err != nil {
 			return 0, nil, err
 		}
