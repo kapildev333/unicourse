@@ -15,6 +15,7 @@ import (
 	"github.com/kapildev333/unicourse/apps/api/internal/authz"
 	"github.com/kapildev333/unicourse/apps/api/internal/blob"
 	"github.com/kapildev333/unicourse/apps/api/internal/httpx"
+	"github.com/kapildev333/unicourse/apps/api/internal/notification"
 	"github.com/kapildev333/unicourse/apps/api/internal/pg"
 	"github.com/kapildev333/unicourse/apps/api/internal/tenant"
 )
@@ -336,6 +337,11 @@ func createAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 	if err != nil {
 		return 0, nil, assessmentWriteErr(err)
 	}
+	if a.Kind != "manual" {
+		if err := notification.AssessmentCreated(r.Context(), tx, s.UniversityID, s.UserID, secID, a.ID); err != nil {
+			return 0, nil, err
+		}
+	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "assessment.create", EntityType: "assessment", EntityID: a.ID, After: a}); err != nil {
 		return 0, nil, err
 	}
@@ -456,6 +462,11 @@ func updateAssessment(r *http.Request, tx *sql.Tx, s authz.Scope) (int, any, err
 		after.ID, v.Name, v.Description, v.MaxPoints, v.Weight, v.OpensAt, v.ClosesAt, v.DueOn, after.Published, after.Position, v.TimeLimit, v.LateUntil, v.Penalty))
 	if err != nil {
 		return 0, nil, assessmentWriteErr(err)
+	}
+	if !before.Published && after.Published {
+		if err := notification.ScoresPublished(r.Context(), tx, s.UniversityID, s.UserID, secID, after.ID); err != nil {
+			return 0, nil, err
+		}
 	}
 	if err := audit.Write(r.Context(), tx, s.UniversityID, audit.Entry{ActorUserID: s.UserID, Action: "assessment.update", EntityType: "assessment", EntityID: after.ID, Before: before, After: after}); err != nil {
 		return 0, nil, err

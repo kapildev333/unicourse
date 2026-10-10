@@ -338,13 +338,11 @@ func TestAnnouncementNotifiesRosterMinusAuthor(t *testing.T) {
 	e.user("stud3@a.edu", "member") // enrolled in another section
 	e.user("inv@a.edu", "member")   // enrolled here but invited, not active
 	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
-		for _, q := range []string{
-			`insert into enrollments (university_id, section_id, user_id) select $1, $2, id from users where email = 'inv@a.edu'`,
-			`update memberships set status = 'invited' where user_id = (select id from users where email = 'inv@a.edu')`,
-		} {
-			if _, err := tx.Exec(q, e.Fx.UniversityA, e.SectionA); err != nil {
-				return err
-			}
+		if _, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) select $1, $2, id from users where email = 'inv@a.edu'`, e.Fx.UniversityA, e.SectionA); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`update memberships set status = 'invited' where user_id = $1`, e.UserID["inv@a.edu"]); err != nil {
+			return err
 		}
 		_, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) select $1, $2, id from users where email = 'stud3@a.edu'`, e.Fx.UniversityA, e.SectionA2)
 		return err
@@ -358,7 +356,7 @@ func TestAnnouncementNotifiesRosterMinusAuthor(t *testing.T) {
 	if st, raw := e.post("ta", "Again", nil); st != 201 {
 		t.Fatalf("%d %s", st, raw)
 	}
-	if got := e.notified(); len(got) != 6 || slices.Contains(got[3:], "ta@a.edu") {
+	if got := e.notified(); len(got) != 6 || slices.Index(got, "ta@a.edu") != slices.LastIndex(got, "ta@a.edu") || !slices.Contains(got, "inst@a.edu") {
 		t.Fatalf("ta author: %v", got)
 	}
 }

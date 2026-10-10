@@ -23,7 +23,7 @@ func announcementMails(ctx context.Context, tx *sql.Tx, baseURL, slug, sectionID
 		where u.id in (select user_id from enrollments where section_id = $1
 		               union select user_id from section_staff where section_id = $1)
 		  and u.id <> $2
-		  and exists (select 1 from memberships m where m.user_id = u.id and m.status = 'active')
+		  and exists (select 1 from memberships m where m.user_id = u.id and m.status = 'active' and m.announcement_mail)
 		order by u.email`, sectionID, authorID)
 	if err != nil {
 		return nil, err
