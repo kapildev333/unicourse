@@ -29,12 +29,8 @@ const status = (page: Page, text: string) => page.getByRole('status').filter({ h
 const quizzes = (page: Page) => page.goto(`/${slug}/sections/${sid}/quizzes`)
 const question = (page: Page, n: number) => page.getByRole('article', { name: new RegExp(`^Question ${n}\\b`) })
 const group = (page: Page, prompt: string) => page.getByRole('group', { name: new RegExp(prompt) })
-// value of an <input type="datetime-local"> for `ms`, in the machine's local time like the browser
-const local = (ms: number) => {
-  const d = new Date(ms)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
+// value of an <input type="datetime-local"> for `ms`: the university's wall time (UTC), not the browser's
+const local = (ms: number) => new Date(ms).toISOString().slice(0, 16)
 
 test('E-QUIZ-01 the instructor creates the quiz and its three questions', async ({ browser }) => {
   const page = await pageAs(browser, P.elena.email, slug)

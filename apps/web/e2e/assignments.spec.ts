@@ -25,11 +25,7 @@ test.beforeAll(async ({ browser }) => {
 
 const status = (page: Page, text: string) => page.getByRole('status').filter({ hasText: text })
 const list = (page: Page) => page.goto(`/${slug}/sections/${sid}/assignments`)
-const local = (ms: number) => {
-  const d = new Date(ms)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
+const local = (ms: number) => new Date(ms).toISOString().slice(0, 16)
 async function open(page: Page) {
   await list(page)
   await page.getByRole('link', { name: `View ${NAME}` }).click()
