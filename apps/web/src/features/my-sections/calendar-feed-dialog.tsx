@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { ApiError } from '../../api/errors'
 import type { components } from '../../api/types'
@@ -23,6 +23,10 @@ export function CalendarFeedDialog({ slug, onClose }: { slug: string; onClose: (
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState('')
   const input = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (url) input.current?.focus() // the URL appears once; move focus to it
+  }, [url])
 
   const feed = useQuery<Feed | null, ApiError>({
     queryKey: key,
@@ -70,7 +74,6 @@ export function CalendarFeedDialog({ slug, onClose }: { slug: string; onClose: (
         <input
           ref={input}
           readOnly
-          autoFocus
           aria-label="Calendar link"
           value={url}
           className={inputClass}
