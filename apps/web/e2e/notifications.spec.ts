@@ -32,6 +32,13 @@ test('E-NOTIF-01 an announcement notifies the student, not the author, and openi
   await expect(elena.getByRole('link', { name: 'New announcement: Lab moved to Friday' }), 'instructor, Notifications: author gets none').toHaveCount(0)
   await elena.context().close()
 
+  // Jonas is not enrolled in CS210-001: an unenrolled student gets nothing
+  const jonas = await pageAs(browser, P.jonas.email, slug)
+  await notifications(jonas)
+  await expect(rows(jonas).getByRole('listitem').first(), 'unenrolled student, Notifications: list loaded').toBeVisible()
+  await expect(jonas.getByRole('link', { name: 'New announcement: Lab moved to Friday' }), 'unenrolled student, Notifications: gets none').toHaveCount(0)
+  await jonas.context().close()
+
   const amara = await pageAs(browser, P.amara.email, slug)
   await amara.goto(`/${slug}/me`)
   const bell = amara.getByRole('link', { name: /^Notifications, \d+ unread$/ })
@@ -58,13 +65,16 @@ test('E-NOTIF-02 released scores notify the student once', async ({ browser }) =
     closesAt: new Date(now + 3600_000).toISOString(),
     weight: 0,
   })
-  await api(elena, 'patch', `${A}/sections/${sid}/assessments/${q.id}`, { published: true })
-  await api(elena, 'patch', `${A}/sections/${sid}/assessments/${q.id}`, { published: true })
-  await elena.context().close()
-
   const priya = await pageAs(browser, P.priya.email, slug)
   await notifications(priya)
   await expect(priya.getByRole('link', { name: 'New quiz: Notify quiz' }), 'student, Notifications: new quiz row').toBeVisible()
+  await expect(priya.getByRole('link', { name: 'Grades released: Notify quiz' }), 'student, Notifications: nothing released before publishing').toHaveCount(0)
+
+  await api(elena, 'patch', `${A}/sections/${sid}/assessments/${q.id}`, { published: true })
+  await api(elena, 'patch', `${A}/sections/${sid}/assessments/${q.id}`, { published: true })
+  await elena.context().close()
+  await notifications(priya)
+  await expect(priya.getByRole('link', { name: 'New quiz: Notify quiz' }), 'student, Notifications: new quiz row after publish').toBeVisible()
   await expect(priya.getByRole('link', { name: 'Grades released: Notify quiz' }), 'student, Notifications: released once').toHaveCount(1)
   await priya.context().close()
 })
@@ -98,8 +108,10 @@ test('E-NOTIF-04 turning announcement mail off keeps the notification and stops 
 
   const mark = logLines()
   await api(elena, 'post', `${A}/sections/${sid}/announcements`, { title: 'Mail off', body: 'x', email: true })
-  // Priya is the positive control: once her mail is in the log, Amara's would have been too.
-  await expect.poll(() => mails(mark).filter((m) => m.to === P.priya.email).length, { message: 'mail off: priya still mailed' }).toBe(1)
+  // The outbox order is not per recipient, so fence with a third announcement: once Priya's fence mail is
+  // logged, the outbox has drained past the "Mail off" rows (older next_attempt_at) and Amara's would be logged too.
+  await api(elena, 'post', `${A}/sections/${sid}/announcements`, { title: 'Mail fence', body: 'x', email: true })
+  await expect.poll(() => mails(mark).filter((m) => m.to === P.priya.email).length, { message: 'mail off and fence: priya is mailed twice' }).toBe(2)
   expect(mails(mark).filter((m) => m.to === P.amara.email), 'mail off: amara is not mailed').toHaveLength(0)
   await notifications(amara)
   await expect(amara.getByRole('link', { name: 'New announcement: Mail off' }), 'student, Notifications: row still appears').toBeVisible()

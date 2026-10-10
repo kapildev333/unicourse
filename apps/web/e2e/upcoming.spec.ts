@@ -72,8 +72,7 @@ test('E-UPC-03 calendar feed: create, fetch, rotate, old link 404, turn off', as
   const body = await res.text()
   expect(body, 'feed fetch: VEVENT lines').toContain('BEGIN:VEVENT')
   expect(body, 'feed fetch: carries the open quiz').toContain('Open quiz')
-  const token = feedUrl.split('/calendar-feeds/')[1]
-  expect(fs.readFileSync(apiLog, 'utf8'), 'the token never reaches the API log').not.toContain(token.replace(/\.ics$/, ''))
+  expect(body, 'feed fetch: leaves out submitted work').not.toContain('Done essay')
   await dlg.getByRole('button', { name: 'Done' }).click()
 
   dlg = await open()
@@ -91,6 +90,10 @@ test('E-UPC-03 calendar feed: create, fetch, rotate, old link 404, turn off', as
   await dlg.getByRole('button', { name: 'Turn off' }).click()
   await expect(dlg.getByRole('button', { name: 'Create link' }), 'student, Calendar feed: turned off').toBeVisible()
   expect((await page.request.get(fresh)).status(), 'turn off: URL 404').toBe(404)
+  const log = fs.readFileSync(apiLog, 'utf8')
+  for (const url of [feedUrl, fresh]) {
+    expect(log, 'neither feed token reaches the API log').not.toContain(url.split('/calendar-feeds/')[1].replace(/\.ics$/, ''))
+  }
   await page.context().close()
 })
 
