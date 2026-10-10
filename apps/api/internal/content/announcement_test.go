@@ -310,3 +310,100 @@ func TestAnnouncementAuthz(t *testing.T) {
 		t.Errorf("B's section: %d", st)
 	}
 }
+
+// notified returns "email" of the announcement notifications, sorted.
+func (e *env) notified() []string {
+	e.T.Helper()
+	var out []string
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		rows, err := tx.Query(`select u.email from notifications n join users u on u.id = n.user_id where n.kind = 'announcement' order by 1`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				return err
+			}
+			out = append(out, s)
+		}
+		return rows.Err()
+	})
+	return out
+}
+
+func TestAnnouncementNotifiesRosterMinusAuthor(t *testing.T) {
+	e := newEnv(t)
+	e.user("stud3@a.edu", "member") // enrolled in another section
+	e.user("inv@a.edu", "member")   // enrolled here but invited, not active
+	e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+		for _, q := range []string{
+			`insert into enrollments (university_id, section_id, user_id) select $1, $2, id from users where email = 'inv@a.edu'`,
+			`update memberships set status = 'invited' where user_id = (select id from users where email = 'inv@a.edu')`,
+		} {
+			if _, err := tx.Exec(q, e.Fx.UniversityA, e.SectionA); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(`insert into enrollments (university_id, section_id, user_id) select $1, $2, id from users where email = 'stud3@a.edu'`, e.Fx.UniversityA, e.SectionA2)
+		return err
+	})
+	if st, raw := e.post("inst", "Hi", nil); st != 201 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if got, want := e.notified(), []string{"stud2@a.edu", "stud@a.edu", "ta@a.edu"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("instructor author: %v", got)
+	}
+	if st, raw := e.post("ta", "Again", nil); st != 201 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if got := e.notified(); len(got) != 6 || slices.Contains(got[3:], "ta@a.edu") {
+		t.Fatalf("ta author: %v", got)
+	}
+}
+
+func TestAnnouncementMailOptOut(t *testing.T) {
+	e := newEnv(t)
+	optOut := func(emails ...string) {
+		e.tx(e.Fx.UniversityA, func(tx *sql.Tx) error {
+			for _, m := range emails {
+				if _, err := tx.Exec(`update memberships set announcement_mail = false where user_id = $1`, e.UserID[m]); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	optOut("stud@a.edu")
+	st, raw := e.post("inst", "One", nil)
+	if st != 201 || jmap(t, raw)["emailed"] != true || len(e.mails("stud@a.edu")) != 0 || len(e.mails("stud2@a.edu")) != 1 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if got := e.notified(); !slices.Contains(got, "stud@a.edu") {
+		t.Fatalf("opted-out member got no notification: %v", got)
+	}
+	optOut("stud2@a.edu", "ta@a.edu")
+	before := len(e.mails(""))
+	st, raw = e.post("inst", "Two", nil)
+	if st != 201 || jmap(t, raw)["emailed"] != false || len(e.mails("")) != before {
+		t.Fatalf("all opted out: %d %s", st, raw)
+	}
+}
+
+func TestAnnouncementDeleteRemovesNotifications(t *testing.T) {
+	e := newEnv(t)
+	st, raw := e.post("inst", "Gone", nil)
+	if st != 201 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if n := len(e.notified()); n != 3 {
+		t.Fatalf("%d notifications", n)
+	}
+	if st, raw := e.call(e.Inst, "DELETE", "/sections/"+e.SectionA+"/announcements/"+jmap(t, raw)["id"].(string), nil); st != 204 {
+		t.Fatalf("%d %s", st, raw)
+	}
+	if n := len(e.notified()); n != 0 {
+		t.Fatalf("%d left", n)
+	}
+}
