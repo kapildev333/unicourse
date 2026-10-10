@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { assignmentState, fromLocalInput, minutes, toLocalInput, windowLine, windowState } from './window'
+import { setCampus } from '../../lib/format'
+import { assignmentState, fromLocalInput, minutes, timeZone, toLocalInput, windowLine, windowState } from './window'
 
 const a = { opensAt: '2026-10-12T13:00:00Z', closesAt: '2026-10-12T14:00:00Z' }
 const t = (s: string) => Date.parse(s)
@@ -42,4 +43,12 @@ it('windowLine appends the limit and the late window', () => {
 it('minutes pluralises', () => {
   expect(minutes(1)).toBe('1 minute')
   expect(minutes(30)).toBe('30 minutes')
+})
+
+it('local input is campus wall time', () => {
+  setCampus({ timezone: 'America/New_York', locale: 'en-US' })
+  expect(toLocalInput('2026-10-26T19:00:00Z')).toBe('2026-10-26T15:00')
+  expect(fromLocalInput('2026-10-26T15:00')).toBe('2026-10-26T19:00:00.000Z')
+  expect(timeZone()).toBe('America/New_York')
+  setCampus()
 })

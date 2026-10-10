@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, CalendarRange, Info, Table as TableIcon } from 'lucide-react'
+import { CalendarDays, CalendarPlus, CalendarRange, Info, Table as TableIcon } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { api, unwrap } from '../../api/client'
 import type { components } from '../../api/types'
 import { RoleBadge } from '../../components/badge'
@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/empty-state'
 import { ErrorBanner } from '../../components/error-banner'
 import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
+import { Button } from '../../components/button'
 import { PageHeader } from '../../components/page-header'
 import { SegmentedControl } from '../../components/segmented-control'
 import { Card } from '../../components/card'
@@ -18,7 +19,9 @@ import { classCode, formatMeetings } from '../../lib/schedule'
 import { useMe, useUniversity } from '../auth/use-me'
 import { canManageCourses } from '../courses/access'
 import { Schedule, instructors } from './schedule'
+import { CalendarFeedDialog } from './calendar-feed-dialog'
 import { TermPicker, useTermChoice } from './term-picker'
+import { Upcoming } from './upcoming'
 
 type Term = components['schemas']['Term']
 type MySection = components['schemas']['MySection']
@@ -85,6 +88,7 @@ export function MySectionsPage(props: {
   const { membership } = useUniversity()
   const { query: termsQuery, terms, term, picked, pick, notInSession } = useTermChoice(slug, termId)
   const q = useMySections(slug)
+  const [feedOpen, setFeedOpen] = useState(false)
   let body: React.ReactNode
   if (termsQuery.isPending) body = <Loading variant="cards" />
   else if (termsQuery.error)
@@ -147,7 +151,18 @@ export function MySectionsPage(props: {
   }
   return (
     <>
-      <PageHeader title="My sections" description="Sections you teach, assist or take." />
+      <PageHeader
+        title="My sections"
+        description="Sections you teach, assist or take."
+        action={
+          <Button variant="secondary" onClick={() => setFeedOpen(true)}>
+            <CalendarPlus aria-hidden="true" />
+            Calendar feed
+          </Button>
+        }
+      />
+      {feedOpen && <CalendarFeedDialog slug={slug} onClose={() => setFeedOpen(false)} />}
+      <Upcoming slug={slug} />
       {terms.length > 0 && (
         <>
           <div role="search" aria-label="Filters" className="mb-6 grid gap-4 md:flex md:flex-wrap md:items-end">

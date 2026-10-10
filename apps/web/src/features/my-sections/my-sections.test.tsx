@@ -17,6 +17,7 @@ afterEach(() => {
 
 const U = 'GET /universities/a/me/sections'
 const T = 'GET /universities/a/terms'
+const UP = { 'GET /universities/a/me/upcoming': () => ({ body: { items: [] } }) }
 const fall = { id: 't2', name: 'Fall 2026', startsOn: '2026-08-25', endsOn: '2026-12-15' }
 const spring = { id: 't1', name: 'Spring 2026', startsOn: '2026-01-10', endsOn: '2026-05-20' }
 const winter = { id: 't3', name: 'Winter 2027', startsOn: '2027-01-05', endsOn: '2027-02-01' }
@@ -80,7 +81,7 @@ function renderPage(role = 'member', initial: { termId?: string; view?: 'schedul
   )
 }
 
-const ok = () => mockApi({ [U]: () => ({ body: data }), [T]: () => termsBody([spring, winter, fall]) })
+const ok = () => mockApi({ ...UP, [U]: () => ({ body: data }), [T]: () => termsBody([spring, winter, fall]) })
 
 it('defaults to the term containing today and lists only its sections', async () => {
   ok()
@@ -97,14 +98,14 @@ it('defaults to the term containing today and lists only its sections', async ()
 
 it('picks the next term when none is in session and says so', async () => {
   vi.setSystemTime(new Date(2026, 11, 20))
-  mockApi({ [U]: () => ({ body: { terms: [{ term: winter, sections: [sec('s5', 'ART1', winter, 'student')] }] } }), [T]: () => termsBody([spring, winter, fall]) })
+  mockApi({ ...UP, [U]: () => ({ body: { terms: [{ term: winter, sections: [sec('s5', 'ART1', winter, 'student')] }] } }), [T]: () => termsBody([spring, winter, fall]) })
   renderPage()
   expect(await screen.findByText('ART1-001')).toBeInTheDocument()
   expect(screen.getByText('No term is in session today. Showing Winter 2027.')).toBeInTheDocument()
 })
 
 it('shows "No terms yet" without crashing when there are no terms', async () => {
-  mockApi({ [U]: () => ({ body: { terms: [] } }), [T]: () => termsBody([]) })
+  mockApi({ ...UP, [U]: () => ({ body: { terms: [] } }), [T]: () => termsBody([]) })
   renderPage()
   expect(await screen.findByText('No terms yet')).toBeInTheDocument()
 })
@@ -178,6 +179,7 @@ it('List and Schedule buttons are pressed toggles', async () => {
 it('shows an error with retry', async () => {
   let fail = true
   mockApi({
+    ...UP,
     [T]: () => termsBody([fall]),
     [U]: () =>
       fail ? { status: 500, body: { error: { code: 'internal', message: 'boom', details: [] } } } : { body: data },
@@ -279,6 +281,7 @@ it('time line draws over the blocks and its label hides the nearby hour label', 
 it('own instructor entry reads You', async () => {
   const mine = { userId: 'u0', email: 'x@a.edu', displayName: 'X', role: 'instructor' }
   mockApi({
+    ...UP,
     [U]: () => ({ body: { terms: [{ term: fall, sections: [sec('s9', 'CS900', fall, 'instructor', [mine])] }] } }),
     [T]: () => termsBody([fall]),
   })
@@ -299,6 +302,7 @@ it('instructor and TA cards link to the gradebook; students get none', async () 
 
 it('term options show the name only; meetings with the same time and room merge', async () => {
   mockApi({
+    ...UP,
     [U]: () => ({
       body: { terms: [{ term: fall, sections: [sec('s7', 'CS700', fall, 'student', [], [mt(1, '10:00', '11:00', 'H1'), mt(3, '10:00', '11:00', 'H1')])] }] },
     }),
@@ -313,7 +317,7 @@ it.each([
   ['admin', true],
   ['member', false],
 ])('%s on "No terms yet": Set up terms link is %s', async (role, shown) => {
-  mockApi({ [U]: () => ({ body: { terms: [] } }), [T]: () => termsBody([]) })
+  mockApi({ ...UP, [U]: () => ({ body: { terms: [] } }), [T]: () => termsBody([]) })
   renderPage(role)
   await screen.findByText('No terms yet')
   const link = screen.queryByRole('link', { name: 'Set up terms' })
@@ -322,7 +326,7 @@ it.each([
 })
 
 it('a failed load names what failed', async () => {
-  mockApi({ [T]: () => termsBody([fall]), [U]: () => ({ status: 500, body: { error: { code: 'internal', message: 'boom', details: [] } } }) })
+  mockApi({ ...UP, [T]: () => termsBody([fall]), [U]: () => ({ status: 500, body: { error: { code: 'internal', message: 'boom', details: [] } } }) })
   renderPage()
   expect(await screen.findByText("Couldn't load your sections")).toBeInTheDocument()
 })

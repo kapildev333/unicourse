@@ -1,7 +1,8 @@
 import { useDeferredValue, useState } from 'react'
 import type { components } from '../../api/types'
 import { FormField, inputClass } from '../../components/form-field'
-import { defaultTermId, todayIso, useAllTerms } from '../courses/queries'
+import { campusClock } from '../../lib/format'
+import { defaultTermId, useAllTerms } from '../courses/queries'
 
 type Term = components['schemas']['Term']
 
@@ -13,7 +14,7 @@ export function useTermChoice(slug: string, termId?: string) {
   const query = useAllTerms(slug)
   const [picked, pick] = useState<Term>()
   const terms: Term[] = [...(query.data?.items ?? [])].sort((a, b) => b.startsOn.localeCompare(a.startsOn))
-  const today = todayIso()
+  const today = campusClock().date
   const term =
     terms.find((t) => t.id === termId) ??
     (picked && picked.id === termId ? picked : undefined) ??

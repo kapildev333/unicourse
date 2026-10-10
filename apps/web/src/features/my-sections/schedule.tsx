@@ -4,7 +4,7 @@ import type { components } from '../../api/types'
 import { Badge } from '../../components/badge'
 import { assignLanes, classCode, clashesFor, dayLong, dayShort, toMinutes } from '../../lib/schedule'
 import { personName } from '../courses/access'
-import { todayIso } from '../courses/queries'
+import { campusClock } from '../../lib/format'
 import { useMe } from '../auth/use-me'
 
 type Term = components['schemas']['Term']
@@ -103,9 +103,8 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
   const wide = useWide()
   const now = useNow()
   const meId = useMe().data?.user.id
-  const todayDay = now.getDay() || 7
-  const inTerm = term.startsOn <= todayIso(now) && todayIso(now) <= term.endsOn
-  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const { date: today0, weekday: todayDay, minutes: nowMin } = campusClock(now)
+  const inTerm = term.startsOn <= today0 && today0 <= term.endsOn
   const timed = sections.filter((s) => s.meetings.length > 0)
   const untimed = sections.filter((s) => s.meetings.length === 0)
   const all = timed.flatMap((s) => s.meetings)
@@ -142,7 +141,7 @@ export function Schedule({ slug, term, sections }: { slug: string; term: Term; s
                   className="absolute right-0 z-10 -translate-y-1/2 bg-surface pr-2 text-xs text-ink-muted"
                   style={{ top: `${2 + (nowMin - start) * 0.1}rem` }}
                 >
-                  {hh(now.getHours())}:{hh(now.getMinutes())}
+                  {hh(Math.floor(nowMin / 60))}:{hh(nowMin % 60)}
                 </span>
               )}
               {hours.map((h) => (

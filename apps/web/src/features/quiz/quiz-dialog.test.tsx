@@ -4,9 +4,13 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { mockApi } from '../../test-utils'
 import { WindowDialog } from './quiz-dialog'
 import type { Assessment } from './queries'
+import { setCampus } from '../../lib/format'
 import { fromLocalInput } from './window'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  setCampus()
+})
 
 const A = '/universities/a/sections/s1/assessments'
 const quiz: Assessment = {
@@ -242,4 +246,11 @@ it('changing only the penalty sends only the penalty', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
   await waitFor(() => expect(onSaved).toHaveBeenCalled())
   expect(JSON.parse(await sent(fn, 'PATCH')[0][0].text())).toEqual({ latePenaltyPercent: 25 })
+})
+
+it('the hint names the campus zone and the fields show campus wall time', () => {
+  setCampus({ timezone: 'America/New_York', locale: 'en-US' })
+  setup('quiz', {}, quiz)
+  expect(screen.getAllByText('Times are in America/New_York.').length).toBeGreaterThan(0)
+  expect(screen.getByLabelText('Opens')).toHaveValue('2026-10-12T09:00')
 })

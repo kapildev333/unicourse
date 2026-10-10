@@ -29,11 +29,14 @@ const status = (page: Page, text: string) => page.getByRole('status').filter({ h
 const quizzes = (page: Page) => page.goto(`/${slug}/sections/${sid}/quizzes`)
 const question = (page: Page, n: number) => page.getByRole('article', { name: new RegExp(`^Question ${n}\\b`) })
 const group = (page: Page, prompt: string) => page.getByRole('group', { name: new RegExp(prompt) })
-// value of an <input type="datetime-local"> for `ms`, in the machine's local time like the browser
+// value of an <input type="datetime-local"> for `ms`: the seeded demo university's wall time (America/New_York, seed/demo.json), not the browser's
 const local = (ms: number) => {
-  const d = new Date(ms)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      .formatToParts(new Date(ms))
+      .map((x) => [x.type, x.value]),
+  )
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
 }
 
 test('E-QUIZ-01 the instructor creates the quiz and its three questions', async ({ browser }) => {
