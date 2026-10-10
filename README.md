@@ -1,16 +1,47 @@
+<div align="center">
+
 # UniCourse
 
-UniCourse is a multi-tenant platform for universities: each university hosts its departments, terms, courses and sections, links professors and TAs to sections, imports rosters, shows students their schedule, and handles grading and section content (announcements, weekly materials). Go API (`net/http` standard library, Postgres) and a React + Vite + TypeScript web app.
+**A multi-tenant course platform for universities, built on the Go standard library and React.**
+Departments, terms, courses and sections. Rosters, staffing, grading and GPA. Announcements and weekly materials. Light and dark.
 
-## Screenshots
+[![ci](https://github.com/kapildev333/unicourse/actions/workflows/ci.yml/badge.svg)](https://github.com/kapildev333/unicourse/actions/workflows/ci.yml)
+![Go](https://img.shields.io/badge/Go-1.27-00add8?logo=go&logoColor=white)
+![net/http only](https://img.shields.io/badge/API-net%2Fhttp%2C%20no%20framework-00add8)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgx-4169e1?logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/React-Vite%20%2B%20TypeScript-61dafb?logo=react&logoColor=black)
+![Playwright](https://img.shields.io/badge/E2E-Playwright-2ead33?logo=playwright&logoColor=white)
+![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1-6ba539?logo=openapiinitiative&logoColor=white)
 
-Northfield University, the demo dataset as loaded by `seed-demo`: My sections, Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh. Light on the left, dark on the right.
+<img src="docs/screens/my-sections-light.png" alt="My sections, schedule view" width="900">
+
+</div>
+
+## Highlights
+
+- **One tenant per university.** Every URL is scoped (`/northfield/...`); departments, terms, courses, sections and people never leak across tenants.
+- **Real roles.** University admin, department admin, instructor, TA, student and invited users, enforced server-side on every route.
+- **Passwordless sign-in.** Magic links out of the box; Google and Microsoft OIDC wired in.
+- **Grading that holds up.** Weighted components, scores, overrides, finalisation, GPA, all with an audit trail.
+- **Section home.** Announcements and weekly materials with file uploads, for students and staff.
+- **Contract first.** OpenAPI 3.1 checked against the routes in CI, a generated Postman collection, typed web client.
+- **No framework on the API.** `net/http`, `pgx`, `x/oauth2`, `go-oidc`, `x/crypto`. That is the whole allow-list.
+- **Tested end to end.** Go race tests against Postgres, Vitest on the web, Playwright through a real browser, API and database.
+- **Light and dark**, with a documented design system.
+
+<details>
+<summary><b>More screenshots</b> (light left, dark right)</summary>
+
+Northfield University, the demo dataset loaded by `seed-demo`: Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh.
+
 | Light | Dark |
 |---|---|
 | ![My sections, schedule view](docs/screens/my-sections-light.png) | ![My sections, schedule view](docs/screens/my-sections-dark.png) |
 | ![Catalog](docs/screens/catalog-light.png) | ![Catalog](docs/screens/catalog-dark.png) |
 | ![Section materials](docs/screens/section-home-light.png) | ![Section materials](docs/screens/section-home-dark.png) |
 | ![Gradebook](docs/screens/gradebook-light.png) | ![Gradebook](docs/screens/gradebook-dark.png) |
+
+</details>
 
 ## Quick start
 
@@ -22,9 +53,12 @@ One command, from the repository root:
 make dev
 ```
 
-It starts Postgres, applies the migrations, replaces the demo university (`seed-demo --reset`), then (installing the web dependencies first on a fresh clone) runs the API on :8080 and the web app on :5173 until you press Ctrl-C (that stops both; Postgres keeps running, stop it with `docker compose -f apps/api/docker-compose.yml down`). Then continue at step 6 below (it is the only step you need after `make dev`). `make test` runs the API and web gates and `make e2e` the Playwright suite.
+It starts Postgres, applies the migrations, replaces the demo university (`seed-demo --reset`), then (installing the web dependencies first on a fresh clone) runs the API on :8080 and the web app on :5173 until you press Ctrl-C (that stops both; Postgres keeps running, stop it with `docker compose -f apps/api/docker-compose.yml down`). Then open <http://localhost:5173> and sign in as in step 6 of the fold below (the only step you need after `make dev`). `make test` runs the API and web gates and `make e2e` the Playwright suite.
 
-To do the same by hand, run the API steps from `apps/api`:
+<details>
+<summary><b>Step by step, without make</b></summary>
+
+Run the API steps from `apps/api`:
 
 1. Start Postgres (creates the roles and databases on a fresh volume):
 
@@ -71,9 +105,14 @@ To do the same by hand, run the API steps from `apps/api`:
 
 6. Open <http://localhost:5173>, go to Sign in, and request a magic link for a persona email below, for example `amara.okafor@northfield.edu`. No mail is sent: copy the link from the API log line with `"msg":"mail"` and open it in the browser, then press **Continue signing in** on the confirmation page. You land on `http://localhost:5173/northfield/me`; if you land on `http://localhost:8080/...` instead (a 404), the API was started without `UNICOURSE_WEB_ORIGIN` (the env block above sets it).
 
+</details>
+
 ## Demo personas
 
-`seed-demo` prints this table. Every persona signs in with a magic link as above.
+`seed-demo` prints this table. Every persona signs in with a magic link as above. Start with **Amara Okafor** (student) or **Elena Marsh** (instructor).
+
+<details>
+<summary><b>All 14 personas</b></summary>
 
 | Role | Name | Email | Sees |
 |---|---|---|---|
@@ -93,6 +132,8 @@ To do the same by hand, run the API steps from `apps/api`:
 | invited | Ingrid Larsen | ingrid.larsen@northfield.edu | invitation pending, never signed in; TA on CS210 at first sign-in |
 
 CS101 is finalised (with one override); CS210 is open. Ingrid's invitation expires after 14 days; `--reset` gives a fresh one.
+
+</details>
 
 ## Explore the API with Postman
 
