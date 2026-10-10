@@ -200,9 +200,26 @@ func TestListOwnOnly(t *testing.T) {
 	e := newEnv(t)
 	e.note("stud@a.edu", "announcement", 10)
 	e.note("other@a.edu", "announcement", 10)
-	// the same user is also a member of B and has a row there
-	cb := e.user(e.Fx.UniversityB, "stud@a.edu") // second membership for the same email
-	_ = cb
+	// the same user also has a membership and a notification in B; A's list must not show it
+	e.user(e.Fx.UniversityB, "stud@a.edu")
+	e.tx(e.Fx.UniversityB, func(tx *sql.Tx) error {
+		var course, sec string
+		if err := tx.QueryRow(`insert into departments (university_id, name, code) values ($1,'Physics','PHY') returning id`, e.Fx.UniversityB).Scan(&course); err != nil {
+			return err
+		}
+		var term string
+		if err := tx.QueryRow(`insert into terms (university_id, name, starts_on, ends_on) values ($1,'T','2026-09-01','2026-12-15') returning id`, e.Fx.UniversityB).Scan(&term); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into courses (university_id, department_id, code, title) values ($1,$2,'PHY1','Physics') returning id`, e.Fx.UniversityB, course).Scan(&course); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(`insert into sections (university_id, course_id, term_id, number) values ($1,$2,$3,'001') returning id`, e.Fx.UniversityB, course, term).Scan(&sec); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`insert into notifications (university_id, user_id, kind, section_id) values ($1,$2,'grades_finalized',$3)`, e.Fx.UniversityB, e.UserID["stud@a.edu"], sec)
+		return err
+	})
 	if n := len(e.list(e.Stud, "").Items); n != 1 {
 		t.Fatalf("stud sees %d", n)
 	}
@@ -212,7 +229,7 @@ func TestListOwnOnly(t *testing.T) {
 	if got := e.count(e.Stud); got != 1 {
 		t.Fatalf("count %d", got)
 	}
-	// someone who is not a member of A is refused
+	// an unknown session is refused
 	st, _ := e.call(&http.Cookie{Name: auth.SessionCookie, Value: "bogus"}, "GET", "/me/notifications", nil)
 	if st != 401 {
 		t.Fatalf("anonymous %d", st)
