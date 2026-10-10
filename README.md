@@ -5,7 +5,6 @@ UniCourse is a multi-tenant platform for universities: each university hosts its
 ## Screenshots
 
 Northfield University, the demo dataset as loaded by `seed-demo`: My sections, Catalog and Materials as the student Amara Okafor, the Gradebook as the instructor Elena Marsh. Light on the left, dark on the right.
-
 | Light | Dark |
 |---|---|
 | ![My sections, schedule view](docs/screens/my-sections-light.png) | ![My sections, schedule view](docs/screens/my-sections-dark.png) |
@@ -169,3 +168,7 @@ One Go binary serves the API and the built web app (`UNICOURSE_WEB_DIR`), agains
 Implemented: Spec 1 (platform core, sign-in, courses, sections, staffing, rosters), Spec 2 (student My sections and schedule), Spec 3 (design system, light and dark), Spec 4 (grading, scores, GPA), Spec 5 (UI/UX benchmark and the Phase 9 improvements), Spec 6 (section home, announcements, weekly materials), Spec 7 (demo seed and this README), Spec 8 (Postman collection generated from the OpenAPI contract). Also in progress: P4-L4 (live Google and Microsoft sign-in credentials). Pending work is in the [PLAN.md backlog](PLAN.md#backlog).
 
 Each completed phase is summarised in the [releases](https://github.com/kapildev333/unicourse/releases).
+
+## Contributing
+
+This is a personal project and does not accept pull requests or issues. Fork it or download it freely.
