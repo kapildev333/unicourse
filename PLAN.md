@@ -12,7 +12,7 @@ Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e
 Spec 10: `docs/specs/2026-10-08-backlog-completion.md` · plan `docs/plans/2026-10-08-backlog-completion.md` (Phase 17, started 2026-10-08)
 Spec 11: `docs/specs/2026-10-08-quizzes-and-assignments.md` · plan `docs/plans/2026-10-08-quizzes-and-assignments.md` (Phase 18, done 2026-10-09)
 Spec 12: `docs/specs/2026-10-09-quiz-and-assignment-followups.md` · plan `docs/plans/2026-10-09-quiz-and-assignment-followups.md` (Phase 19, done 2026-10-09)
-Spec 13: `docs/specs/2026-10-09-feature-roadmap.md` §2 R1-R4 (by reference, D158) · plan `docs/plans/2026-10-09-feature-roadmap.md` (Phase 21, started 2026-10-09)
+Spec 13: `docs/specs/2026-10-09-feature-roadmap.md` §2 R1-R4 (by reference, D158) · plan `docs/plans/2026-10-09-feature-roadmap.md` (Phase 21, done 2026-10-09)
 
 ## Decisions
 | # | Decision | Status |
@@ -464,7 +464,7 @@ Owner (loop prompt, 2026-10-09): "Make a plan of missing important features with
 | P20-L2 - UniCourse inventory: what Specs 1-12 deliver, per persona, with gaps visible from the code and backlog | Opus 5.5 (general-purpose, repo) | `docs/design/P20-L2.md` | **done** - [#190](https://github.com/kapildev333/unicourse/pull/190). 12-area inventory, 62 deferred items, 10 backlog items, 19 code-visible gaps, dead ends per persona, cost signals |
 | P20-L3 - Synthesis: brainstorm, gap matrix, ranked roadmap (after L1, L2) | Opus 5.5 (designer) | `docs/specs/2026-10-09-feature-roadmap.md`, `docs/plans/2026-10-09-feature-roadmap.md` | **done** - [#191](https://github.com/kapildev333/unicourse/pull/191). 28-row gap matrix, 23 candidates, ranking by impact and effort, eight owner-decision items, five proposed phases (21 Stay on top; 22 Run the next term; 23 Section conversation and content; 24 Assessment depth; 25 Attendance, early alert, accessibility), 15 owner questions with recommended defaults, the Phase 21 plan |
 
-## Phase 21 - Stay on top (Spec 13 = roadmap R1-R4, started 2026-10-09)
+## Phase 21 - Stay on top (Spec 13 = roadmap R1-R4, complete 2026-10-09)
 Owner: "go" on the roadmap (D158). What's due across sections, in-app notifications with an announcement-mail opt-out, a private calendar feed, dates in the university's time zone. Plan `docs/plans/2026-10-09-feature-roadmap.md`.
 
 | Lane | Model | Scope | Status |
@@ -473,8 +473,8 @@ Owner: "go" on the roadmap (D158). What's due across sections, in-app notificati
 | P21-L2 - Migration 0012, `internal/notification`, producers (Task 2, W) | Sonnet 5.5 | `migrations/0012`, `internal/notification/**`, named producer functions, `app.go`, contract | **done** - [#196](https://github.com/kapildev333/unicourse/pull/196). Orchestrator: Go 20 ok 0 SKIP, 592 unit tests; real HTTP: producers, author exclusion, opt-out mail, counts, mark read, publish-once, cascade; review approve, two test fixes |
 | P21-L3 - Upcoming, calendar feed and tokens, timezone on /me (Task 3, W) | Sonnet 5.5 | `internal/grade/upcoming*`, `internal/calendar/**`, `internal/auth/handler.go`, contract | **done** - [#197](https://github.com/kapildev333/unicourse/pull/197). Orchestrator: Go 21 ok, 592 unit tests; real HTTP: Upcoming, feed URL once, ICS (CRLF, folding, 100 events), rotate/revoke/404s, token absent from the log; review changes needed → fixed (calendar_feed audit entity in the enum/filter/label; serialised concurrent creates) |
 | P21-L4 - Web bell, notifications page, opt-out (Task 4, W) | Sonnet 5.5 | `features/notifications/**`, `routes/$slug/notifications.tsx`, `app-shell.tsx`, `account-menu.tsx` | **done** - [#199](https://github.com/kapildev333/unicourse/pull/199). Orchestrator: 612 unit tests, build, e2e 110 passed; browser pass incl. touch emulation at 390 (the header wrapped before the spacing fix, one row after); review approve, F1-F5 fixed |
-| P21-L5 - Web Upcoming panel, calendar dialog, university time zone (Task 5, W) | Sonnet 5.5 | `features/my-sections/**`, `lib/format.ts`, `features/quiz/window.ts` | built, reviewed (changes needed → fixed: campus-zone today in catalog.spec.ts, refetch on mount, two zone-sensitive tests, dialog error/focus), rebased over #199; gates and the full e2e running; browser pass done (Upcoming panel with campus times, Calendar feed dialog) |
-| P21-L6 - e2e (Task 6, W) | Sonnet 5.5 | `e2e/notifications.spec.ts`, `e2e/upcoming.spec.ts` | building from P21-L5's rebased head |
+| P21-L5 - Web Upcoming panel, calendar dialog, university time zone (Task 5, W) | Sonnet 5.5 | `features/my-sections/**`, `lib/format.ts`, `features/quiz/window.ts` | **done** - [#201](https://github.com/kapildev333/unicourse/pull/201). Orchestrator: unit tests, build, full e2e green on the rebased branch; browser pass of the Upcoming panel (campus-zone times, staff counts) and the Calendar feed dialog; review changes needed → fixed |
+| P21-L6 - e2e (Task 6, W) | Sonnet 5.5 | `e2e/notifications.spec.ts`, `e2e/upcoming.spec.ts` | **done** - [#202](https://github.com/kapildev333/unicourse/pull/202). notifications.spec.ts and upcoming.spec.ts; orchestrator run from a snapshot; review approve |
 
 ## Backlog
 Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 maps them to B1-B13); what remains afterwards is owner-gated (Spec 10 §3). The list as it stood on 2026-10-08:
@@ -574,3 +574,4 @@ Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 map
 - 2026-10-09: P21-L1 design landed (#194) with D159; P21-L2 (migration 0012, notifications, producers) launched.
 - 2026-10-09: P21-L2 (#196) and P21-L3 (#197) landed after reviews, fix rounds, gates and real-HTTP passes; P21-L4 in final gates; P21-L5 building.
 - 2026-10-09: P21-L4 (#199) landed; P21-L5 in final gates; P21-L6 launched.
+- 2026-10-09: Phase 21 complete: P21-L5 (#201) and P21-L6 (#202) landed; final check on main: Go 21 packages ok (0 SKIP), web unit tests, build, Postman and types.ts in sync, Playwright full suite 119 passed (4.8m). Release v0.21.0 after this PR. The owner reviews D159 (design rulings) and picks the next roadmap phase (22 "Run the next term" is next in the plan).
