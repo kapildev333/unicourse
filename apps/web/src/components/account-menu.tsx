@@ -3,7 +3,8 @@ import { LogOut, UserRound } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api, unwrap } from '../api/client'
 import { signOut } from '../features/auth/sign-out'
-import type { Me } from '../features/auth/use-me'
+import type { Me, MyMembership } from '../features/auth/use-me'
+import { useNotificationSettings, useSaveNotificationSettings } from '../features/notifications/queries'
 import { Button } from './button'
 import { Dialog, DialogFooter } from './dialog'
 import { FormErrors, useFieldErrors, useFocusFirstError } from './form-errors'
@@ -11,18 +12,26 @@ import { FormField, inputClass } from './form-field'
 
 const copy = { 'validation_failed:displayName': 'Enter a name of up to 100 characters.' }
 
-function NameForm({ user, onClose }: { user: Me['user']; onClose: () => void }) {
+function NameForm({ user, membership, onClose }: { user: Me['user']; membership: MyMembership; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const slug = membership.university.slug
+  const settings = useNotificationSettings(slug, true)
+  const saveSettings = useSaveNotificationSettings(slug)
+  const [mailChoice, setMailChoice] = useState<boolean>()
+  const mail = mailChoice ?? settings.data?.announcementMail ?? true
   const [name, setName] = useState(user.displayName ?? '')
   const [empty, setEmpty] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const bannerRef = useRef<HTMLDivElement>(null)
   const m = useMutation({
-    mutationFn: (displayName: string) => unwrap(api.PATCH('/me', { body: { displayName } })),
-    onSuccess: (me) => {
+    mutationFn: async (displayName: string) => {
+      const me = await unwrap(api.PATCH('/me', { body: { displayName } }))
       queryClient.setQueryData(['me'], me)
-      onClose()
+      // the settings PATCH only when the box changed
+      if (settings.data && mail !== settings.data.announcementMail) await saveSettings.mutateAsync(mail)
+      return me
     },
+    onSuccess: onClose,
   })
   const fields = useFieldErrors(m.error, copy)
   useFocusFirstError(formRef, m.error, bannerRef)
@@ -54,6 +63,19 @@ function NameForm({ user, onClose }: { user: Me['user']; onClose: () => void }) 
           onChange={(e) => setName(e.target.value)}
         />
       </FormField>
+      <FormField
+        label="Email me new announcements"
+        name="announcementMail"
+        hint={`In ${membership.university.name}. They still appear under Notifications.`}
+      >
+        <input
+          type="checkbox"
+          className="size-5 self-start accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
+          checked={mail}
+          disabled={!settings.data}
+          onChange={(e) => setMailChoice(e.target.checked)}
+        />
+      </FormField>
       <DialogFooter>
         {/* phones only: the header's Sign out is hidden below md to keep the bar on one row */}
         <Button variant="ghost-danger" className="mr-auto md:hidden" onClick={() => void signOut(queryClient)}>
@@ -71,8 +93,8 @@ function NameForm({ user, onClose }: { user: Me['user']; onClose: () => void }) 
   )
 }
 
-/** Header control: opens a dialog with the signed-in email and the user's own name (PATCH /me). Sign out stays its own header button. */
-export function AccountMenu({ user }: { user: Me['user'] }) {
+/** Header control: opens a dialog with the signed-in email and the user's own name (PATCH /me) and the announcement-mail opt-out for the current university. Sign out stays its own header button. */
+export function AccountMenu({ user, membership }: { user: Me['user']; membership: MyMembership }) {
   const [open, setOpen] = useState(false)
   const label = user.displayName || user.email
   return (
@@ -88,7 +110,7 @@ export function AccountMenu({ user }: { user: Me['user'] }) {
         <span className="hidden max-w-32 truncate md:inline">{label}</span>
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Your account">
-        {open && <NameForm user={user} onClose={() => setOpen(false)} />}
+        {open && <NameForm user={user} membership={membership} onClose={() => setOpen(false)} />}
       </Dialog>
     </>
   )

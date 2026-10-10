@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Bell } from '../features/notifications/bell'
 import { signOut } from '../features/auth/sign-out'
 import type { Me, MyMembership } from '../features/auth/use-me'
 import { AccountMenu } from './account-menu'
@@ -156,8 +157,9 @@ export function AppShell(props: { me: Me; membership: MyMembership; children: Re
           </nav>
           <HeaderSearch slug={slug} />
           <div className="order-2 ml-auto flex shrink-0 items-center gap-2 md:order-5 md:gap-3 md:ml-0">
+            <Bell slug={slug} />
             <ThemeSwitch />
-            <AccountMenu user={me.user} />
+            <AccountMenu user={me.user} membership={membership} />
             <Button
               variant="secondary"
               aria-label="Sign out"
