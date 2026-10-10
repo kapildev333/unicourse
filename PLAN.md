@@ -12,6 +12,7 @@ Spec 9: `docs/specs/2026-10-07-e2e-coverage.md` · plan `docs/plans/2026-10-07-e
 Spec 10: `docs/specs/2026-10-08-backlog-completion.md` · plan `docs/plans/2026-10-08-backlog-completion.md` (Phase 17, started 2026-10-08)
 Spec 11: `docs/specs/2026-10-08-quizzes-and-assignments.md` · plan `docs/plans/2026-10-08-quizzes-and-assignments.md` (Phase 18, done 2026-10-09)
 Spec 12: `docs/specs/2026-10-09-quiz-and-assignment-followups.md` · plan `docs/plans/2026-10-09-quiz-and-assignment-followups.md` (Phase 19, done 2026-10-09)
+Spec 13: `docs/specs/2026-10-09-feature-roadmap.md` §2 R1-R4 (by reference, D158) · plan `docs/plans/2026-10-09-feature-roadmap.md` (Phase 21, started 2026-10-09)
 
 ## Decisions
 | # | Decision | Status |
@@ -169,6 +170,7 @@ Spec 12: `docs/specs/2026-10-09-quiz-and-assignment-followups.md` · plan `docs/
 | D155 | Owner's ask 2026-10-09 ("make a plan of missing important features with brainstorming and online research and trends") is Phase 20: a research-and-planning phase whose deliverable is a document, `docs/specs/2026-10-09-feature-roadmap.md` (the LMS landscape and 2026 trends with sources, UniCourse's inventory against them, a ranked candidate list by impact and effort with a one-paragraph scope and a trigger each, and a proposed phase order); no product code; the owner picks the phases to build, as with Phase 8 (D75) | Orchestrator 2026-10-09, owner to confirm |
 | D156 | Research sources: the public documentation and release notes of Canvas, Moodle, Blackboard, Brightspace and Google Classroom, plus analyst and community trend pieces from 2025-2026 (AI assistance, analytics and early alerts, accessibility, interoperability such as LTI 1.3 and SIS sync, mobile); every claim carries a URL and a date; nothing is copied, features are described in words | Orchestrator 2026-10-09, owner to confirm |
 | D157 | The roadmap `docs/specs/2026-10-09-feature-roadmap.md` is the plan of missing features; its §6 lists 15 owner questions with recommended defaults (framing "the term loop"; no AI through Phase 25; PWA not native; CSV exports before SIS/LTI; plain text with links; a what's-due panel on My sections; one calendar token per member; attendance outside the gradebook; WCAG 2.2 AA self-audit). Nothing is built until the owner says which phase starts; Phase 21 ("Stay on top": what's due, in-app notifications with an announcement-mail opt-out, a calendar feed, university time zone) is the recommendation and its plan is written | Orchestrator 2026-10-09, owner to decide |
+| D158 | Owner 2026-10-09 ("go"): the roadmap's framing and Phase 21 are approved with the §6 recommended defaults (Q1-Q15: start with Phase 21; no AI through Phase 25; a deployment target before Phase 22 closes; PWA not native; CSV exports before SIS/LTI; no billing yet; plain text with links; three in-app notification kinds, per-post announcement mail with a per-member opt-out, no digest; one calendar token per member per university, rotatable, never logged; attendance outside the gradebook; WCAG 2.2 AA self-audit; Upcoming as a panel on My sections; rollover and copy carry setup and content never students or scores; no self-enrollment for six months; no SAML). Spec 13 is the roadmap's R1-R4 by reference | Agreed (owner, 2026-10-09) |
 
 ## Method
 - Orchestrator launches lanes, verifies every landing (re-run gates, then real Postgres / HTTP / browser), maintains this file.
@@ -461,6 +463,18 @@ Owner (loop prompt, 2026-10-09): "Make a plan of missing important features with
 | P20-L2 - UniCourse inventory: what Specs 1-12 deliver, per persona, with gaps visible from the code and backlog | Opus 5.5 (general-purpose, repo) | `docs/design/P20-L2.md` | **done** - [#190](https://github.com/kapildev333/unicourse/pull/190). 12-area inventory, 62 deferred items, 10 backlog items, 19 code-visible gaps, dead ends per persona, cost signals |
 | P20-L3 - Synthesis: brainstorm, gap matrix, ranked roadmap (after L1, L2) | Opus 5.5 (designer) | `docs/specs/2026-10-09-feature-roadmap.md`, `docs/plans/2026-10-09-feature-roadmap.md` | **done** - [#191](https://github.com/kapildev333/unicourse/pull/191). 28-row gap matrix, 23 candidates, ranking by impact and effort, eight owner-decision items, five proposed phases (21 Stay on top; 22 Run the next term; 23 Section conversation and content; 24 Assessment depth; 25 Attendance, early alert, accessibility), 15 owner questions with recommended defaults, the Phase 21 plan |
 
+## Phase 21 - Stay on top (Spec 13 = roadmap R1-R4, started 2026-10-09)
+Owner: "go" on the roadmap (D158). What's due across sections, in-app notifications with an announcement-mail opt-out, a private calendar feed, dates in the university's time zone. Plan `docs/plans/2026-10-09-feature-roadmap.md`.
+
+| Lane | Model | Scope | Status |
+|---|---|---|---|
+| P21-L1 - Design (Task 1, D) | Opus 5.5 | `docs/design/P21-L1.md` | launched 2026-10-09 |
+| P21-L2 - Migration 0012, `internal/notification`, producers (Task 2, W) | Sonnet 5.5 | `migrations/0012`, `internal/notification/**`, named producer functions, `app.go`, contract | pending L1 |
+| P21-L3 - Upcoming, calendar feed and tokens, timezone on /me (Task 3, W) | Sonnet 5.5 | `internal/grade/upcoming*`, `internal/calendar/**`, `internal/auth/handler.go`, contract | pending L2 |
+| P21-L4 - Web bell, notifications page, opt-out (Task 4, W) | Sonnet 5.5 | `features/notifications/**`, `routes/$slug/notifications.tsx`, `app-shell.tsx`, `account-menu.tsx` | pending L2 |
+| P21-L5 - Web Upcoming panel, calendar dialog, university time zone (Task 5, W) | Sonnet 5.5 | `features/my-sections/**`, `lib/format.ts`, `features/quiz/window.ts` | pending L3 |
+| P21-L6 - e2e (Task 6, W) | Sonnet 5.5 | `e2e/notifications.spec.ts`, `e2e/upcoming.spec.ts` | pending L4, L5 |
+
 ## Backlog
 Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 maps them to B1-B13); what remains afterwards is owner-gated (Spec 10 §3). The list as it stood on 2026-10-08:
 - Per-IP limits (magic link and OIDC start) are in memory and per process; move to Postgres when more than one API process runs (P1-L1, P4-L3).
@@ -554,3 +568,4 @@ Phase 17 (2026-10-08) takes every bounded item below under D130 (Spec 10 §2 map
 - 2026-10-09: Phase 19 complete: P19-L8 (#186) landed; final check on main: Go 19 packages ok (0 SKIP), 592 web unit tests, build, Postman and types.ts in sync, Playwright full suite 110 passed (4.4 m) on port 17114 / unicourse_e2e_14. Spec 12 built in one day (11 PRs #175-#186); release v0.19.0 after this PR. The 5-minute loop stops here; the owner reviews D149-D154 (ruled under delegation); CI stays off under D148.
 - 2026-10-09: Owner started a 10-minute loop for a plan of missing important features (brainstorming plus online research and trends). Phase 20 cut into two research lanes and a synthesis lane; D155-D156 ruled under delegation; P20-L1 and P20-L2 launched.
 - 2026-10-09: Phase 20 complete: research (#189, #190) and the roadmap with the Phase 21 plan (#191) landed; D157 records the recommendation. The 10-minute loop stops here; the owner answers the roadmap's §6 questions (or says "go" for Phase 21 with the defaults).
+- 2026-10-09: Owner said "go" on the roadmap (D158). Phase 21 opened from the roadmap's plan; P21-L1 designer launched.
