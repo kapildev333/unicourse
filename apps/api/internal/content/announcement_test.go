@@ -356,7 +356,7 @@ func TestAnnouncementNotifiesRosterMinusAuthor(t *testing.T) {
 	if st, raw := e.post("ta", "Again", nil); st != 201 {
 		t.Fatalf("%d %s", st, raw)
 	}
-	if got := e.notified(); len(got) != 6 || slices.Index(got, "ta@a.edu") != slices.LastIndex(got, "ta@a.edu") || !slices.Contains(got, "inst@a.edu") {
+	if got := e.notified(); len(got) != 6 || slices.Index(got, "ta@a.edu") != len(got)-1 || !slices.Contains(got, "inst@a.edu") {
 		t.Fatalf("ta author: %v", got)
 	}
 }
