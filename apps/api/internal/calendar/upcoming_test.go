@@ -77,7 +77,7 @@ func TestUpcomingStudent(t *testing.T) {
 	if open.Started || open.TimeLimit != nil || open.LateUntil != nil || time.Until(open.DueAt) < 47*time.Hour {
 		t.Fatalf("open: %+v", open)
 	}
-	if got := names(e.upcoming("stud2@a.edu")); got != "late window,open quiz,timed quiz,done quiz,opens soon,long open" {
+	if got := names(e.upcoming("stud2@a.edu")); got != "late window,turned in,open quiz,timed quiz,done quiz,opens soon,long open" {
 		t.Fatalf("stud2 (nothing started or submitted) %s", got)
 	}
 }
