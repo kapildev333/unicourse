@@ -9,7 +9,7 @@ vi.mock('../features/auth/sign-out', () => ({ signOut: vi.fn() }))
 
 afterEach(() => vi.unstubAllGlobals())
 
-const membership = { university: { id: 'a', slug: 'a', name: 'A U' }, role: 'member', departmentIds: [] } as MyMembership
+const membership = { university: { id: 'a', slug: 'a', name: 'A U', timezone: 'UTC', locale: 'en-US' }, role: 'member', departmentIds: [] } as MyMembership
 const S = 'GET /universities/a/me/notification-settings'
 const settings = (announcementMail: boolean) => ({ [S]: () => ({ body: { announcementMail } }) })
 const me = { id: 'u1', email: 'a@a.edu', displayName: 'Alice' } as Me['user']
