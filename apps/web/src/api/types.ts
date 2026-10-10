@@ -1316,6 +1316,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/universities/{slug}/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my notifications
+         * @description Who: any active member; own notifications only. Newest first, paginated. The subject is read live from the announcement or assessment, so an edit shows up and a deleted source removes its notifications. Errors: limit, cursor.
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark all my notifications as read
+         * @description Who: any active member; own notifications only. Sets readAt on every unread one. Errors: read (must be true), {} is field "" (no fields to update).
+         */
+        patch: operations["markAllNotificationsRead"];
+        trace?: never;
+    };
+    "/universities/{slug}/me/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count my unread notifications
+         * @description Who: any active member; own notifications only.
+         */
+        get: operations["countUnreadNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/universities/{slug}/me/notifications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark a notification read or unread
+         * @description Who: any active member; own notifications only (another user's, a malformed or a missing id is 404). read true sets readAt and keeps the first time on a repeat; false clears it. Errors: read (must not be null), {} is field "" (no fields to update).
+         */
+        patch: operations["markNotificationRead"];
+        trace?: never;
+    };
+    "/universities/{slug}/me/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my notification settings
+         * @description Who: any active member; settings of the caller's membership in this university.
+         */
+        get: operations["getNotificationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change my notification settings
+         * @description Who: any active member; own membership only. Writes audit membership.update only when the value changes. Errors: announcementMail (must not be null), {} is field "" (no fields to update).
+         */
+        patch: operations["updateNotificationSettings"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3078,6 +3166,96 @@ export interface components {
             };
             /** @description Replaces the attempt feedback; empty clears it. */
             feedback?: string;
+        };
+        Notification: {
+            /**
+             * Format: uuid
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            id: string;
+            /**
+             * @example announcement
+             * @enum {string}
+             */
+            kind: "announcement" | "assessment_created" | "scores_published" | "grades_finalized";
+            section: {
+                /**
+                 * Format: uuid
+                 * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+                 */
+                id: string;
+                /** @example 001 */
+                number: string;
+            };
+            course: {
+                /** @example CS101 */
+                code: string;
+                /** @example Intro to CS */
+                title: string;
+            };
+            /**
+             * @description The announcement title or assessment name, read live. Omitted for grades_finalized.
+             * @example Midterm moved
+             */
+            subject?: string;
+            /**
+             * Format: uuid
+             * @description Kind announcement only.
+             * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+             */
+            announcementId?: string;
+            /** @description Kinds assessment_created and scores_published only. */
+            assessment?: {
+                /**
+                 * Format: uuid
+                 * @example 0b6f1c2e-5d4a-4f3b-9a51-7c2d8e9f0a11
+                 */
+                id: string;
+                /**
+                 * @example quiz
+                 * @enum {string}
+                 */
+                kind: "manual" | "quiz" | "assignment";
+            };
+            /**
+             * Format: date-time
+             * @description Omitted while unread.
+             * @example 2026-10-09T10:00:00Z
+             */
+            readAt?: string;
+            /**
+             * Format: date-time
+             * @example 2026-10-09T09:00:00Z
+             */
+            createdAt: string;
+        };
+        NotificationList: {
+            /** @description Newest first. */
+            items: components["schemas"]["Notification"][];
+            /** @example eyJhIjoxfQ */
+            nextCursor?: string;
+        };
+        NotificationCount: {
+            /** @example 3 */
+            count: number;
+        };
+        NotificationRead: {
+            /** @example true */
+            read: boolean;
+        };
+        NotificationsMarkAllRead: {
+            /**
+             * @example true
+             * @enum {boolean}
+             */
+            read: true;
+        };
+        NotificationSettings: {
+            /**
+             * @description Whether new announcements of this university's sections are also mailed.
+             * @example true
+             */
+            announcementMail: boolean;
         };
     };
     responses: {
@@ -5993,6 +6171,188 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                /** @description Values below 1 mean 50, above 200 mean 200 (clamped by ParsePage); non-integer is 400 field limit. */
+                limit?: components["parameters"]["limit"];
+                /** @description Opaque; corrupt is 400 field cursor. */
+                cursor?: components["parameters"]["cursor"];
+            };
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationsMarkAllRead"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    countUnreadNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationCount"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationRead"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description University slug. */
+                slug: components["parameters"]["slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
     };
