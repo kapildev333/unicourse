@@ -7,9 +7,15 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { mockApi } from '../test-utils'
 import type { Me } from '../features/auth/use-me'
 import { AppShell } from './app-shell'
+
+beforeEach(() => {
+  mockApi({ 'GET /universities/u0/me/notifications/unread-count': () => ({ body: { count: 2 } }) })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 const uni = (slug: string) => ({ id: slug, slug, name: `${slug} University`, timezone: 'UTC', locale: 'en-US' })
 const mk = (roles: ('admin' | 'dept_admin' | 'member')[]): Me => ({
@@ -34,7 +40,7 @@ async function shell(me: Me, at = '/') {
     path: '$slug/catalog',
     component: () => null,
   })
-  const more = ['$slug/sections/$id', '$slug/sections/$id/announcements', '$slug/grade-scale'].map((path) =>
+  const more = ['$slug/sections/$id', '$slug/sections/$id/announcements', '$slug/grade-scale', '$slug/notifications'].map((path) =>
     createRoute({ getParentRoute: () => root, path, component: () => null }),
   )
   const router = createRouter({
@@ -160,4 +166,19 @@ it('puts the Account menu beside Sign out, showing the name', async () => {
   await shell(mk(['member']))
   expect(screen.getByRole('button', { name: /^Account/ })).toHaveAccessibleName('Account A')
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+})
+
+it('has the bell link with the unread count, before the theme switch', async () => {
+  await shell(mk(['member']))
+  const bell = await screen.findByRole('link', { name: 'Notifications, 2 unread' })
+  expect(bell).toHaveAttribute('href', '/u0/notifications')
+  expect(bell).toHaveClass('max-md:w-10')
+})
+
+it('keeps the phone header tight so the bell fits the first row (D93/D129)', async () => {
+  await shell(mk(['member']))
+  const header = screen.getByRole('banner').firstElementChild!
+  expect(header).toHaveClass('px-4', 'md:px-6', 'gap-x-2', 'md:gap-x-6')
+  const controls = screen.getByRole('button', { name: 'Sign out' }).parentElement!
+  expect(controls).toHaveClass('gap-1', 'md:gap-3')
 })

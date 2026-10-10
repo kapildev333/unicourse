@@ -19,6 +19,7 @@ import { Route as SlugCoursesRouteImport } from './routes/$slug/courses'
 import { Route as SlugGradeScaleRouteImport } from './routes/$slug/grade-scale'
 import { Route as SlugGradesRouteImport } from './routes/$slug/grades'
 import { Route as SlugMeRouteImport } from './routes/$slug/me'
+import { Route as SlugNotificationsRouteImport } from './routes/$slug/notifications'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as SlugAdminIndexRouteImport } from './routes/$slug/admin/index'
 import { Route as SlugAdminAuditRouteImport } from './routes/$slug/admin/audit'
@@ -89,6 +90,11 @@ const SlugGradesRoute = SlugGradesRouteImport.update({
 const SlugMeRoute = SlugMeRouteImport.update({
   id: '/me',
   path: '/me',
+  getParentRoute: () => SlugRouteRoute,
+} as any)
+const SlugNotificationsRoute = SlugNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => SlugRouteRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
   '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
+  '/$slug/notifications': typeof SlugNotificationsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
   '/$slug/admin/audit': typeof SlugAdminAuditRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
   '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
+  '/$slug/notifications': typeof SlugNotificationsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug': typeof SlugIndexRoute
   '/$slug/admin/audit': typeof SlugAdminAuditRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/$slug/grade-scale': typeof SlugGradeScaleRoute
   '/$slug/grades': typeof SlugGradesRoute
   '/$slug/me': typeof SlugMeRoute
+  '/$slug/notifications': typeof SlugNotificationsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/$slug/': typeof SlugIndexRoute
   '/$slug/admin/audit': typeof SlugAdminAuditRoute
@@ -314,6 +323,7 @@ export interface FileRouteTypes {
     | '/$slug/grade-scale'
     | '/$slug/grades'
     | '/$slug/me'
+    | '/$slug/notifications'
     | '/invite/$token'
     | '/$slug/'
     | '/$slug/admin/audit'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/$slug/grade-scale'
     | '/$slug/grades'
     | '/$slug/me'
+    | '/$slug/notifications'
     | '/invite/$token'
     | '/$slug'
     | '/$slug/admin/audit'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/$slug/grade-scale'
     | '/$slug/grades'
     | '/$slug/me'
+    | '/$slug/notifications'
     | '/invite/$token'
     | '/$slug/'
     | '/$slug/admin/audit'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/me'
       fullPath: '/$slug/me'
       preLoaderRoute: typeof SlugMeRouteImport
+      parentRoute: typeof SlugRouteRoute
+    }
+    '/$slug/notifications': {
+      id: '/$slug/notifications'
+      path: '/notifications'
+      fullPath: '/$slug/notifications'
+      preLoaderRoute: typeof SlugNotificationsRouteImport
       parentRoute: typeof SlugRouteRoute
     }
     '/invite/$token': {
@@ -673,6 +692,7 @@ interface SlugRouteRouteChildren {
   SlugGradeScaleRoute: typeof SlugGradeScaleRoute
   SlugGradesRoute: typeof SlugGradesRoute
   SlugMeRoute: typeof SlugMeRoute
+  SlugNotificationsRoute: typeof SlugNotificationsRoute
   SlugIndexRoute: typeof SlugIndexRoute
   SlugSectionsIdRoute: typeof SlugSectionsIdRoute
   SlugSectionsIdAnnouncementsRoute: typeof SlugSectionsIdAnnouncementsRoute
@@ -695,6 +715,7 @@ const SlugRouteRouteChildren: SlugRouteRouteChildren = {
   SlugGradeScaleRoute: SlugGradeScaleRoute,
   SlugGradesRoute: SlugGradesRoute,
   SlugMeRoute: SlugMeRoute,
+  SlugNotificationsRoute: SlugNotificationsRoute,
   SlugIndexRoute: SlugIndexRoute,
   SlugSectionsIdRoute: SlugSectionsIdRoute,
   SlugSectionsIdAnnouncementsRoute: SlugSectionsIdAnnouncementsRoute,
