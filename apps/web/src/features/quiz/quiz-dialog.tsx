@@ -32,18 +32,14 @@ const copyFor = {
   assignment: { ...copy, 'validation_failed:closesAt': 'Enter a due time after Opens and before Late submissions until.' },
 }
 
-/** Next full hour; closes an hour later (quiz) or a week later at 23:59 (assignment). */
+/** Next full hour in the campus zone; closes an hour later (quiz) or a week later at 23:59 (assignment). */
 function defaults(kind: Kind) {
-  const opens = new Date()
-  opens.setMinutes(0, 0, 0)
-  opens.setHours(opens.getHours() + 1)
-  const closes = new Date(opens)
-  if (kind === 'quiz') closes.setHours(closes.getHours() + 1)
-  else {
-    closes.setDate(closes.getDate() + 7)
-    closes.setHours(23, 59, 0, 0)
-  }
-  return { opens: toLocalInput(opens.toISOString()), closes: toLocalInput(closes.toISOString()) }
+  const hour = fromLocalInput(toLocalInput(new Date().toISOString()).slice(0, 13) + ':00')
+  const opens = new Date(Date.parse(hour ?? '') + 3600_000)
+  const closes = new Date(opens.getTime() + (kind === 'quiz' ? 3600_000 : 7 * 24 * 3600_000))
+  const opensInput = toLocalInput(opens.toISOString())
+  const closesInput = toLocalInput(closes.toISOString())
+  return { opens: opensInput, closes: kind === 'quiz' ? closesInput : closesInput.slice(0, 11) + '23:59' }
 }
 
 /** One dialog for quizzes and assignments. Mount only while open so the form starts fresh each time. */
@@ -163,7 +159,7 @@ export function WindowDialog(props: {
         >
           <textarea rows={4} className={textareaClass} value={description} onChange={(e) => setDescription(e.target.value)} />
         </FormField>
-        <FormField label="Opens" name="opensAt" error={fields.opensAt} hint={`Your time zone: ${timeZone()}.`}>
+        <FormField label="Opens" name="opensAt" error={fields.opensAt} hint={`Times are in ${timeZone()}.`}>
           <input type="datetime-local" className={`${inputSizedClass} w-60`} value={opens} onChange={(e) => setOpens(e.target.value)} />
         </FormField>
         <FormField

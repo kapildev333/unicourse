@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatDateTime } from '../../lib/format'
+import { campusZone, formatDateTime, fromZonedInput, toZonedInput } from '../../lib/format'
 
 export type WindowState = 'upcoming' | 'open' | 'closed'
 type Win = { opensAt?: string; closesAt?: string; timeLimitMinutes?: number; lateUntil?: string }
@@ -29,22 +29,13 @@ export function windowLine(a: Win, kind: 'quiz' | 'assignment' = 'quiz'): string
   return `Opens ${opens} · ${kind === 'quiz' ? 'Closes' : 'Due'} ${closes}${limit}${late}`
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
+/** ISO instant -> `YYYY-MM-DDTHH:mm` in the campus zone, for datetime-local. */
+export const toLocalInput = toZonedInput
 
-/** ISO instant -> `YYYY-MM-DDTHH:mm` in local time, for datetime-local. */
-export function toLocalInput(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+/** datetime-local value (campus wall time) -> ISO instant; undefined for '' or invalid. */
+export const fromLocalInput = fromZonedInput
 
-/** datetime-local value -> ISO instant; undefined for '' or invalid. */
-export function fromLocalInput(v: string): string | undefined {
-  if (!v) return undefined
-  const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
-}
-
-export const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
+export const timeZone = campusZone
 
 /** Date.now(), re-read every `ms`. */
 export function useNow(ms: number): number {

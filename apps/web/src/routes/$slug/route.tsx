@@ -10,6 +10,7 @@ import { errorMessage } from '../../components/form-errors'
 import { Loading } from '../../components/loading'
 import { signOut } from '../../features/auth/sign-out'
 import { useMe } from '../../features/auth/use-me'
+import { setCampus } from '../../lib/format'
 
 function UniversityLayout() {
   const { slug } = Route.useParams()
@@ -74,6 +75,7 @@ function UniversityLayout() {
       </EntryLayout>
     )
   }
+  setCampus(membership.university)
   return (
     <AppShell me={me.data} membership={membership}>
       <Outlet />
