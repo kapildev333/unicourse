@@ -174,3 +174,11 @@ it('has the bell link with the unread count, before the theme switch', async () 
   expect(bell).toHaveAttribute('href', '/u0/notifications')
   expect(bell).toHaveClass('max-md:w-10')
 })
+
+it('keeps the phone header tight so the bell fits the first row (D93/D129)', async () => {
+  await shell(mk(['member']))
+  const header = screen.getByRole('banner').firstElementChild!
+  expect(header).toHaveClass('px-4', 'md:px-6', 'gap-x-2', 'md:gap-x-6')
+  const controls = screen.getByRole('button', { name: 'Sign out' }).parentElement!
+  expect(controls).toHaveClass('gap-1', 'md:gap-3')
+})

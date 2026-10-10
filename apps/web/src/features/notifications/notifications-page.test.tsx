@@ -117,3 +117,12 @@ it('shows an error banner when the list fails', async () => {
   setup({ [L]: () => err(403) })
   expect(await screen.findByText("Couldn't load your notifications")).toBeInTheDocument()
 })
+
+it('shows a failure to mark one as read', async () => {
+  setup({
+    [L]: () => ({ body: { items: [items[0]] } }),
+    'PATCH /universities/a/me/notifications/n1': () => err(500),
+  })
+  fireEvent.click(await screen.findByRole('button', { name: /^Mark as read/ }))
+  expect(await screen.findByText("Couldn't mark notifications as read")).toBeInTheDocument()
+})

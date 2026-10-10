@@ -15,7 +15,7 @@ const copy = { 'validation_failed:displayName': 'Enter a name of up to 100 chara
 function NameForm({ user, membership, onClose }: { user: Me['user']; membership: MyMembership; onClose: () => void }) {
   const queryClient = useQueryClient()
   const slug = membership.university.slug
-  const settings = useNotificationSettings(slug, true)
+  const settings = useNotificationSettings(slug)
   const saveSettings = useSaveNotificationSettings(slug)
   const [mailChoice, setMailChoice] = useState<boolean>()
   const mail = mailChoice ?? settings.data?.announcementMail ?? true
@@ -49,7 +49,7 @@ function NameForm({ user, membership, onClose }: { user: Me['user']; membership:
         if (n) m.mutate(n)
       }}
     >
-      {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error} copy={copy} />}
+      {Object.keys(fields).length === 0 && <FormErrors ref={bannerRef} error={m.error ?? settings.error} copy={copy} />}
       <p className="text-sm text-ink-muted">
         Signed in as <span className="font-medium text-ink">{user.email}</span>
       </p>

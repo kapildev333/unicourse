@@ -15,7 +15,6 @@ export function useUnreadCount(slug: string) {
     queryKey: unreadCountKey(slug),
     queryFn: () => unwrap(api.GET('/universities/{slug}/me/notifications/unread-count', { params: { path: { slug } } })),
     refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
     staleTime: 30_000,
   })
 }
@@ -50,10 +49,9 @@ export function useMarkAllRead(slug: string) {
   })
 }
 
-export function useNotificationSettings(slug: string, enabled: boolean) {
+export function useNotificationSettings(slug: string) {
   return useQuery({
     queryKey: settingsKey(slug),
-    enabled,
     queryFn: () => unwrap(api.GET('/universities/{slug}/me/notification-settings', { params: { path: { slug } } })),
   })
 }

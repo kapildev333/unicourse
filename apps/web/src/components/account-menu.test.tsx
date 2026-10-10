@@ -122,3 +122,10 @@ it('shows the error and stays open when the setting fails to save', async () => 
   expect(await screen.findByText(/Something went wrong on our side/)).toBeInTheDocument()
   expect(screen.getByRole('dialog')).toBeInTheDocument()
 })
+
+it('shows the error when the settings fail to load', async () => {
+  mockApi({ [S]: () => ({ status: 500, body: { error: { code: 'internal', message: 'x', details: [] } } }) })
+  renderWithQuery(<AccountMenu user={me} membership={membership} />)
+  fireEvent.click(screen.getByRole('button', { name: /^Account/ }))
+  expect(await screen.findByText(/Something went wrong on our side/)).toBeInTheDocument()
+})

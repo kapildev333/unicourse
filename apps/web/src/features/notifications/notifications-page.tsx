@@ -103,7 +103,6 @@ export function NotificationsPage({ slug }: { slug: string }) {
                       variant="ghost-neutral"
                       size="sm"
                       aria-label={`Mark as read: ${copy(n)}`}
-                      disabled={markRead.isPending}
                       onClick={() => markRead.mutate(n.id)}
                     >
                       Mark as read
@@ -137,7 +136,11 @@ export function NotificationsPage({ slug }: { slug: string }) {
         }
       />
       <StatusMessage message={markAll.isSuccess ? 'All notifications marked as read.' : ''} />
-      {markAll.error && <ErrorBanner title="Couldn't mark notifications as read">{errorMessage(markAll.error)}</ErrorBanner>}
+      {(markAll.error || markRead.error) && (
+        <div className="mb-4">
+          <ErrorBanner title="Couldn't mark notifications as read">{errorMessage(markAll.error ?? markRead.error)}</ErrorBanner>
+        </div>
+      )}
       {body}
     </>
   )
