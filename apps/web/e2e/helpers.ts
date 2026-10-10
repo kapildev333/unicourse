@@ -66,7 +66,7 @@ export async function signOut(page: Page) {
 export const H = { 'Sec-Fetch-Site': 'same-origin' }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- response shapes are asserted by the callers
-export async function api(page: Page, method: 'get' | 'post' | 'put' | 'patch', url: string, data?: unknown): Promise<any> {
+export async function api(page: Page, method: 'get' | 'post' | 'put' | 'patch' | 'delete', url: string, data?: unknown): Promise<any> {
   const res = await page.request[method](url, { headers: H, data })
   expect(res.ok(), `${method} ${url}: ${res.status()} ${await res.text()}`).toBeTruthy()
   return res.status() === 204 ? null : res.json()
