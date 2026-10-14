@@ -87,7 +87,7 @@ jobs:
           npx playwright install --with-deps chromium
           npm run e2e
       - if: failure() && steps.present.outputs.present == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-failure
           path: |
@@ -149,7 +149,7 @@ jobs:
           ADMIN_BIN: ${{ runner.temp }}/admin
         run: npm run two-origin-check
       - if: failure() && steps.present.outputs.present == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dev-setup-failure
           path: |
